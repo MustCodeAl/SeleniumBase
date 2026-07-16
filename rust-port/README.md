@@ -53,12 +53,20 @@ cargo run --bin sbase -- screenshot
 cargo run --bin sbase -- save-source
 ```
 
-### Assertion and wait helpers from CLI
+### assertion and wait helpers from CLI
 
 ```bash
 cargo run --bin sbase -- open https://seleniumbase.io
 cargo run --bin sbase -- assert-element --css "body"
 cargo run --bin sbase -- wait-for-text --css "body" --text "SeleniumBase" --timeout 15
+```
+
+### CDC Stealth Binary Patcher
+
+You can patch your downloaded `chromedriver` executable directly to remove hardcoded CDC variables and signatures (matching SeleniumBase Python `undetected-chromedriver` patches):
+
+```bash
+cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
 ```
 
 ### Run JSON scenario and generate dashboard

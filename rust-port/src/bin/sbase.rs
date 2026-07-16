@@ -247,6 +247,29 @@ enum Commands {
         #[arg(long)]
         css: String,
     },
+    IsChecked {
+        #[arg(long)]
+        css: String,
+    },
+    CheckIfUnchecked {
+        #[arg(long)]
+        css: String,
+    },
+    UncheckIfChecked {
+        #[arg(long)]
+        css: String,
+    },
+    OpenNewWindow,
+    OpenNewTab,
+    SwitchToNewestWindow,
+    SwitchToDefaultWindow,
+    GetActiveElementCss,
+    WaitForElementPresent {
+        #[arg(long)]
+        css: String,
+        #[arg(long, default_value_t = 10)]
+        timeout: u64,
+    },
     RunScenario {
         #[arg(long)]
         file: String,
@@ -644,6 +667,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.highlight_click(&css).await?;
             println!("Highlighted and clicked '{}'", css);
+        }
+        Commands::IsChecked { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            let checked = sb.is_checked(&css).await?;
+            println!("Element '{}' is checked: {}", css, checked);
+        }
+        Commands::CheckIfUnchecked { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.check_if_unchecked(&css).await?;
+            println!("Checked '{}'", css);
+        }
+        Commands::UncheckIfChecked { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.uncheck_if_checked(&css).await?;
+            println!("Unchecked '{}'", css);
+        }
+        Commands::OpenNewWindow => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.open_new_window().await?;
+            println!("Opened new window");
+        }
+        Commands::OpenNewTab => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.open_new_tab().await?;
+            println!("Opened new tab");
+        }
+        Commands::SwitchToNewestWindow => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.switch_to_newest_window().await?;
+            println!("Switched to newest window");
+        }
+        Commands::SwitchToDefaultWindow => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.switch_to_default_window().await?;
+            println!("Switched to default window");
+        }
+        Commands::GetActiveElementCss => {
+            let sb = BaseCase::new(config).await?;
+            let css = sb.get_active_element_css().await?;
+            println!("Active element CSS: {}", css);
+        }
+        Commands::WaitForElementPresent { css, timeout } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.wait_for_element_present(&css, timeout).await?;
+            println!("Element '{}' is present", css);
         }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;

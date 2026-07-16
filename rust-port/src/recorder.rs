@@ -111,6 +111,57 @@ impl ActionRecorder {
                         ));
                     }
                 }
+                "check_if_unchecked" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.check_if_unchecked({:?}).await?;
+",
+                            css
+                        ));
+                    }
+                }
+                "uncheck_if_checked" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.uncheck_if_checked({:?}).await?;
+",
+                            css
+                        ));
+                    }
+                }
+                "open_new_window" => {
+                    out.push_str(
+                        "    sb.open_new_window().await?;
+",
+                    );
+                }
+                "open_new_tab" => {
+                    out.push_str(
+                        "    sb.open_new_tab().await?;
+",
+                    );
+                }
+                "switch_to_newest_window" => {
+                    out.push_str(
+                        "    sb.switch_to_newest_window().await?;
+",
+                    );
+                }
+                "switch_to_default_window" => {
+                    out.push_str(
+                        "    sb.switch_to_default_window().await?;
+",
+                    );
+                }
+                "wait_for_element_present" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.wait_for_element_present({:?}, 10).await?;
+",
+                            css
+                        ));
+                    }
+                }
                 "open" => {
                     if let Some(url) = action.target.as_deref() {
                         out.push_str(&format!("    sb.open({:?}).await?;\n", url));

@@ -31,7 +31,11 @@ impl BaseCase {
     /// Executes the `is_element_visible` action.
 
     /// Executes the `assert_text_visible` action.
-    pub async fn assert_text_visible(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_text_visible(
+        &mut self,
+        text: &str,
+        css: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let is_visible = self.is_text_visible(text, css).await?;
         if !is_visible {
             return Err(SeleniumBaseError::AssertionFailed(format!(
@@ -43,7 +47,11 @@ impl BaseCase {
     }
 
     /// Executes the `assert_text_not_visible` action.
-    pub async fn assert_text_not_visible(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_text_not_visible(
+        &mut self,
+        text: &str,
+        css: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let is_visible = self.is_text_visible(text, css).await?;
         if is_visible {
             return Err(SeleniumBaseError::AssertionFailed(format!(
@@ -65,7 +73,10 @@ impl BaseCase {
         if actual_value.as_deref() != Some(value) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Expected attribute '{}' of '{}' to be '{}', but got '{}'",
-                attribute, css, value, actual_value.unwrap_or_default()
+                attribute,
+                css,
+                value,
+                actual_value.unwrap_or_default()
             )));
         }
         Ok(())
@@ -113,7 +124,12 @@ impl BaseCase {
         let rect = self.session.driver().get_window_rect().await?;
         self.session
             .driver()
-            .set_window_rect(x.into(), y.into(), rect.width.try_into().unwrap_or(0), rect.height.try_into().unwrap_or(0))
+            .set_window_rect(
+                x.into(),
+                y.into(),
+                rect.width.try_into().unwrap_or(0),
+                rect.height.try_into().unwrap_or(0),
+            )
             .await?;
         Ok(())
     }
@@ -199,15 +215,15 @@ impl BaseCase {
         let content = std::fs::read_to_string(file_path).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("Failed to read cookies: {}", e))
         })?;
-        let cookies: Vec<thirtyfour::cookie::Cookie> = serde_json::from_str(&content).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!("Failed to deserialize cookies: {}", e))
-        })?;
+        let cookies: Vec<thirtyfour::cookie::Cookie> =
+            serde_json::from_str(&content).map_err(|e| {
+                SeleniumBaseError::InvalidConfig(format!("Failed to deserialize cookies: {}", e))
+            })?;
         for cookie in cookies {
             self.session.driver().add_cookie(cookie).await?;
         }
         Ok(())
     }
-
 
     /// Executes the `highlight_click` action.
     pub async fn highlight_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
@@ -216,6 +232,109 @@ impl BaseCase {
     }
 
     /// Executes the `hover_and_click` action.
+
+    /// Executes the `is_checked` action.
+    pub async fn is_checked(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let is_checked = self.get_property(css, "checked").await?;
+        Ok(is_checked.as_deref() == Some("true"))
+    }
+
+    /// Executes the `check_if_unchecked` action.
+    pub async fn check_if_unchecked(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        if !self.is_checked(css).await? {
+            self.click(css).await?;
+        }
+        Ok(())
+    }
+
+    /// Executes the `uncheck_if_checked` action.
+    pub async fn uncheck_if_checked(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        if self.is_checked(css).await? {
+            self.click(css).await?;
+        }
+        Ok(())
+    }
+
+    /// Executes the `open_new_window` action.
+    pub async fn open_new_window(&mut self) -> Result<(), SeleniumBaseError> {
+        self.execute_script("window.open('');").await?;
+        self.switch_to_newest_window().await?;
+        Ok(())
+    }
+
+    /// Executes the `open_new_tab` action.
+    pub async fn open_new_tab(&mut self) -> Result<(), SeleniumBaseError> {
+        self.open_new_window().await // Essentially the same in modern browsers
+    }
+
+    /// Executes the `switch_to_default_window` action.
+    pub async fn switch_to_default_window(&mut self) -> Result<(), SeleniumBaseError> {
+        let handles = self.session.driver().windows().await?;
+        if let Some(first) = handles.first() {
+            self.session.driver().switch_to_window(first.clone()).await?;
+        }
+        Ok(())
+    }
+
+    /// Executes the `switch_to_newest_window` action.
+    pub async fn switch_to_newest_window(&mut self) -> Result<(), SeleniumBaseError> {
+        let handles = self.session.driver().windows().await?;
+        if let Some(last) = handles.last() {
+            self.session.driver().switch_to_window(last.clone()).await?;
+        }
+        Ok(())
+    }
+
+    /// Executes the `get_active_element_css` action.
+    pub async fn get_active_element_css(&self) -> Result<String, SeleniumBaseError> {
+        let script = r#"
+            let el = document.activeElement;
+            if (!el) return '';
+            let path = [];
+            while (el.nodeType === Node.ELEMENT_NODE) {
+                let selector = el.nodeName.toLowerCase();
+                if (el.id) {
+                    selector += '#' + el.id;
+                    path.unshift(selector);
+                    break;
+                } else {
+                    let sib = el, nth = 1;
+                    while (sib = sib.previousElementSibling) {
+                        if (sib.nodeName.toLowerCase() == selector)
+                           nth++;
+                    }
+                    if (nth != 1) selector += ":nth-of-type("+nth+")";
+                }
+                path.unshift(selector);
+                el = el.parentNode;
+            }
+            return path.join(' > ');
+        "#;
+        match self.execute_script(script).await? {
+            Value::String(s) => Ok(s),
+            _ => Ok(String::new()),
+        }
+    }
+
+    /// Executes the `wait_for_element_present` action.
+    pub async fn wait_for_element_present(&mut self, css: &str, timeout: u64) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        let start = std::time::Instant::now();
+        let timeout_dur = Duration::from_secs(timeout);
+        loop {
+            if start.elapsed() > timeout_dur {
+                return Err(SeleniumBaseError::WaitTimeout(format!(
+                    "Element {} not present after {} seconds",
+                    css, timeout
+                )));
+            }
+            if self.session.driver().find(by.clone()).await.is_ok() {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
     pub async fn open(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.record("open", Some(url), None);
         self.session.goto(url).await

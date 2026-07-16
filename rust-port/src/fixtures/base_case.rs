@@ -27,6 +27,94 @@ impl BaseCase {
     }
 
     /// Executes the `open` action.
+
+    /// Executes the `is_element_visible` action.
+    pub async fn is_element_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        match self.session.driver().find(by).await {
+            Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)),
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Executes the `is_text_visible` action.
+    pub async fn is_text_visible(&self, text: &str, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        match self.session.driver().find(by).await {
+            Ok(elem) => {
+                if !elem.is_displayed().await.unwrap_or(false) {
+                    return Ok(false);
+                }
+                let elem_text = elem.text().await.unwrap_or_default();
+                Ok(elem_text.contains(text))
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Executes the `wait_for_element_not_visible` action.
+    pub async fn wait_for_element_not_visible(
+        &mut self,
+        css: &str,
+        timeout: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        self.record("wait_for_element_not_visible", Some(css), None);
+        let by = Selector::Css(css).to_by()?;
+        let start = std::time::Instant::now();
+        let timeout_dur = Duration::from_secs(timeout);
+        loop {
+            if start.elapsed() > timeout_dur {
+                return Err(SeleniumBaseError::WaitTimeout(format!(
+                    "Element {} did not become invisible within {} seconds",
+                    css, timeout
+                )));
+            }
+            match self.session.driver().find(by.clone()).await {
+                Ok(elem) => {
+                    if !elem.is_displayed().await.unwrap_or(true) {
+                        return Ok(());
+                    }
+                }
+                Err(_) => return Ok(()), // Not present means not visible
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    /// Executes the `save_cookies` action.
+    pub async fn save_cookies(&self, file_path: &str) -> Result<(), SeleniumBaseError> {
+        let cookies = self.session.driver().get_all_cookies().await?;
+        let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {}", e))
+        })?;
+        std::fs::write(file_path, json).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Failed to write cookies: {}", e))
+        })?;
+        Ok(())
+    }
+
+    /// Executes the `load_cookies` action.
+    pub async fn load_cookies(&self, file_path: &str) -> Result<(), SeleniumBaseError> {
+        let content = std::fs::read_to_string(file_path).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Failed to read cookies: {}", e))
+        })?;
+        let cookies: Vec<thirtyfour::cookie::Cookie> = serde_json::from_str(&content).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Failed to deserialize cookies: {}", e))
+        })?;
+        for cookie in cookies {
+            self.session.driver().add_cookie(cookie).await?;
+        }
+        Ok(())
+    }
+
+
+    /// Executes the `highlight_click` action.
+    pub async fn highlight_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.highlight(css).await?;
+        self.click(css).await
+    }
+
+    /// Executes the `hover_and_click` action.
     pub async fn open(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.record("open", Some(url), None);
         self.session.goto(url).await

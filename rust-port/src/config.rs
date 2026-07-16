@@ -26,6 +26,7 @@ pub struct BrowserConfig {
     pub user_agent: Option<String>,
     pub locale: Option<String>,
     pub ad_block: bool,
+    pub proxy: Option<String>,
 }
 
 impl Default for BrowserConfig {
@@ -38,6 +39,7 @@ impl Default for BrowserConfig {
             user_agent: None,
             locale: None,
             ad_block: false,
+            proxy: None,
         }
     }
 }

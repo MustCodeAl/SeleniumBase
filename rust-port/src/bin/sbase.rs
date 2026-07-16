@@ -44,6 +44,8 @@ struct Cli {
     locale: Option<String>,
     #[arg(long, default_value_t = false)]
     ad_block: bool,
+    #[arg(long)]
+    proxy: Option<String>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -145,7 +147,6 @@ enum Commands {
 
     ClearCookies,
 
-
     AcceptAlert,
     DismissAlert,
     GetAlertText,
@@ -177,7 +178,6 @@ enum Commands {
         css: String,
     },
     SwitchToDefaultContent,
-
 
     GetCookies,
     ExportRecording,
@@ -214,6 +214,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         user_agent: args.user_agent,
         locale: args.locale,
         ad_block: args.ad_block,
+        proxy: args.proxy,
     };
 
     match args.command {
@@ -419,7 +420,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
 
-
         Commands::AcceptAlert => {
             let sb = BaseCase::new(config).await?;
             sb.accept_alert().await?;
@@ -486,7 +486,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Switched to default content");
             sb.quit().await?;
         }
-
 
         Commands::GetCookies => {
             let sb = BaseCase::new(config).await?;

@@ -18,6 +18,10 @@ pub struct BrowserSession {
 
 impl BrowserSession {
     /// WebDriver interaction: `connect`.
+    pub fn driver(&self) -> &WebDriver {
+        &self.driver
+    }
+
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         validate_mode_support(&config)?;
         let driver = connect_driver(&config).await?;
@@ -710,6 +714,9 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     }
     if let Some(user_agent) = config.user_agent.as_deref() {
         caps.add_arg(&format!("--user-agent={user_agent}"))?;
+    }
+    if let Some(proxy) = config.proxy.as_deref() {
+        caps.add_arg(&format!("--proxy-server={proxy}"))?;
     }
     if config.is_uc_enabled() {
         caps.add_arg("--disable-blink-features=AutomationControlled")?;

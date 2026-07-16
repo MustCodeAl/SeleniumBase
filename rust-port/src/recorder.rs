@@ -137,6 +137,75 @@ impl ActionRecorder {
                         out.push_str(&format!("    sb.click_link_text({:?}).await?;\n", text));
                     }
                 }
+
+                "accept_alert" => {
+                    out.push_str("    sb.accept_alert().await?;
+");
+                }
+                "dismiss_alert" => {
+                    out.push_str("    sb.dismiss_alert().await?;
+");
+                }
+                "type_alert_text" => {
+                    if let Some(text) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.type_alert_text({:?}).await?;
+", text));
+                    }
+                }
+                "clear_local_storage" => {
+                    out.push_str("    sb.clear_local_storage().await?;
+");
+                }
+                "remove_local_storage_item" => {
+                    if let Some(key) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.remove_local_storage_item({:?}).await?;
+", key));
+                    }
+                }
+                "set_local_storage_item" => {
+                    if let (Some(key), Some(value)) = (action.target.as_deref(), action.value.as_deref()) {
+                        out.push_str(&format!("    sb.set_local_storage_item({:?}, {:?}).await?;
+", key, value));
+                    }
+                }
+                "switch_to_window" => {
+                    if let Some(handle) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.switch_to_window({:?}).await?;
+", handle));
+                    }
+                }
+
+                "double_click" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.double_click({:?}).await?;
+", css));
+                    }
+                }
+                "context_click" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.context_click({:?}).await?;
+", css));
+                    }
+                }
+                "maximize_window" => {
+                    out.push_str("    sb.maximize_window().await?;
+");
+                }
+                "scroll_to_bottom" => {
+                    out.push_str("    sb.scroll_to_bottom().await?;
+");
+                }
+                "scroll_to_top" => {
+                    out.push_str("    sb.scroll_to_top().await?;
+");
+                }
+                "scroll_to" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.scroll_to({:?}).await?;
+", css));
+                    }
+                }
+
                 _ => {}
             }
         }

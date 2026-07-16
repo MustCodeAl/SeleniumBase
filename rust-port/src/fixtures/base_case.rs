@@ -463,6 +463,184 @@ impl BaseCase {
         tokio::time::sleep(Duration::from_millis(millis)).await;
     }
 
+
+    pub async fn execute_async_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
+        self.session.execute_async_script(script).await
+    }
+
+    pub async fn maximize_window(&self) -> Result<(), SeleniumBaseError> {
+        self.record("maximize_window", None, None);
+        self.session.maximize_window().await
+    }
+
+    pub async fn set_window_size(&self, width: u32, height: u32) -> Result<(), SeleniumBaseError> {
+        self.record("set_window_size", Some(&format!("{},{}", width, height)), None);
+        self.session.set_window_size(width, height).await
+    }
+
+    pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
+        self.session.get_window_size().await
+    }
+
+    pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
+        self.record("switch_to_window", Some(handle), None);
+        self.session.switch_to_window(handle).await
+    }
+
+    pub async fn double_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.record("double_click", Some(css), None);
+        self.session.double_click(by).await
+    }
+
+    pub async fn context_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.record("context_click", Some(css), None);
+        self.session.context_click(by).await
+    }
+
+    pub async fn is_enabled(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.is_enabled(by).await
+    }
+
+    pub async fn is_selected(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.is_selected(by).await
+    }
+
+    pub async fn is_displayed(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.is_displayed(by).await
+    }
+
+    pub async fn accept_alert(&self) -> Result<(), SeleniumBaseError> {
+        self.record("accept_alert", None, None);
+        self.session.switch_to_alert_accept().await
+    }
+
+    pub async fn dismiss_alert(&self) -> Result<(), SeleniumBaseError> {
+        self.record("dismiss_alert", None, None);
+        self.session.switch_to_alert_dismiss().await
+    }
+
+    pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
+        self.session.get_alert_text().await
+    }
+
+    pub async fn type_alert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        self.record("type_alert_text", Some(text), None);
+        self.session.type_alert_text(text).await
+    }
+
+    pub async fn set_local_storage_item(&self, key: &str, value: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!("window.localStorage.setItem('{}', '{}');", key, value);
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn get_local_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
+        let script = format!("return window.localStorage.getItem('{}');", key);
+        self.execute_script(&script).await
+    }
+
+    pub async fn remove_local_storage_item(&self, key: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!("window.localStorage.removeItem('{}');", key);
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn clear_local_storage(&self) -> Result<(), SeleniumBaseError> {
+        self.execute_script("window.localStorage.clear();").await?;
+        Ok(())
+    }
+
+    pub async fn scroll_to_bottom(&self) -> Result<(), SeleniumBaseError> {
+        self.record("scroll_to_bottom", None, None);
+        self.execute_script("window.scrollTo(0, document.body.scrollHeight);").await?;
+        Ok(())
+    }
+
+    pub async fn scroll_to_top(&self) -> Result<(), SeleniumBaseError> {
+        self.record("scroll_to_top", None, None);
+        self.execute_script("window.scrollTo(0, 0);").await?;
+        Ok(())
+    }
+
+    pub async fn scroll_to(&self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.record("scroll_to", Some(css), None);
+        let script = format!("document.querySelector('{}').scrollIntoView();", css);
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+
+    pub async fn assert_element_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        if self.is_displayed(css).await? {
+            return Ok(());
+        }
+        Err(SeleniumBaseError::AssertionFailed(format!(
+            "expected element '{}' to be visible", css
+        )))
+    }
+
+    pub async fn assert_element_not_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let is_visible = match self.is_displayed(css).await {
+            Ok(visible) => visible,
+            Err(_) => false,
+        };
+        if !is_visible {
+            return Ok(());
+        }
+        Err(SeleniumBaseError::AssertionFailed(format!(
+            "expected element '{}' to not be visible", css
+        )))
+    }
+
+
+    pub async fn click_if_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        if self.is_displayed(css).await.unwrap_or(false) {
+            self.click(css).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn wait_for_element_clickable(
+        &mut self,
+        css: &str,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        self.record("wait_for_element_clickable", Some(css), None);
+        let by = Selector::Css(css).to_by()?;
+        self.session.wait_for_element_clickable(by, timeout_secs).await?;
+        Ok(())
+    }
+
+
+    pub async fn get_shadow_root(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+        self.record("get_shadow_root", Some(css), None);
+        let by = Selector::Css(css).to_by()?;
+        let element = self.session.wait_for_element(by, 10).await?;
+        element.get_shadow_root().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+
+
+
+    pub async fn add_cookie(&self, name: &str, value: &str) -> Result<(), SeleniumBaseError> {
+        self.record("add_cookie", Some(name), Some(value));
+        self.session.add_cookie(name, value).await
+    }
+
+    pub async fn get_cookie(&self, name: &str) -> Result<thirtyfour::cookie::Cookie, SeleniumBaseError> {
+        self.session.get_cookie(name).await
+    }
+
+    pub async fn delete_cookie(&self, name: &str) -> Result<(), SeleniumBaseError> {
+        self.record("delete_cookie", Some(name), None);
+        self.session.delete_cookie(name).await
+    }
+
     pub async fn quit(self) -> Result<(), SeleniumBaseError> {
         self.session.quit().await
     }

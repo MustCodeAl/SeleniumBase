@@ -229,6 +229,111 @@ impl BrowserSession {
         }
     }
 
+
+    pub async fn wait_for_element_clickable(
+        &self,
+        locator: By,
+        timeout_secs: u64,
+    ) -> Result<WebElement, SeleniumBaseError> {
+        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+        loop {
+            if let Ok(element) = self.driver.find(locator.clone()).await {
+                if element.is_displayed().await.unwrap_or(false) && element.is_enabled().await.unwrap_or(false) {
+                    return Ok(element);
+                }
+            }
+            if Instant::now() >= deadline {
+                return Err(SeleniumBaseError::AssertionFailed(
+                    "timed out waiting for element to be clickable".to_owned(),
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    }
+
+
+    pub async fn execute_async_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
+        self.driver.execute_async(script, vec![]).await.map_err(SeleniumBaseError::WebDriver).map(|ret| ret.json().clone())
+    }
+
+    pub async fn maximize_window(&self) -> Result<(), SeleniumBaseError> {
+        self.driver.maximize_window().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn set_window_size(&self, width: u32, height: u32) -> Result<(), SeleniumBaseError> {
+        self.driver.set_window_rect(0, 0, width, height).await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
+        let rect = self.driver.get_window_rect().await.map_err(SeleniumBaseError::WebDriver)?;
+        Ok((rect.width as u32, rect.height as u32))
+    }
+
+    pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
+        let h = thirtyfour::common::types::WindowHandle::from(handle.to_string());
+        self.driver.switch_to_window(h).await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn double_click(&self, locator: By) -> Result<(), SeleniumBaseError> {
+        let element = self.wait_for_element_clickable(locator.clone(), 10).await?;
+        self.driver.action_chain().double_click_element(&element).perform().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn context_click(&self, locator: By) -> Result<(), SeleniumBaseError> {
+        let element = self.wait_for_element_clickable(locator.clone(), 10).await?;
+        self.driver.action_chain().context_click_element(&element).perform().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn is_enabled(&self, locator: By) -> Result<bool, SeleniumBaseError> {
+        let element = self.driver.find(locator).await.map_err(SeleniumBaseError::WebDriver)?;
+        element.is_enabled().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn is_selected(&self, locator: By) -> Result<bool, SeleniumBaseError> {
+        let element = self.driver.find(locator).await.map_err(SeleniumBaseError::WebDriver)?;
+        element.is_selected().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn is_displayed(&self, locator: By) -> Result<bool, SeleniumBaseError> {
+        if let Ok(element) = self.driver.find(locator).await {
+            element.is_displayed().await.map_err(SeleniumBaseError::WebDriver)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub async fn switch_to_alert_accept(&self) -> Result<(), SeleniumBaseError> {
+        self.driver.accept_alert().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn switch_to_alert_dismiss(&self) -> Result<(), SeleniumBaseError> {
+        self.driver.dismiss_alert().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
+        self.driver.get_alert_text().await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn type_alert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        self.driver.send_alert_text(text).await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+
+    pub async fn add_cookie(&self, name: &str, value: &str) -> Result<(), SeleniumBaseError> {
+        let cookie = thirtyfour::cookie::Cookie::new(name, value);
+        self.driver.add_cookie(cookie).await.map_err(SeleniumBaseError::WebDriver)?;
+        Ok(())
+    }
+
+    pub async fn get_cookie(&self, name: &str) -> Result<thirtyfour::cookie::Cookie, SeleniumBaseError> {
+        self.driver.get_named_cookie(name).await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn delete_cookie(&self, name: &str) -> Result<(), SeleniumBaseError> {
+        self.driver.delete_cookie(name).await.map_err(SeleniumBaseError::WebDriver)?;
+        Ok(())
+    }
+
     pub async fn wait_for_element_absent(
         &self,
         locator: By,

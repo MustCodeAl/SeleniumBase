@@ -70,6 +70,34 @@ pub enum ScenarioStep {
     Submit {
         css: String,
     },
+    AcceptAlert,
+    DismissAlert,
+    TypeAlertText {
+        text: String,
+    },
+    ClearLocalStorage,
+    RemoveLocalStorageItem {
+        key: String,
+    },
+    SetLocalStorageItem {
+        key: String,
+        value: String,
+    },
+    SwitchToWindow {
+        handle: String,
+    },
+    DoubleClick {
+        css: String,
+    },
+    ContextClick {
+        css: String,
+    },
+    MaximizeWindow,
+    ScrollToBottom,
+    ScrollToTop,
+    ScrollTo {
+        css: String,
+    },
 }
 
 pub async fn run_scenario(
@@ -113,6 +141,19 @@ pub async fn run_scenario(
             ScenarioStep::Clear { css } => sb.clear(css).await,
             ScenarioStep::ClickLinkText { text } => sb.click_link_text(text).await,
             ScenarioStep::Submit { css } => sb.submit(css).await,
+            ScenarioStep::AcceptAlert => sb.accept_alert().await,
+            ScenarioStep::DismissAlert => sb.dismiss_alert().await,
+            ScenarioStep::TypeAlertText { text } => sb.type_alert_text(text).await,
+            ScenarioStep::ClearLocalStorage => sb.clear_local_storage().await,
+            ScenarioStep::RemoveLocalStorageItem { key } => sb.remove_local_storage_item(key).await,
+            ScenarioStep::SetLocalStorageItem { key, value } => sb.set_local_storage_item(key, value).await,
+            ScenarioStep::SwitchToWindow { handle } => sb.switch_to_window(handle).await,
+            ScenarioStep::DoubleClick { css } => sb.double_click(css).await,
+            ScenarioStep::ContextClick { css } => sb.context_click(css).await,
+            ScenarioStep::MaximizeWindow => sb.maximize_window().await,
+            ScenarioStep::ScrollToBottom => sb.scroll_to_bottom().await,
+            ScenarioStep::ScrollToTop => sb.scroll_to_top().await,
+            ScenarioStep::ScrollTo { css } => sb.scroll_to(css).await,
         };
 
         match result {

@@ -4,6 +4,8 @@ use crate::error::SeleniumBaseError;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Selector<'a> {
+    LinkText(&'a str),
+    PartialLinkText(&'a str),
     Css(&'a str),
     XPath(&'a str),
     Id(&'a str),

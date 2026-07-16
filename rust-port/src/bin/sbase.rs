@@ -270,6 +270,50 @@ enum Commands {
         #[arg(long, default_value_t = 10)]
         timeout: u64,
     },
+    AddText {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        text: String,
+    },
+    SendKeys {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        text: String,
+    },
+    GetValue {
+        #[arg(long)]
+        css: String,
+    },
+    ClickVisibleElements {
+        #[arg(long)]
+        css: String,
+    },
+    WaitForAndAcceptAlert {
+        #[arg(long, default_value_t = 10)]
+        timeout: u64,
+    },
+    WaitForAndDismissAlert {
+        #[arg(long, default_value_t = 10)]
+        timeout: u64,
+    },
+    IsLinkTextVisible {
+        #[arg(long)]
+        text: String,
+    },
+    IsPartialLinkTextVisible {
+        #[arg(long)]
+        text: String,
+    },
+    AssertLinkText {
+        #[arg(long)]
+        text: String,
+    },
+    ClickPartialLinkText {
+        #[arg(long)]
+        text: String,
+    },
     RunScenario {
         #[arg(long)]
         file: String,
@@ -712,6 +756,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.wait_for_element_present(&css, timeout).await?;
             println!("Element '{}' is present", css);
+        }
+        Commands::AddText { css, text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.add_text(&css, &text).await?;
+            println!("Added text to '{}'", css);
+        }
+        Commands::SendKeys { css, text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.send_keys(&css, &text).await?;
+            println!("Sent keys to '{}'", css);
+        }
+        Commands::GetValue { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            let value = sb.get_value(&css).await?;
+            println!("Value of '{}': {}", css, value);
+        }
+        Commands::ClickVisibleElements { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.click_visible_elements(&css).await?;
+            println!("Clicked visible elements matching '{}'", css);
+        }
+        Commands::WaitForAndAcceptAlert { timeout } => {
+            let sb = BaseCase::new(config).await?;
+            sb.wait_for_and_accept_alert(timeout).await?;
+            println!("Waited for and accepted alert");
+        }
+        Commands::WaitForAndDismissAlert { timeout } => {
+            let sb = BaseCase::new(config).await?;
+            sb.wait_for_and_dismiss_alert(timeout).await?;
+            println!("Waited for and dismissed alert");
+        }
+        Commands::IsLinkTextVisible { text } => {
+            let sb = BaseCase::new(config).await?;
+            let visible = sb.is_link_text_visible(&text).await?;
+            println!("Link text '{}' is visible: {}", text, visible);
+        }
+        Commands::IsPartialLinkTextVisible { text } => {
+            let sb = BaseCase::new(config).await?;
+            let visible = sb.is_partial_link_text_visible(&text).await?;
+            println!("Partial link text '{}' is visible: {}", text, visible);
+        }
+        Commands::AssertLinkText { text } => {
+            let sb = BaseCase::new(config).await?;
+            sb.assert_link_text(&text).await?;
+            println!("Link text '{}' asserted", text);
+        }
+        Commands::ClickPartialLinkText { text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.click_partial_link_text(&text).await?;
+            println!("Clicked partial link text '{}'", text);
         }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;

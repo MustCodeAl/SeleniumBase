@@ -162,6 +162,67 @@ impl ActionRecorder {
                         ));
                     }
                 }
+                "add_text" => {
+                    if let (Some(css), Some(value)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    sb.add_text({:?}, {:?}).await?;
+",
+                            css, value
+                        ));
+                    }
+                }
+                "send_keys" => {
+                    if let (Some(css), Some(value)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    sb.send_keys({:?}, {:?}).await?;
+",
+                            css, value
+                        ));
+                    }
+                }
+                "click_visible_elements" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.click_visible_elements({:?}).await?;
+",
+                            css
+                        ));
+                    }
+                }
+                "wait_for_and_accept_alert" => {
+                    out.push_str(
+                        "    sb.wait_for_and_accept_alert(10).await?;
+",
+                    );
+                }
+                "wait_for_and_dismiss_alert" => {
+                    out.push_str(
+                        "    sb.wait_for_and_dismiss_alert(10).await?;
+",
+                    );
+                }
+                "assert_link_text" => {
+                    if let Some(text) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.assert_link_text({:?}).await?;
+",
+                            text
+                        ));
+                    }
+                }
+                "click_partial_link_text" => {
+                    if let Some(text) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.click_partial_link_text({:?}).await?;
+",
+                            text
+                        ));
+                    }
+                }
                 "open" => {
                     if let Some(url) = action.target.as_deref() {
                         out.push_str(&format!("    sb.open({:?}).await?;\n", url));

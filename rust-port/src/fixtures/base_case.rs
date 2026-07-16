@@ -271,7 +271,10 @@ impl BaseCase {
     pub async fn switch_to_default_window(&mut self) -> Result<(), SeleniumBaseError> {
         let handles = self.session.driver().windows().await?;
         if let Some(first) = handles.first() {
-            self.session.driver().switch_to_window(first.clone()).await?;
+            self.session
+                .driver()
+                .switch_to_window(first.clone())
+                .await?;
         }
         Ok(())
     }
@@ -317,7 +320,11 @@ impl BaseCase {
     }
 
     /// Executes the `wait_for_element_present` action.
-    pub async fn wait_for_element_present(&mut self, css: &str, timeout: u64) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_element_present(
+        &mut self,
+        css: &str,
+        timeout: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         let start = std::time::Instant::now();
         let timeout_dur = Duration::from_secs(timeout);
@@ -1176,5 +1183,117 @@ impl BaseCase {
         if let Ok(mut recorder) = self.recorder.lock() {
             recorder.record(name, target, value);
         }
+    }
+
+    /// Executes the `add_text` action.
+    pub async fn add_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.record("add_text", Some(css), Some(text));
+        let elem = self.session.driver().find(by).await?;
+        elem.send_keys(text).await?;
+        Ok(())
+    }
+
+    /// Executes the `send_keys` action.
+    pub async fn send_keys(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.add_text(css, text).await
+    }
+
+    /// Executes the `get_value` action.
+    pub async fn get_value(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+        Ok(self.get_attribute(css, "value").await?.unwrap_or_default())
+    }
+
+    /// Executes the `click_visible_elements` action.
+    pub async fn click_visible_elements(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        let elems = self.session.driver().find_all(by).await?;
+        for elem in elems {
+            if elem.is_displayed().await.unwrap_or(false) {
+                elem.click().await?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Executes the `wait_for_and_accept_alert` action.
+    pub async fn wait_for_and_accept_alert(&self, timeout: u64) -> Result<(), SeleniumBaseError> {
+        let start = std::time::Instant::now();
+        let timeout_dur = Duration::from_secs(timeout);
+        loop {
+            if start.elapsed() > timeout_dur {
+                return Err(SeleniumBaseError::WaitTimeout(format!(
+                    "Alert not present after {} seconds",
+                    timeout
+                )));
+            }
+            if self.session.driver().get_alert_text().await.is_ok() {
+                self.session.driver().accept_alert().await?;
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    /// Executes the `wait_for_and_dismiss_alert` action.
+    pub async fn wait_for_and_dismiss_alert(&self, timeout: u64) -> Result<(), SeleniumBaseError> {
+        let start = std::time::Instant::now();
+        let timeout_dur = Duration::from_secs(timeout);
+        loop {
+            if start.elapsed() > timeout_dur {
+                return Err(SeleniumBaseError::WaitTimeout(format!(
+                    "Alert not present after {} seconds",
+                    timeout
+                )));
+            }
+            if self.session.driver().get_alert_text().await.is_ok() {
+                self.session.driver().dismiss_alert().await?;
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    /// Executes the `is_link_text_visible` action.
+    pub async fn is_link_text_visible(&self, link_text: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::LinkText(link_text).to_by()?;
+        match self.session.driver().find(by).await {
+            Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)),
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Executes the `is_partial_link_text_visible` action.
+    pub async fn is_partial_link_text_visible(
+        &self,
+        partial_link_text: &str,
+    ) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::PartialLinkText(partial_link_text).to_by()?;
+        match self.session.driver().find(by).await {
+            Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)),
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Executes the `assert_link_text` action.
+    pub async fn assert_link_text(&self, link_text: &str) -> Result<(), SeleniumBaseError> {
+        if !self.is_link_text_visible(link_text).await? {
+            return Err(SeleniumBaseError::AssertionFailed(format!(
+                "Link text '{}' is not visible",
+                link_text
+            )));
+        }
+        Ok(())
+    }
+
+    /// Executes the `click_partial_link_text` action.
+    pub async fn click_partial_link_text(
+        &mut self,
+        partial_link_text: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        let by = Selector::PartialLinkText(partial_link_text).to_by()?;
+        self.record("click_partial_link_text", Some(partial_link_text), None);
+        self.session.driver().find(by).await?.click().await?;
+        Ok(())
     }
 }

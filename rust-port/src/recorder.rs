@@ -106,6 +106,31 @@ impl ActionRecorder {
                         ));
                     }
                 }
+                "wait_for_element_visible" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.wait_for_element_visible({:?}, 10).await?;\n", css));
+                    }
+                }
+                "wait_for_element_absent" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.wait_for_element_absent({:?}, 10).await?;\n", css));
+                    }
+                }
+                "clear" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.clear({:?}).await?;\n", css));
+                    }
+                }
+                "submit" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.submit({:?}).await?;\n", css));
+                    }
+                }
+                "click_link_text" => {
+                    if let Some(text) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.click_link_text({:?}).await?;\n", text));
+                    }
+                }
                 _ => {}
             }
         }

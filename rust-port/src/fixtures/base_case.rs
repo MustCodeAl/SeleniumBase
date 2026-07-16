@@ -237,6 +237,7 @@ impl BaseCase {
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
+        self.record("wait_for_element_visible", Some(css), None);
         self.session.wait_for_element_visible(by, timeout_secs).await?;
         Ok(())
     }
@@ -247,6 +248,7 @@ impl BaseCase {
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
+        self.record("wait_for_element_absent", Some(css), None);
         self.session.wait_for_element_absent(by, timeout_secs).await
     }
 

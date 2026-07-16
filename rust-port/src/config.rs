@@ -1,30 +1,20 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Browser {
+    #[default]
     Chrome,
     Chromium,
     Edge,
     Firefox,
 }
 
-impl Default for Browser {
-    fn default() -> Self {
-        Self::Chrome
-    }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DriverMode {
+    #[default]
     WebDriver,
     Cdp,
     Uc,
-}
-
-impl Default for DriverMode {
-    fn default() -> Self {
-        Self::WebDriver
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

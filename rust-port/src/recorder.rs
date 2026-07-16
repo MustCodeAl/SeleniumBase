@@ -175,6 +175,54 @@ impl ActionRecorder {
                     }
                 }
 
+
+                "js_click" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!("    sb.js_click({:?}).await?;
+", css));
+                    }
+                }
+                "js_type" => {
+                    if let (Some(css), Some(text)) = (action.target.as_deref(), action.value.as_deref()) {
+                        out.push_str(&format!("    sb.js_type({:?}, {:?}).await?;
+", css, text));
+                    }
+                }
+                "set_attribute" => {
+                    // Recorder logic for attributes might require more params but let's map it roughly
+                    if let (Some(css), Some(val)) = (action.target.as_deref(), action.value.as_deref()) {
+                        // Assuming value holds "attr=val" ? Just a placeholder
+                        out.push_str(&format!("    // sb.set_attribute({:?}, ...);
+", css));
+                    }
+                }
+                "choose_file" => {
+                    if let (Some(css), Some(path)) = (action.target.as_deref(), action.value.as_deref()) {
+                        out.push_str(&format!("    sb.choose_file({:?}, {:?}).await?;
+", css, path));
+                    }
+                }
+                "go_back" => {
+                    out.push_str("    sb.go_back().await?;
+");
+                }
+                "go_forward" => {
+                    out.push_str("    sb.go_forward().await?;
+");
+                }
+                "refresh" => {
+                    out.push_str("    sb.refresh().await?;
+");
+                }
+                "delete_all_cookies" => {
+                    out.push_str("    sb.delete_all_cookies().await?;
+");
+                }
+                "switch_to_new_window" => {
+                    out.push_str("    sb.switch_to_new_window().await?;
+");
+                }
+
                 "double_click" => {
                     if let Some(css) = action.target.as_deref() {
                         out.push_str(&format!("    sb.double_click({:?}).await?;

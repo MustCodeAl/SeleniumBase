@@ -118,6 +118,31 @@ enum Commands {
         #[arg(long)]
         text: String,
     },
+
+    GoBack,
+    GoForward,
+    Refresh,
+
+    GetText {
+        #[arg(long)]
+        css: String,
+    },
+    GetAttribute {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        attribute: String,
+    },
+    GetProperty {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        property: String,
+    },
+
+    GetTitle,
+    GetCurrentUrl,
+
     ClearCookies,
 
 
@@ -327,6 +352,66 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("CDP typed text '{text}'");
             sb.quit().await?;
         }
+
+        Commands::GoBack => {
+            let sb = BaseCase::new(config).await?;
+            sb.go_back().await?;
+            println!("Went back");
+            sb.quit().await?;
+        }
+        Commands::GoForward => {
+            let sb = BaseCase::new(config).await?;
+            sb.go_forward().await?;
+            println!("Went forward");
+            sb.quit().await?;
+        }
+        Commands::Refresh => {
+            let sb = BaseCase::new(config).await?;
+            sb.refresh().await?;
+            println!("Refreshed page");
+            sb.quit().await?;
+        }
+
+        Commands::GetText { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            let text = sb.get_text(&css).await?;
+            println!("Text for '{}': {}", css, text);
+            sb.quit().await?;
+        }
+        Commands::GetAttribute { css, attribute } => {
+            let mut sb = BaseCase::new(config).await?;
+            let val = sb.get_attribute(&css, &attribute).await?;
+            if let Some(v) = val {
+                println!("Attribute '{}' for '{}': {}", attribute, css, v);
+            } else {
+                println!("Attribute '{}' not found for '{}'", attribute, css);
+            }
+            sb.quit().await?;
+        }
+        Commands::GetProperty { css, property } => {
+            let mut sb = BaseCase::new(config).await?;
+            let val = sb.get_property(&css, &property).await?;
+            if let Some(v) = val {
+                println!("Property '{}' for '{}': {}", property, css, v);
+            } else {
+                println!("Property '{}' not found for '{}'", property, css);
+            }
+            sb.quit().await?;
+        }
+
+        Commands::GetTitle => {
+            let mut sb = BaseCase::new(config).await?;
+            let title = sb.get_title().await?;
+            println!("Title: {}", title);
+            sb.quit().await?;
+        }
+        Commands::GetCurrentUrl => {
+            let mut sb = BaseCase::new(config).await?;
+            let url = sb.get_current_url().await?;
+            println!("Current URL: {}", url);
+            sb.quit().await?;
+        }
+
         Commands::ClearCookies => {
             let sb = BaseCase::new(config).await?;
             sb.clear_browser_cookies().await?;

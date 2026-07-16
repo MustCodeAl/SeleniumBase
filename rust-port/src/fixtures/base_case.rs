@@ -641,6 +641,92 @@ impl BaseCase {
         self.session.delete_cookie(name).await
     }
 
+
+    pub async fn js_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.record("js_click", Some(css), None);
+        let script = format!("document.querySelector('{}').click();", css);
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn js_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.record("js_type", Some(css), Some(text));
+        let script = format!(
+            "document.querySelector('{}').value = '{}';",
+            css, text
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn set_attribute(&mut self, css: &str, attribute: &str, value: &str) -> Result<(), SeleniumBaseError> {
+        self.record("set_attribute", Some(css), Some(&format!("{}={}", attribute, value)));
+        let script = format!(
+            "document.querySelector('{}').setAttribute('{}', '{}');",
+            css, attribute, value
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn remove_attribute(&mut self, css: &str, attribute: &str) -> Result<(), SeleniumBaseError> {
+        self.record("remove_attribute", Some(css), Some(attribute));
+        let script = format!(
+            "document.querySelector('{}').removeAttribute('{}');",
+            css, attribute
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn choose_file(&mut self, css: &str, file_path: &str) -> Result<(), SeleniumBaseError> {
+        self.record("choose_file", Some(css), Some(file_path));
+        let by = thirtyfour::By::Css(css);
+        let element = self.session.wait_for_element(by, 10).await?;
+        
+        let path = std::path::Path::new(file_path);
+        let abs_path = std::fs::canonicalize(path).map_err(|e| SeleniumBaseError::AssertionFailed(format!("File not found: {}", e)))?;
+        
+        // For choose_file, we use send_keys with the absolute file path on an <input type="file">
+        element.send_keys(abs_path.to_string_lossy().as_ref()).await.map_err(SeleniumBaseError::WebDriver)?;
+        Ok(())
+    }
+
+    pub async fn delete_all_cookies(&mut self) -> Result<(), SeleniumBaseError> {
+        self.record("delete_all_cookies", None, None);
+        self.session.delete_all_cookies().await
+    }
+
+    pub async fn switch_to_new_window(&mut self) -> Result<(), SeleniumBaseError> {
+        self.record("switch_to_new_window", None, None);
+        self.session.switch_to_new_window().await
+    }
+
+
+
+    pub async fn find_element(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+        self.record("find_element", Some(css), None);
+        let by = thirtyfour::By::Css(css);
+        self.session.wait_for_element(by, 10).await
+    }
+
+    pub async fn find_elements(&mut self, css: &str) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
+        self.record("find_elements", Some(css), None);
+        let by = thirtyfour::By::Css(css);
+        self.session.find_elements(by).await
+    }
+
+
+    pub async fn slow_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.record("slow_click", Some(css), None);
+        let by = thirtyfour::By::Css(css);
+        let element = self.session.wait_for_element_clickable(by, 10).await?;
+        self.hover(css).await?;
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        element.click().await.map_err(SeleniumBaseError::WebDriver)?;
+        Ok(())
+    }
+
     pub async fn quit(self) -> Result<(), SeleniumBaseError> {
         self.session.quit().await
     }

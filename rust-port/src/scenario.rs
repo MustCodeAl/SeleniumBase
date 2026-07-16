@@ -86,6 +86,33 @@ pub enum ScenarioStep {
     SwitchToWindow {
         handle: String,
     },
+
+    JsClick {
+        css: String,
+    },
+    JsType {
+        css: String,
+        text: String,
+    },
+    SetAttribute {
+        css: String,
+        attribute: String,
+        value: String,
+    },
+    RemoveAttribute {
+        css: String,
+        attribute: String,
+    },
+    ChooseFile {
+        css: String,
+        file_path: String,
+    },
+    GoBack,
+    GoForward,
+    Refresh,
+    DeleteAllCookies,
+    SwitchToNewWindow,
+
     DoubleClick {
         css: String,
     },
@@ -148,6 +175,18 @@ pub async fn run_scenario(
             ScenarioStep::RemoveLocalStorageItem { key } => sb.remove_local_storage_item(key).await,
             ScenarioStep::SetLocalStorageItem { key, value } => sb.set_local_storage_item(key, value).await,
             ScenarioStep::SwitchToWindow { handle } => sb.switch_to_window(handle).await,
+
+            ScenarioStep::JsClick { css } => sb.js_click(css).await,
+            ScenarioStep::JsType { css, text } => sb.js_type(css, text).await,
+            ScenarioStep::SetAttribute { css, attribute, value } => sb.set_attribute(css, attribute, value).await,
+            ScenarioStep::RemoveAttribute { css, attribute } => sb.remove_attribute(css, attribute).await,
+            ScenarioStep::ChooseFile { css, file_path } => sb.choose_file(css, file_path).await,
+            ScenarioStep::GoBack => sb.go_back().await,
+            ScenarioStep::GoForward => sb.go_forward().await,
+            ScenarioStep::Refresh => sb.refresh().await,
+            ScenarioStep::DeleteAllCookies => sb.delete_all_cookies().await,
+            ScenarioStep::SwitchToNewWindow => sb.switch_to_new_window().await,
+
             ScenarioStep::DoubleClick { css } => sb.double_click(css).await,
             ScenarioStep::ContextClick { css } => sb.context_click(css).await,
             ScenarioStep::MaximizeWindow => sb.maximize_window().await,

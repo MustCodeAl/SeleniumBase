@@ -334,6 +334,23 @@ impl BrowserSession {
         Ok(())
     }
 
+
+    pub async fn delete_all_cookies(&self) -> Result<(), SeleniumBaseError> {
+        self.driver.delete_all_cookies().await.map_err(SeleniumBaseError::WebDriver)?;
+        Ok(())
+    }
+
+
+    pub async fn find_elements(&self, locator: thirtyfour::By) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
+        self.driver.find_all(locator).await.map_err(SeleniumBaseError::WebDriver)
+    }
+
+    pub async fn switch_to_new_window(&self) -> Result<(), SeleniumBaseError> {
+        let handle = self.driver.new_window().await.map_err(SeleniumBaseError::WebDriver)?;
+        self.driver.switch_to_window(handle).await.map_err(SeleniumBaseError::WebDriver)?;
+        Ok(())
+    }
+
     pub async fn wait_for_element_absent(
         &self,
         locator: By,

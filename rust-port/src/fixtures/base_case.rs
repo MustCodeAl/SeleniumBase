@@ -29,6 +29,107 @@ impl BaseCase {
     /// Executes the `open` action.
 
     /// Executes the `is_element_visible` action.
+
+    /// Executes the `assert_text_visible` action.
+    pub async fn assert_text_visible(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+        let is_visible = self.is_text_visible(text, css).await?;
+        if !is_visible {
+            return Err(SeleniumBaseError::AssertionFailed(format!(
+                "Text '{}' was not visible in element '{}'",
+                text, css
+            )));
+        }
+        Ok(())
+    }
+
+    /// Executes the `assert_text_not_visible` action.
+    pub async fn assert_text_not_visible(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+        let is_visible = self.is_text_visible(text, css).await?;
+        if is_visible {
+            return Err(SeleniumBaseError::AssertionFailed(format!(
+                "Text '{}' was unexpectedly visible in element '{}'",
+                text, css
+            )));
+        }
+        Ok(())
+    }
+
+    /// Executes the `assert_attribute` action.
+    pub async fn assert_attribute(
+        &mut self,
+        css: &str,
+        attribute: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        let actual_value = self.get_attribute(css, attribute).await?;
+        if actual_value.as_deref() != Some(value) {
+            return Err(SeleniumBaseError::AssertionFailed(format!(
+                "Expected attribute '{}' of '{}' to be '{}', but got '{}'",
+                attribute, css, value, actual_value.unwrap_or_default()
+            )));
+        }
+        Ok(())
+    }
+
+    /// Executes the `assert_title` action.
+    pub async fn assert_title(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+        let title = self.get_title().await?;
+        if title != expected {
+            return Err(SeleniumBaseError::AssertionFailed(format!(
+                "Expected title to be '{}', but got '{}'",
+                expected, title
+            )));
+        }
+        Ok(())
+    }
+
+    /// Executes the `wait_for_ready_state_complete` action.
+    pub async fn wait_for_ready_state_complete(&self) -> Result<(), SeleniumBaseError> {
+        let script = "return document.readyState;";
+        let start = std::time::Instant::now();
+        loop {
+            if start.elapsed().as_secs() > 10 {
+                return Err(SeleniumBaseError::WaitTimeout(
+                    "Page readyState did not become 'complete'".into(),
+                ));
+            }
+            if let Ok(Value::String(state)) = self.execute_script(script).await {
+                if state == "complete" {
+                    return Ok(());
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    /// Executes the `get_window_position` action.
+    pub async fn get_window_position(&self) -> Result<(i64, i64), SeleniumBaseError> {
+        let rect = self.session.driver().get_window_rect().await?;
+        Ok((rect.x, rect.y))
+    }
+
+    /// Executes the `set_window_position` action.
+    pub async fn set_window_position(&self, x: u32, y: u32) -> Result<(), SeleniumBaseError> {
+        let rect = self.session.driver().get_window_rect().await?;
+        self.session
+            .driver()
+            .set_window_rect(x.into(), y.into(), rect.width.try_into().unwrap_or(0), rect.height.try_into().unwrap_or(0))
+            .await?;
+        Ok(())
+    }
+
+    /// Executes the `close_window` action.
+    pub async fn close_window(&mut self) -> Result<(), SeleniumBaseError> {
+        self.session.driver().close_window().await?;
+        Ok(())
+    }
+
+    /// Executes the `switch_to_parent_frame` action.
+    pub async fn switch_to_parent_frame(&mut self) -> Result<(), SeleniumBaseError> {
+        self.session.driver().enter_parent_frame().await?;
+        Ok(())
+    }
+
     pub async fn is_element_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         match self.session.driver().find(by).await {

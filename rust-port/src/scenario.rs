@@ -173,13 +173,21 @@ pub async fn run_scenario(
             ScenarioStep::TypeAlertText { text } => sb.type_alert_text(text).await,
             ScenarioStep::ClearLocalStorage => sb.clear_local_storage().await,
             ScenarioStep::RemoveLocalStorageItem { key } => sb.remove_local_storage_item(key).await,
-            ScenarioStep::SetLocalStorageItem { key, value } => sb.set_local_storage_item(key, value).await,
+            ScenarioStep::SetLocalStorageItem { key, value } => {
+                sb.set_local_storage_item(key, value).await
+            }
             ScenarioStep::SwitchToWindow { handle } => sb.switch_to_window(handle).await,
 
             ScenarioStep::JsClick { css } => sb.js_click(css).await,
             ScenarioStep::JsType { css, text } => sb.js_type(css, text).await,
-            ScenarioStep::SetAttribute { css, attribute, value } => sb.set_attribute(css, attribute, value).await,
-            ScenarioStep::RemoveAttribute { css, attribute } => sb.remove_attribute(css, attribute).await,
+            ScenarioStep::SetAttribute {
+                css,
+                attribute,
+                value,
+            } => sb.set_attribute(css, attribute, value).await,
+            ScenarioStep::RemoveAttribute { css, attribute } => {
+                sb.remove_attribute(css, attribute).await
+            }
             ScenarioStep::ChooseFile { css, file_path } => sb.choose_file(css, file_path).await,
             ScenarioStep::GoBack => sb.go_back().await,
             ScenarioStep::GoForward => sb.go_forward().await,

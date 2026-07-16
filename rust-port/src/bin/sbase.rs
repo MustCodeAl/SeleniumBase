@@ -185,6 +185,68 @@ enum Commands {
         #[arg(long)]
         path: String,
     },
+    AssertTextVisible {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        text: String,
+    },
+    AssertTextNotVisible {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        text: String,
+    },
+    AssertAttribute {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        attribute: String,
+        #[arg(long)]
+        value: String,
+    },
+    AssertTitle {
+        #[arg(long)]
+        text: String,
+    },
+    WaitForReadyStateComplete,
+    GetWindowPosition,
+    SetWindowPosition {
+        #[arg(long)]
+        x: u32,
+        #[arg(long)]
+        y: u32,
+    },
+    CloseWindow,
+    SwitchToParentFrame,
+    IsElementVisible {
+        #[arg(long)]
+        css: String,
+    },
+    IsTextVisible {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        text: String,
+    },
+    WaitForElementNotVisible {
+        #[arg(long)]
+        css: String,
+        #[arg(long, default_value_t = 10)]
+        timeout: u64,
+    },
+    SaveCookies {
+        #[arg(long)]
+        file: String,
+    },
+    LoadCookies {
+        #[arg(long)]
+        file: String,
+    },
+    HighlightClick {
+        #[arg(long)]
+        css: String,
+    },
     RunScenario {
         #[arg(long)]
         file: String,
@@ -503,6 +565,85 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::PatchChromedriver { path } => {
             seleniumbase_rs::patcher::patch_chromedriver(&path)?;
             println!("Successfully patched chromedriver binary at: {path}");
+        }
+        Commands::AssertTextVisible { css, text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.assert_text_visible(&text, &css).await?;
+            println!("Text '{}' is visible in '{}'", text, css);
+        }
+        Commands::AssertTextNotVisible { css, text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.assert_text_not_visible(&text, &css).await?;
+            println!("Text '{}' is not visible in '{}'", text, css);
+        }
+        Commands::AssertAttribute {
+            css,
+            attribute,
+            value,
+        } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.assert_attribute(&css, &attribute, &value).await?;
+            println!("Attribute '{}' of '{}' is '{}'", attribute, css, value);
+        }
+        Commands::AssertTitle { text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.assert_title(&text).await?;
+            println!("Title is '{}'", text);
+        }
+        Commands::WaitForReadyStateComplete => {
+            let sb = BaseCase::new(config).await?;
+            sb.wait_for_ready_state_complete().await?;
+            println!("Ready state complete");
+        }
+        Commands::GetWindowPosition => {
+            let sb = BaseCase::new(config).await?;
+            let (x, y) = sb.get_window_position().await?;
+            println!("Window position: x={}, y={}", x, y);
+        }
+        Commands::SetWindowPosition { x, y } => {
+            let sb = BaseCase::new(config).await?;
+            sb.set_window_position(x, y).await?;
+            println!("Set window position to x={}, y={}", x, y);
+        }
+        Commands::CloseWindow => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.close_window().await?;
+            println!("Closed window");
+        }
+        Commands::SwitchToParentFrame => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.switch_to_parent_frame().await?;
+            println!("Switched to parent frame");
+        }
+        Commands::IsElementVisible { css } => {
+            let sb = BaseCase::new(config).await?;
+            let visible = sb.is_element_visible(&css).await?;
+            println!("Element '{}' is visible: {}", css, visible);
+        }
+        Commands::IsTextVisible { css, text } => {
+            let sb = BaseCase::new(config).await?;
+            let visible = sb.is_text_visible(&text, &css).await?;
+            println!("Text '{}' in '{}' is visible: {}", text, css, visible);
+        }
+        Commands::WaitForElementNotVisible { css, timeout } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.wait_for_element_not_visible(&css, timeout).await?;
+            println!("Element '{}' is not visible", css);
+        }
+        Commands::SaveCookies { file } => {
+            let sb = BaseCase::new(config).await?;
+            sb.save_cookies(&file).await?;
+            println!("Saved cookies to '{}'", file);
+        }
+        Commands::LoadCookies { file } => {
+            let sb = BaseCase::new(config).await?;
+            sb.load_cookies(&file).await?;
+            println!("Loaded cookies from '{}'", file);
+        }
+        Commands::HighlightClick { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.highlight_click(&css).await?;
+            println!("Highlighted and clicked '{}'", css);
         }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;

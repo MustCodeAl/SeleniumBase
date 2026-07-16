@@ -33,6 +33,84 @@ impl ActionRecorder {
         );
         for action in &self.actions {
             match action.name.as_str() {
+                "assert_text_visible" => {
+                    if let (Some(css), Some(value)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    sb.assert_text_visible({:?}, {:?}).await?;
+",
+                            value, css
+                        ));
+                    }
+                }
+                "assert_text_not_visible" => {
+                    if let (Some(css), Some(value)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    sb.assert_text_not_visible({:?}, {:?}).await?;
+",
+                            value, css
+                        ));
+                    }
+                }
+                "assert_attribute" => {
+                    if let (Some(css), Some(value)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    // sb.assert_attribute({:?}, ...);;
+",
+                            css
+                        ));
+                    }
+                }
+                "assert_title" => {
+                    if let Some(text) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.assert_title({:?}).await?;
+",
+                            text
+                        ));
+                    }
+                }
+                "wait_for_ready_state_complete" => {
+                    out.push_str(
+                        "    sb.wait_for_ready_state_complete().await?;
+",
+                    );
+                }
+                "close_window" => {
+                    out.push_str(
+                        "    sb.close_window().await?;
+",
+                    );
+                }
+                "switch_to_parent_frame" => {
+                    out.push_str(
+                        "    sb.switch_to_parent_frame().await?;
+",
+                    );
+                }
+                "wait_for_element_not_visible" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.wait_for_element_not_visible({:?}, 10).await?;
+",
+                            css
+                        ));
+                    }
+                }
+                "highlight_click" => {
+                    if let Some(css) = action.target.as_deref() {
+                        out.push_str(&format!(
+                            "    sb.highlight_click({:?}).await?;
+",
+                            css
+                        ));
+                    }
+                }
                 "open" => {
                     if let Some(url) = action.target.as_deref() {
                         out.push_str(&format!("    sb.open({:?}).await?;\n", url));
@@ -139,118 +217,180 @@ impl ActionRecorder {
                 }
 
                 "accept_alert" => {
-                    out.push_str("    sb.accept_alert().await?;
-");
+                    out.push_str(
+                        "    sb.accept_alert().await?;
+",
+                    );
                 }
                 "dismiss_alert" => {
-                    out.push_str("    sb.dismiss_alert().await?;
-");
+                    out.push_str(
+                        "    sb.dismiss_alert().await?;
+",
+                    );
                 }
                 "type_alert_text" => {
                     if let Some(text) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.type_alert_text({:?}).await?;
-", text));
+                        out.push_str(&format!(
+                            "    sb.type_alert_text({:?}).await?;
+",
+                            text
+                        ));
                     }
                 }
                 "clear_local_storage" => {
-                    out.push_str("    sb.clear_local_storage().await?;
-");
+                    out.push_str(
+                        "    sb.clear_local_storage().await?;
+",
+                    );
                 }
                 "remove_local_storage_item" => {
                     if let Some(key) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.remove_local_storage_item({:?}).await?;
-", key));
+                        out.push_str(&format!(
+                            "    sb.remove_local_storage_item({:?}).await?;
+",
+                            key
+                        ));
                     }
                 }
                 "set_local_storage_item" => {
-                    if let (Some(key), Some(value)) = (action.target.as_deref(), action.value.as_deref()) {
-                        out.push_str(&format!("    sb.set_local_storage_item({:?}, {:?}).await?;
-", key, value));
+                    if let (Some(key), Some(value)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    sb.set_local_storage_item({:?}, {:?}).await?;
+",
+                            key, value
+                        ));
                     }
                 }
                 "switch_to_window" => {
                     if let Some(handle) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.switch_to_window({:?}).await?;
-", handle));
+                        out.push_str(&format!(
+                            "    sb.switch_to_window({:?}).await?;
+",
+                            handle
+                        ));
                     }
                 }
-
 
                 "js_click" => {
                     if let Some(css) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.js_click({:?}).await?;
-", css));
+                        out.push_str(&format!(
+                            "    sb.js_click({:?}).await?;
+",
+                            css
+                        ));
                     }
                 }
                 "js_type" => {
-                    if let (Some(css), Some(text)) = (action.target.as_deref(), action.value.as_deref()) {
-                        out.push_str(&format!("    sb.js_type({:?}, {:?}).await?;
-", css, text));
+                    if let (Some(css), Some(text)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    sb.js_type({:?}, {:?}).await?;
+",
+                            css, text
+                        ));
                     }
                 }
                 "set_attribute" => {
                     // Recorder logic for attributes might require more params but let's map it roughly
-                    if let (Some(css), Some(val)) = (action.target.as_deref(), action.value.as_deref()) {
+                    if let (Some(css), Some(_val)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
                         // Assuming value holds "attr=val" ? Just a placeholder
-                        out.push_str(&format!("    // sb.set_attribute({:?}, ...);
-", css));
+                        out.push_str(&format!(
+                            "    // sb.set_attribute({:?}, ...);
+",
+                            css
+                        ));
                     }
                 }
                 "choose_file" => {
-                    if let (Some(css), Some(path)) = (action.target.as_deref(), action.value.as_deref()) {
-                        out.push_str(&format!("    sb.choose_file({:?}, {:?}).await?;
-", css, path));
+                    if let (Some(css), Some(path)) =
+                        (action.target.as_deref(), action.value.as_deref())
+                    {
+                        out.push_str(&format!(
+                            "    sb.choose_file({:?}, {:?}).await?;
+",
+                            css, path
+                        ));
                     }
                 }
                 "go_back" => {
-                    out.push_str("    sb.go_back().await?;
-");
+                    out.push_str(
+                        "    sb.go_back().await?;
+",
+                    );
                 }
                 "go_forward" => {
-                    out.push_str("    sb.go_forward().await?;
-");
+                    out.push_str(
+                        "    sb.go_forward().await?;
+",
+                    );
                 }
                 "refresh" => {
-                    out.push_str("    sb.refresh().await?;
-");
+                    out.push_str(
+                        "    sb.refresh().await?;
+",
+                    );
                 }
                 "delete_all_cookies" => {
-                    out.push_str("    sb.delete_all_cookies().await?;
-");
+                    out.push_str(
+                        "    sb.delete_all_cookies().await?;
+",
+                    );
                 }
                 "switch_to_new_window" => {
-                    out.push_str("    sb.switch_to_new_window().await?;
-");
+                    out.push_str(
+                        "    sb.switch_to_new_window().await?;
+",
+                    );
                 }
 
                 "double_click" => {
                     if let Some(css) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.double_click({:?}).await?;
-", css));
+                        out.push_str(&format!(
+                            "    sb.double_click({:?}).await?;
+",
+                            css
+                        ));
                     }
                 }
                 "context_click" => {
                     if let Some(css) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.context_click({:?}).await?;
-", css));
+                        out.push_str(&format!(
+                            "    sb.context_click({:?}).await?;
+",
+                            css
+                        ));
                     }
                 }
                 "maximize_window" => {
-                    out.push_str("    sb.maximize_window().await?;
-");
+                    out.push_str(
+                        "    sb.maximize_window().await?;
+",
+                    );
                 }
                 "scroll_to_bottom" => {
-                    out.push_str("    sb.scroll_to_bottom().await?;
-");
+                    out.push_str(
+                        "    sb.scroll_to_bottom().await?;
+",
+                    );
                 }
                 "scroll_to_top" => {
-                    out.push_str("    sb.scroll_to_top().await?;
-");
+                    out.push_str(
+                        "    sb.scroll_to_top().await?;
+",
+                    );
                 }
                 "scroll_to" => {
                     if let Some(css) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.scroll_to({:?}).await?;
-", css));
+                        out.push_str(&format!(
+                            "    sb.scroll_to({:?}).await?;
+",
+                            css
+                        ));
                     }
                 }
 

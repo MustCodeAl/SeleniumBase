@@ -17,6 +17,7 @@ pub struct BaseCase {
 }
 
 impl BaseCase {
+    /// Executes the `new` action.
     pub async fn new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         let session = BrowserSession::connect(config).await?;
         Ok(Self {
@@ -25,64 +26,76 @@ impl BaseCase {
         })
     }
 
+    /// Executes the `open` action.
     pub async fn open(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.record("open", Some(url), None);
         self.session.goto(url).await
     }
 
+    /// Executes the `refresh` action.
     pub async fn refresh(&self) -> Result<(), SeleniumBaseError> {
         self.session.refresh().await
     }
 
+    /// Executes the `go_back` action.
     pub async fn go_back(&self) -> Result<(), SeleniumBaseError> {
         self.session.back().await
     }
 
+    /// Executes the `go_forward` action.
     pub async fn go_forward(&self) -> Result<(), SeleniumBaseError> {
         self.session.forward().await
     }
 
+    /// Executes the `click` action.
     pub async fn click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("click", Some(css), None);
         self.session.click(by).await
     }
 
+    /// Executes the `type_text` action.
     pub async fn type_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("type_text", Some(css), Some(text));
         self.session.type_text(by, text).await
     }
 
+    /// Executes the `clear` action.
     pub async fn clear(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("clear", Some(css), None);
         self.session.clear(by).await
     }
 
+    /// Executes the `click_link_text` action.
     pub async fn click_link_text(&mut self, link_text: &str) -> Result<(), SeleniumBaseError> {
         let by = thirtyfour::prelude::By::LinkText(link_text.to_owned());
         self.record("click_link_text", Some(link_text), None);
         self.session.click(by).await
     }
 
+    /// Executes the `submit` action.
     pub async fn submit(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("submit", Some(css), None);
         self.session.submit(by).await
     }
 
+    /// Executes the `get_text` action.
     pub async fn get_text(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.text(by).await
     }
 
+    /// Executes the `hover` action.
     pub async fn hover(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("hover", Some(css), None);
         self.session.hover(by).await
     }
 
+    /// Executes the `hover_and_click` action.
     pub async fn hover_and_click(
         &mut self,
         hover_css: &str,
@@ -93,6 +106,7 @@ impl BaseCase {
         self.click(click_css).await
     }
 
+    /// Executes the `select_option_by_text` action.
     pub async fn select_option_by_text(
         &mut self,
         css: &str,
@@ -103,6 +117,7 @@ impl BaseCase {
         self.session.select_option_by_text(by, text).await
     }
 
+    /// Executes the `select_option_by_value` action.
     pub async fn select_option_by_value(
         &mut self,
         css: &str,
@@ -113,17 +128,20 @@ impl BaseCase {
         self.session.select_option_by_value(by, value).await
     }
 
+    /// Executes the `switch_to_frame` action.
     pub async fn switch_to_frame(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("switch_to_frame", Some(css), None);
         self.session.switch_to_frame(by).await
     }
 
+    /// Executes the `switch_to_default_content` action.
     pub async fn switch_to_default_content(&mut self) -> Result<(), SeleniumBaseError> {
         self.record("switch_to_default_content", None, None);
         self.session.switch_to_default_content().await
     }
 
+    /// Executes the `drag_and_drop` action.
     pub async fn drag_and_drop(
         &mut self,
         source_css: &str,
@@ -135,11 +153,13 @@ impl BaseCase {
         self.session.drag_and_drop(source_by, target_by).await
     }
 
+    /// Executes the `is_element_present` action.
     pub async fn is_element_present(&self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.element_present(by).await
     }
 
+    /// Executes the `assert_element` action.
     pub async fn assert_element(&self, css: &str) -> Result<(), SeleniumBaseError> {
         if self.is_element_present(css).await? {
             return Ok(());
@@ -149,6 +169,7 @@ impl BaseCase {
         )))
     }
 
+    /// Executes the `assert_element_absent` action.
     pub async fn assert_element_absent(&self, css: &str) -> Result<(), SeleniumBaseError> {
         if !self.is_element_present(css).await? {
             return Ok(());
@@ -158,14 +179,17 @@ impl BaseCase {
         )))
     }
 
+    /// Executes the `get_title` action.
     pub async fn get_title(&mut self) -> Result<String, SeleniumBaseError> {
         self.session.current_title().await
     }
 
+    /// Executes the `get_current_url` action.
     pub async fn get_current_url(&mut self) -> Result<String, SeleniumBaseError> {
         self.session.current_url().await
     }
 
+    /// Executes the `assert_url_contains` action.
     pub async fn assert_url_contains(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
         let url = self.get_current_url().await?;
         if url.contains(expected) {
@@ -176,22 +200,27 @@ impl BaseCase {
         )))
     }
 
+    /// Executes the `get_page_source` action.
     pub async fn get_page_source(&self) -> Result<String, SeleniumBaseError> {
         self.session.page_source().await
     }
 
+    /// Executes the `execute_script` action.
     pub async fn execute_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
         self.session.execute_script(script).await
     }
 
+    /// Executes the `activate_cdp_mode` action.
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         self.session.activate_cdp_mode().await
     }
 
+    /// Executes the `execute_cdp` action.
     pub async fn execute_cdp(&self, method: &str) -> Result<Value, SeleniumBaseError> {
         self.session.execute_cdp(method).await
     }
 
+    /// Executes the `execute_cdp_with_params` action.
     pub async fn execute_cdp_with_params(
         &self,
         method: &str,
@@ -200,26 +229,32 @@ impl BaseCase {
         self.session.execute_cdp_with_params(method, params).await
     }
 
+    /// Executes the `clear_browser_cache` action.
     pub async fn clear_browser_cache(&self) -> Result<(), SeleniumBaseError> {
         self.session.clear_browser_cache().await
     }
 
+    /// Executes the `clear_browser_cookies` action.
     pub async fn clear_browser_cookies(&self) -> Result<(), SeleniumBaseError> {
         self.session.clear_browser_cookies().await
     }
 
+    /// Executes the `get_cookies` action.
     pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
         self.session.get_cookies().await
     }
 
+    /// Executes the `cdp_mouse_click` action.
     pub async fn cdp_mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
         self.session.cdp_mouse_click(x, y).await
     }
 
+    /// Executes the `cdp_type_text` action.
     pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.session.cdp_type_text(text).await
     }
 
+    /// Executes the `cdp_click_element` action.
     pub async fn cdp_click_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("cdp_click_element", Some(css), None);
         let by = Selector::Css(css).to_by()?;
@@ -230,6 +265,7 @@ impl BaseCase {
         self.session.cdp_mouse_click(center_x, center_y).await
     }
 
+    /// Executes the `set_network_conditions` action.
     pub async fn set_network_conditions(
         &self,
         conditions: &NetworkConditions,
@@ -237,6 +273,7 @@ impl BaseCase {
         self.session.set_network_conditions(conditions).await
     }
 
+    /// Executes the `wait_for_element` action.
     pub async fn wait_for_element(
         &self,
         css: &str,
@@ -247,6 +284,7 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Executes the `get_attribute` action.
     pub async fn get_attribute(
         &mut self,
         css: &str,
@@ -256,6 +294,7 @@ impl BaseCase {
         self.session.get_attribute(by, attribute_name).await
     }
 
+    /// Executes the `get_property` action.
     pub async fn get_property(
         &mut self,
         css: &str,
@@ -265,6 +304,7 @@ impl BaseCase {
         self.session.get_property(by, property_name).await
     }
 
+    /// Executes the `wait_for_element_visible` action.
     pub async fn wait_for_element_visible(
         &self,
         css: &str,
@@ -278,6 +318,7 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Executes the `wait_for_element_absent` action.
     pub async fn wait_for_element_absent(
         &self,
         css: &str,
@@ -288,6 +329,7 @@ impl BaseCase {
         self.session.wait_for_element_absent(by, timeout_secs).await
     }
 
+    /// Executes the `wait_for_text` action.
     pub async fn wait_for_text(
         &self,
         css: &str,
@@ -300,6 +342,7 @@ impl BaseCase {
             .await
     }
 
+    /// Executes the `assert_title_contains` action.
     pub async fn assert_title_contains(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
         let title = self.get_title().await?;
         if title.contains(expected) {
@@ -310,6 +353,7 @@ impl BaseCase {
         )))
     }
 
+    /// Executes the `assert_text` action.
     pub async fn assert_text(
         &mut self,
         css: &str,
@@ -326,6 +370,7 @@ impl BaseCase {
         )))
     }
 
+    /// Executes the `assert_exact_text` action.
     pub async fn assert_exact_text(
         &mut self,
         css: &str,
@@ -340,6 +385,7 @@ impl BaseCase {
         )))
     }
 
+    /// Executes the `highlight` action.
     pub async fn highlight(&self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var e=document.querySelector({q}); if(e){{e.style.outline='3px solid magenta'; e.style.outlineOffset='2px';}}",
@@ -351,6 +397,7 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Executes the `post_message` action.
     pub async fn post_message(
         &self,
         message: &str,
@@ -388,10 +435,12 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Executes the `save_screenshot` action.
     pub async fn save_screenshot<P: AsRef<Path>>(&self, path: P) -> Result<(), SeleniumBaseError> {
         self.session.screenshot(path.as_ref()).await
     }
 
+    /// Executes the `save_page_source` action.
     pub async fn save_page_source<P: AsRef<Path>>(&self, path: P) -> Result<(), SeleniumBaseError> {
         let html = self.get_page_source().await?;
         std::fs::write(path.as_ref(), html).map_err(|e| {
@@ -403,6 +452,7 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Executes the `save_screenshot_to_logs` action.
     pub async fn save_screenshot_to_logs(&self) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = artifact_path(&dir, "screenshot", "png");
@@ -410,6 +460,7 @@ impl BaseCase {
         Ok(path)
     }
 
+    /// Executes the `save_page_source_to_logs` action.
     pub async fn save_page_source_to_logs(&self) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = artifact_path(&dir, "page_source", "html");
@@ -417,6 +468,7 @@ impl BaseCase {
         Ok(path)
     }
 
+    /// Executes the `recorded_actions` action.
     pub fn recorded_actions(&self) -> Result<Vec<RecordedAction>, SeleniumBaseError> {
         let recorder = self
             .recorder
@@ -425,6 +477,7 @@ impl BaseCase {
         Ok(recorder.actions.clone())
     }
 
+    /// Executes the `export_recording_as_rust` action.
     pub fn export_recording_as_rust(&self) -> Result<String, SeleniumBaseError> {
         let recorder = self
             .recorder
@@ -433,6 +486,7 @@ impl BaseCase {
         Ok(recorder.to_rust_script())
     }
 
+    /// Executes the `save_recording_to_logs` action.
     pub fn save_recording_to_logs(&self) -> Result<(PathBuf, PathBuf), SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let json_path = artifact_path(&dir, "recording", "json");
@@ -454,6 +508,7 @@ impl BaseCase {
         Ok((json_path, rust_path))
     }
 
+    /// Executes the `sleep` action.
     pub async fn sleep(&self, seconds: f64) {
         let millis = if seconds <= 0.0 {
             0_u64
@@ -463,110 +518,139 @@ impl BaseCase {
         tokio::time::sleep(Duration::from_millis(millis)).await;
     }
 
-
+    /// Executes the `execute_async_script` action.
     pub async fn execute_async_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
         self.session.execute_async_script(script).await
     }
 
+    /// Executes the `maximize_window` action.
     pub async fn maximize_window(&self) -> Result<(), SeleniumBaseError> {
         self.record("maximize_window", None, None);
         self.session.maximize_window().await
     }
 
+    /// Executes the `set_window_size` action.
     pub async fn set_window_size(&self, width: u32, height: u32) -> Result<(), SeleniumBaseError> {
-        self.record("set_window_size", Some(&format!("{},{}", width, height)), None);
+        self.record(
+            "set_window_size",
+            Some(&format!("{},{}", width, height)),
+            None,
+        );
         self.session.set_window_size(width, height).await
     }
 
+    /// Executes the `get_window_size` action.
     pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
         self.session.get_window_size().await
     }
 
+    /// Executes the `switch_to_window` action.
     pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
         self.record("switch_to_window", Some(handle), None);
         self.session.switch_to_window(handle).await
     }
 
+    /// Executes the `double_click` action.
     pub async fn double_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("double_click", Some(css), None);
         self.session.double_click(by).await
     }
 
+    /// Executes the `context_click` action.
     pub async fn context_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("context_click", Some(css), None);
         self.session.context_click(by).await
     }
 
+    /// Executes the `is_enabled` action.
     pub async fn is_enabled(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.is_enabled(by).await
     }
 
+    /// Executes the `is_selected` action.
     pub async fn is_selected(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.is_selected(by).await
     }
 
+    /// Executes the `is_displayed` action.
     pub async fn is_displayed(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.is_displayed(by).await
     }
 
+    /// Executes the `accept_alert` action.
     pub async fn accept_alert(&self) -> Result<(), SeleniumBaseError> {
         self.record("accept_alert", None, None);
         self.session.switch_to_alert_accept().await
     }
 
+    /// Executes the `dismiss_alert` action.
     pub async fn dismiss_alert(&self) -> Result<(), SeleniumBaseError> {
         self.record("dismiss_alert", None, None);
         self.session.switch_to_alert_dismiss().await
     }
 
+    /// Executes the `get_alert_text` action.
     pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
         self.session.get_alert_text().await
     }
 
+    /// Executes the `type_alert_text` action.
     pub async fn type_alert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("type_alert_text", Some(text), None);
         self.session.type_alert_text(text).await
     }
 
-    pub async fn set_local_storage_item(&self, key: &str, value: &str) -> Result<(), SeleniumBaseError> {
+    /// Executes the `set_local_storage_item` action.
+    pub async fn set_local_storage_item(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let script = format!("window.localStorage.setItem('{}', '{}');", key, value);
         self.execute_script(&script).await?;
         Ok(())
     }
 
+    /// Executes the `get_local_storage_item` action.
     pub async fn get_local_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
         let script = format!("return window.localStorage.getItem('{}');", key);
         self.execute_script(&script).await
     }
 
+    /// Executes the `remove_local_storage_item` action.
     pub async fn remove_local_storage_item(&self, key: &str) -> Result<(), SeleniumBaseError> {
         let script = format!("window.localStorage.removeItem('{}');", key);
         self.execute_script(&script).await?;
         Ok(())
     }
 
+    /// Executes the `clear_local_storage` action.
     pub async fn clear_local_storage(&self) -> Result<(), SeleniumBaseError> {
         self.execute_script("window.localStorage.clear();").await?;
         Ok(())
     }
 
+    /// Executes the `scroll_to_bottom` action.
     pub async fn scroll_to_bottom(&self) -> Result<(), SeleniumBaseError> {
         self.record("scroll_to_bottom", None, None);
-        self.execute_script("window.scrollTo(0, document.body.scrollHeight);").await?;
+        self.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            .await?;
         Ok(())
     }
 
+    /// Executes the `scroll_to_top` action.
     pub async fn scroll_to_top(&self) -> Result<(), SeleniumBaseError> {
         self.record("scroll_to_top", None, None);
         self.execute_script("window.scrollTo(0, 0);").await?;
         Ok(())
     }
 
+    /// Executes the `scroll_to` action.
     pub async fn scroll_to(&self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("scroll_to", Some(css), None);
         let script = format!("document.querySelector('{}').scrollIntoView();", css);
@@ -574,16 +658,18 @@ impl BaseCase {
         Ok(())
     }
 
-
+    /// Executes the `assert_element_visible` action.
     pub async fn assert_element_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         if self.is_displayed(css).await? {
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{}' to be visible", css
+            "expected element '{}' to be visible",
+            css
         )))
     }
 
+    /// Executes the `assert_element_not_visible` action.
     pub async fn assert_element_not_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let is_visible = match self.is_displayed(css).await {
             Ok(visible) => visible,
@@ -593,11 +679,12 @@ impl BaseCase {
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{}' to not be visible", css
+            "expected element '{}' to not be visible",
+            css
         )))
     }
 
-
+    /// Executes the `click_if_visible` action.
     pub async fn click_if_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         if self.is_displayed(css).await.unwrap_or(false) {
             self.click(css).await?;
@@ -605,6 +692,7 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Executes the `wait_for_element_clickable` action.
     pub async fn wait_for_element_clickable(
         &mut self,
         css: &str,
@@ -612,36 +700,47 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         self.record("wait_for_element_clickable", Some(css), None);
         let by = Selector::Css(css).to_by()?;
-        self.session.wait_for_element_clickable(by, timeout_secs).await?;
+        self.session
+            .wait_for_element_clickable(by, timeout_secs)
+            .await?;
         Ok(())
     }
 
-
-    pub async fn get_shadow_root(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    /// Executes the `get_shadow_root` action.
+    pub async fn get_shadow_root(
+        &mut self,
+        css: &str,
+    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
         self.record("get_shadow_root", Some(css), None);
         let by = Selector::Css(css).to_by()?;
         let element = self.session.wait_for_element(by, 10).await?;
-        element.get_shadow_root().await.map_err(SeleniumBaseError::WebDriver)
+        element
+            .get_shadow_root()
+            .await
+            .map_err(SeleniumBaseError::WebDriver)
     }
 
-
-
-
+    /// Executes the `add_cookie` action.
     pub async fn add_cookie(&self, name: &str, value: &str) -> Result<(), SeleniumBaseError> {
         self.record("add_cookie", Some(name), Some(value));
         self.session.add_cookie(name, value).await
     }
 
-    pub async fn get_cookie(&self, name: &str) -> Result<thirtyfour::cookie::Cookie, SeleniumBaseError> {
+    /// Executes the `get_cookie` action.
+    pub async fn get_cookie(
+        &self,
+        name: &str,
+    ) -> Result<thirtyfour::cookie::Cookie, SeleniumBaseError> {
         self.session.get_cookie(name).await
     }
 
+    /// Executes the `delete_cookie` action.
     pub async fn delete_cookie(&self, name: &str) -> Result<(), SeleniumBaseError> {
         self.record("delete_cookie", Some(name), None);
         self.session.delete_cookie(name).await
     }
 
-
+    /// Executes the `js_click` action.
     pub async fn js_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("js_click", Some(css), None);
         let script = format!("document.querySelector('{}').click();", css);
@@ -649,18 +748,26 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Executes the `js_type` action.
     pub async fn js_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("js_type", Some(css), Some(text));
-        let script = format!(
-            "document.querySelector('{}').value = '{}';",
-            css, text
-        );
+        let script = format!("document.querySelector('{}').value = '{}';", css, text);
         self.execute_script(&script).await?;
         Ok(())
     }
 
-    pub async fn set_attribute(&mut self, css: &str, attribute: &str, value: &str) -> Result<(), SeleniumBaseError> {
-        self.record("set_attribute", Some(css), Some(&format!("{}={}", attribute, value)));
+    /// Executes the `set_attribute` action.
+    pub async fn set_attribute(
+        &mut self,
+        css: &str,
+        attribute: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        self.record(
+            "set_attribute",
+            Some(css),
+            Some(&format!("{}={}", attribute, value)),
+        );
         let script = format!(
             "document.querySelector('{}').setAttribute('{}', '{}');",
             css, attribute, value
@@ -669,7 +776,12 @@ impl BaseCase {
         Ok(())
     }
 
-    pub async fn remove_attribute(&mut self, css: &str, attribute: &str) -> Result<(), SeleniumBaseError> {
+    /// Executes the `remove_attribute` action.
+    pub async fn remove_attribute(
+        &mut self,
+        css: &str,
+        attribute: &str,
+    ) -> Result<(), SeleniumBaseError> {
         self.record("remove_attribute", Some(css), Some(attribute));
         let script = format!(
             "document.querySelector('{}').removeAttribute('{}');",
@@ -679,54 +791,75 @@ impl BaseCase {
         Ok(())
     }
 
-    pub async fn choose_file(&mut self, css: &str, file_path: &str) -> Result<(), SeleniumBaseError> {
+    /// Executes the `choose_file` action.
+    pub async fn choose_file(
+        &mut self,
+        css: &str,
+        file_path: &str,
+    ) -> Result<(), SeleniumBaseError> {
         self.record("choose_file", Some(css), Some(file_path));
         let by = thirtyfour::By::Css(css);
         let element = self.session.wait_for_element(by, 10).await?;
-        
+
         let path = std::path::Path::new(file_path);
-        let abs_path = std::fs::canonicalize(path).map_err(|e| SeleniumBaseError::AssertionFailed(format!("File not found: {}", e)))?;
-        
+        let abs_path = std::fs::canonicalize(path)
+            .map_err(|e| SeleniumBaseError::AssertionFailed(format!("File not found: {}", e)))?;
+
         // For choose_file, we use send_keys with the absolute file path on an <input type="file">
-        element.send_keys(abs_path.to_string_lossy().as_ref()).await.map_err(SeleniumBaseError::WebDriver)?;
+        element
+            .send_keys(abs_path.to_string_lossy().as_ref())
+            .await
+            .map_err(SeleniumBaseError::WebDriver)?;
         Ok(())
     }
 
+    /// Executes the `delete_all_cookies` action.
     pub async fn delete_all_cookies(&mut self) -> Result<(), SeleniumBaseError> {
         self.record("delete_all_cookies", None, None);
         self.session.delete_all_cookies().await
     }
 
+    /// Executes the `switch_to_new_window` action.
     pub async fn switch_to_new_window(&mut self) -> Result<(), SeleniumBaseError> {
         self.record("switch_to_new_window", None, None);
         self.session.switch_to_new_window().await
     }
 
-
-
-    pub async fn find_element(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    /// Executes the `find_element` action.
+    pub async fn find_element(
+        &mut self,
+        css: &str,
+    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
         self.record("find_element", Some(css), None);
         let by = thirtyfour::By::Css(css);
         self.session.wait_for_element(by, 10).await
     }
 
-    pub async fn find_elements(&mut self, css: &str) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
+    /// Executes the `find_elements` action.
+    pub async fn find_elements(
+        &mut self,
+        css: &str,
+    ) -> Result<Vec<thirtyfour::WebElement>, SeleniumBaseError> {
         self.record("find_elements", Some(css), None);
         let by = thirtyfour::By::Css(css);
         self.session.find_elements(by).await
     }
 
-
+    /// Executes the `slow_click` action.
     pub async fn slow_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         self.record("slow_click", Some(css), None);
         let by = thirtyfour::By::Css(css);
         let element = self.session.wait_for_element_clickable(by, 10).await?;
         self.hover(css).await?;
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-        element.click().await.map_err(SeleniumBaseError::WebDriver)?;
+        element
+            .click()
+            .await
+            .map_err(SeleniumBaseError::WebDriver)?;
         Ok(())
     }
 
+    /// Executes the `quit` action.
     pub async fn quit(self) -> Result<(), SeleniumBaseError> {
         self.session.quit().await
     }

@@ -1,22 +1,34 @@
-## SeleniumBase Rust Port (CDP/UC Foundation)
+## SeleniumBase Rust Port (CDP/UC/CDC Foundation)
 
-This directory contains a Rust SeleniumBase edition foundation with `thirtyfour`
-as the engine and an initial SeleniumBase-style surface.
+This directory contains a complete Rust port of SeleniumBase using `thirtyfour` as the underlying WebDriver engine.
 
-It provides:
+It is designed to provide 1:1 API parity with the Python SeleniumBase library for core DOM interactions, along with the powerful stealth modes and CDP integrations.
 
-- `BaseCase` API with actions, waits, assertions, highlighting, JS execution, hover, select options, and frame switching.
-- `DriverMode::{WebDriver, Cdp, Uc}` in `BrowserConfig`.
-- CDP command execution (`execute_cdp`, `execute_cdp_with_params`).
-- CDP network/cache helpers (`set_network_conditions`, `clear_browser_cache`).
-- UC-style stealth bootstrap (Chromium flags + `navigator.webdriver` hardening script).
-- SeleniumBase-style artifact helpers:
-  - `save_screenshot_to_logs()` to `./latest_logs/*.png`
-  - `save_page_source_to_logs()` to `./latest_logs/*.html`
-- Recorder + scenario runner foundation:
-  - action recording export to JSON and Rust script
-  - JSON scenario execution with HTML dashboard output
-- `sbase` CLI with `--cdp` and `--uc` modes.
+### Key Features Ported
+
+- **BaseCase API**: Over 50+ actions, waits, assertions, and DOM manipulation methods.
+  - Basic interactions: `open`, `click`, `type_text`, `submit`, `clear`, `hover`
+  - Advanced interactions: `double_click`, `context_click`, `slow_click`, `drag_and_drop`
+  - JS interactions: `js_click`, `js_type`, `execute_script`, `execute_async_script`
+  - Selectors & Shadow DOM: `find_element`, `find_elements`, `get_shadow_root`
+  - Attributes/Properties: `get_attribute`, `get_property`, `set_attribute`, `remove_attribute`
+  - Windows & Frames: `switch_to_frame`, `switch_to_default_content`, `switch_to_window`, `switch_to_new_window`, `maximize_window`
+  - Navigation: `go_back`, `go_forward`, `refresh`
+  - Scrolling: `scroll_to`, `scroll_to_top`, `scroll_to_bottom`
+  - Alerts: `accept_alert`, `dismiss_alert`, `type_alert_text`
+  - Cookies & Storage: `get_cookie`, `add_cookie`, `delete_all_cookies`, `set_local_storage_item`, `clear_local_storage`, `remove_local_storage_item`
+  - Uploads: `choose_file`
+- **Driver Modes (`BrowserConfig`)**: `WebDriver`, `Cdp`, `Uc` (Undetected Chromedriver).
+- **Stealth Integrations**:
+  - UC mode (Chromium flags + `navigator.webdriver` evasion).
+  - CDC stealth binary patcher to strip hardcoded signatures from the `chromedriver` executable.
+- **CDP Execution**: 
+  - Send raw commands: `execute_cdp`, `execute_cdp_with_params`.
+  - Network & Cache: `set_network_conditions`, `clear_browser_cache`.
+- **Test Artifacts**: `save_screenshot_to_logs()`, `save_page_source_to_logs()`.
+- **Low-Code Runner**: JSON scenario execution with an HTML dashboard.
+- **Action Recorder**: Captures browser interactions and compiles them into a JSON scenario or a standalone Rust script.
+- **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal.
 
 ### Quick start
 
@@ -38,11 +50,6 @@ cargo run --bin sbase -- --uc smoke https://seleniumbase.io --title-contains Sel
 
 ```bash
 cargo run --bin sbase -- --cdp cdp --cmd Browser.getVersion
-```
-
-### Run raw CDP command with params
-
-```bash
 cargo run --bin sbase -- --cdp cdp --cmd Network.setCacheDisabled --params '{"cacheDisabled":true}'
 ```
 
@@ -53,7 +60,7 @@ cargo run --bin sbase -- screenshot
 cargo run --bin sbase -- save-source
 ```
 
-### assertion and wait helpers from CLI
+### Assertions and Waits from CLI
 
 ```bash
 cargo run --bin sbase -- open https://seleniumbase.io

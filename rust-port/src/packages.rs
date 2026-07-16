@@ -1,5 +1,8 @@
 //! Package map aligned with the Python SeleniumBase package layout.
 //! This establishes a one-to-one Rust module surface for incremental parity work.
+//!
+//! These modules are primarily architectural placeholders for future expansion
+//! of specific specialized Python functionality (like MasterQA, extensions, plugins).
 
 pub mod behave {}
 pub mod common {}

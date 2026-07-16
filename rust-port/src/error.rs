@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum SeleniumBaseError {
+    #[error("wait timeout: {0}")]
+    WaitTimeout(String),
     #[error("webdriver command failed: {0}")]
     WebDriver(#[from] thirtyfour::error::WebDriverError),
     #[error("invalid selector: {0}")]

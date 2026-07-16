@@ -314,6 +314,30 @@ enum Commands {
         #[arg(long)]
         text: String,
     },
+    HumanType {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        text: String,
+    },
+    HumanClick {
+        #[arg(long)]
+        css: String,
+    },
+    SmoothScrollTo {
+        #[arg(long)]
+        css: String,
+    },
+    UcClick {
+        #[arg(long)]
+        css: String,
+    },
+    UcType {
+        #[arg(long)]
+        css: String,
+        #[arg(long)]
+        text: String,
+    },
     RunScenario {
         #[arg(long)]
         file: String,
@@ -806,6 +830,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.click_partial_link_text(&text).await?;
             println!("Clicked partial link text '{}'", text);
+        }
+        Commands::HumanType { css, text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.human_type(&css, &text).await?;
+            println!("Human typed into '{}'", css);
+        }
+        Commands::HumanClick { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.human_click(&css).await?;
+            println!("Human clicked '{}'", css);
+        }
+        Commands::SmoothScrollTo { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.smooth_scroll_to(&css).await?;
+            println!("Smooth scrolled to '{}'", css);
+        }
+        Commands::UcClick { css } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.uc_click(&css).await?;
+            println!("UC clicked '{}'", css);
+        }
+        Commands::UcType { css, text } => {
+            let mut sb = BaseCase::new(config).await?;
+            sb.uc_type(&css, &text).await?;
+            println!("UC typed into '{}'", css);
         }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;

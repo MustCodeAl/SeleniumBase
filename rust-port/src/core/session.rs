@@ -620,7 +620,8 @@ impl BrowserSession {
                 if let Some(ua) = version_info["userAgent"].as_str() {
                     if ua.contains("HeadlessChrome") {
                         let stealth_ua = ua.replace("HeadlessChrome", "Chrome");
-                        let _ = uc::override_user_agent(cdp, &stealth_ua, config.locale.as_deref()).await;
+                        let _ = uc::override_user_agent(cdp, &stealth_ua, config.locale.as_deref())
+                            .await;
                     }
                 }
             }

@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -1295,5 +1296,56 @@ impl BaseCase {
         self.record("click_partial_link_text", Some(partial_link_text), None);
         self.session.driver().find(by).await?.click().await?;
         Ok(())
+    }
+
+    /// Executes the `human_type` action, typing character by character with random delays.
+    pub async fn human_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.record("human_type", Some(css), Some(text));
+        let elem = self.session.driver().find(by).await?;
+        elem.click().await?; // Focus the field
+        
+        let mut rng = rand::thread_rng();
+        for c in text.chars() {
+            elem.send_keys(&c.to_string()).await?;
+            let delay = rng.gen_range(30..=120);
+            tokio::time::sleep(Duration::from_millis(delay)).await;
+        }
+        Ok(())
+    }
+
+    /// Executes the `human_click` action, adding a random pre-click delay.
+    pub async fn human_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.record("human_click", Some(css), None);
+        let elem = self.session.driver().find(by).await?;
+        
+        let mut rng = rand::thread_rng();
+        let pre_delay = rng.gen_range(100..=300);
+        tokio::time::sleep(Duration::from_millis(pre_delay)).await;
+        
+        elem.click().await?;
+        Ok(())
+    }
+
+    /// Executes the `smooth_scroll_to` action.
+    pub async fn smooth_scroll_to(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "document.querySelector('{}').scrollIntoView({{behavior: 'smooth', block: 'center'}});", 
+            css.replace("'", "\'")
+        );
+        self.execute_script(&script).await?;
+        tokio::time::sleep(Duration::from_millis(800)).await;
+        Ok(())
+    }
+
+    /// Executes the `uc_click` action (alias for human_click, often used in UC mode stealth).
+    pub async fn uc_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.human_click(css).await
+    }
+
+    /// Executes the `uc_type` action (alias for human_type, often used in UC mode stealth).
+    pub async fn uc_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.human_type(css, text).await
     }
 }

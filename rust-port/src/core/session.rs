@@ -74,6 +74,20 @@ impl BrowserSession {
         Ok(())
     }
 
+    pub async fn clear(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
+        let element = self.driver.find(locator).await?;
+        element.clear().await?;
+        Ok(())
+    }
+
+    pub async fn submit(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
+        let element = self.driver.find(locator).await?;
+        let element_json = element.to_json()?;
+        // Form submit via script
+        self.driver.execute("arguments[0].closest('form').submit()", vec![element_json]).await?;
+        Ok(())
+    }
+
     pub async fn text(&mut self, locator: By) -> Result<String, SeleniumBaseError> {
         let element = self.driver.find(locator).await?;
         Ok(element.text().await?)
@@ -81,18 +95,30 @@ impl BrowserSession {
 
     pub async fn hover(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.driver.find(locator).await?;
-        self.driver.action_chain().move_to_element_center(&element).perform().await?;
+        self.driver
+            .action_chain()
+            .move_to_element_center(&element)
+            .perform()
+            .await?;
         Ok(())
     }
 
-    pub async fn select_option_by_text(&mut self, locator: By, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_text(
+        &mut self,
+        locator: By,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let element = self.driver.find(locator).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
         select.select_by_visible_text(text).await?;
         Ok(())
     }
 
-    pub async fn select_option_by_value(&mut self, locator: By, value: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_value(
+        &mut self,
+        locator: By,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let element = self.driver.find(locator).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
         select.select_by_value(value).await?;
@@ -110,10 +136,18 @@ impl BrowserSession {
         Ok(())
     }
 
-    pub async fn drag_and_drop(&mut self, source_locator: By, target_locator: By) -> Result<(), SeleniumBaseError> {
+    pub async fn drag_and_drop(
+        &mut self,
+        source_locator: By,
+        target_locator: By,
+    ) -> Result<(), SeleniumBaseError> {
         let source = self.driver.find(source_locator).await?;
         let target = self.driver.find(target_locator).await?;
-        self.driver.action_chain().drag_and_drop_element(&source, &target).perform().await?;
+        self.driver
+            .action_chain()
+            .drag_and_drop_element(&source, &target)
+            .perform()
+            .await?;
         Ok(())
     }
 
@@ -148,6 +182,58 @@ impl BrowserSession {
             if Instant::now() >= deadline {
                 return Err(SeleniumBaseError::AssertionFailed(
                     "timed out waiting for element".to_owned(),
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    }
+
+    pub async fn get_attribute(&mut self, locator: By, attribute_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+        let element = self.driver.find(locator).await?;
+        Ok(element.attr(attribute_name).await?)
+    }
+
+    pub async fn get_property(&mut self, locator: By, property_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+        let element = self.driver.find(locator).await?;
+        Ok(element.prop(property_name).await?)
+    }
+
+    pub async fn wait_for_element_visible(
+        &self,
+        locator: By,
+        timeout_secs: u64,
+    ) -> Result<WebElement, SeleniumBaseError> {
+        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+        loop {
+            if let Ok(element) = self.driver.find(locator.clone()).await {
+                if element.is_displayed().await.unwrap_or(false) {
+                    return Ok(element);
+                }
+            }
+            if Instant::now() >= deadline {
+                return Err(SeleniumBaseError::AssertionFailed(
+                    "timed out waiting for element to be visible".to_owned(),
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    }
+
+    pub async fn wait_for_element_absent(
+        &self,
+        locator: By,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        let deadline = Instant::now() + Duration::from_secs(timeout_secs);
+        loop {
+            match self.driver.find_all(locator.clone()).await {
+                Ok(elements) if elements.is_empty() => return Ok(()),
+                Err(_) => return Ok(()),
+                _ => {}
+            }
+            if Instant::now() >= deadline {
+                return Err(SeleniumBaseError::AssertionFailed(
+                    "timed out waiting for element to be absent".to_owned(),
                 ));
             }
             tokio::time::sleep(Duration::from_millis(250)).await;

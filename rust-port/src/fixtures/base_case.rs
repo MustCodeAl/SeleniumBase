@@ -54,6 +54,24 @@ impl BaseCase {
         self.session.type_text(by, text).await
     }
 
+    pub async fn clear(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.record("clear", Some(css), None);
+        self.session.clear(by).await
+    }
+
+    pub async fn click_link_text(&mut self, link_text: &str) -> Result<(), SeleniumBaseError> {
+        let by = thirtyfour::prelude::By::LinkText(link_text.to_owned());
+        self.record("click_link_text", Some(link_text), None);
+        self.session.click(by).await
+    }
+
+    pub async fn submit(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.record("submit", Some(css), None);
+        self.session.submit(by).await
+    }
+
     pub async fn get_text(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.text(by).await
@@ -65,19 +83,31 @@ impl BaseCase {
         self.session.hover(by).await
     }
 
-    pub async fn hover_and_click(&mut self, hover_css: &str, click_css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn hover_and_click(
+        &mut self,
+        hover_css: &str,
+        click_css: &str,
+    ) -> Result<(), SeleniumBaseError> {
         self.hover(hover_css).await?;
         self.sleep(0.1).await;
         self.click(click_css).await
     }
 
-    pub async fn select_option_by_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_text(
+        &mut self,
+        css: &str,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("select_option_by_text", Some(css), Some(text));
         self.session.select_option_by_text(by, text).await
     }
 
-    pub async fn select_option_by_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_value(
+        &mut self,
+        css: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("select_option_by_value", Some(css), Some(value));
         self.session.select_option_by_value(by, value).await
@@ -94,7 +124,11 @@ impl BaseCase {
         self.session.switch_to_default_content().await
     }
 
-    pub async fn drag_and_drop(&mut self, source_css: &str, target_css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn drag_and_drop(
+        &mut self,
+        source_css: &str,
+        target_css: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let source_by = Selector::Css(source_css).to_by()?;
         let target_by = Selector::Css(target_css).to_by()?;
         self.record("drag_and_drop", Some(source_css), Some(target_css));
@@ -185,6 +219,35 @@ impl BaseCase {
         let by = Selector::Css(css).to_by()?;
         self.session.wait_for_element(by, timeout_secs).await?;
         Ok(())
+    }
+
+    pub async fn get_attribute(&mut self, css: &str, attribute_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.get_attribute(by, attribute_name).await
+    }
+
+    pub async fn get_property(&mut self, css: &str, property_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.get_property(by, property_name).await
+    }
+
+    pub async fn wait_for_element_visible(
+        &self,
+        css: &str,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.wait_for_element_visible(by, timeout_secs).await?;
+        Ok(())
+    }
+
+    pub async fn wait_for_element_absent(
+        &self,
+        css: &str,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.wait_for_element_absent(by, timeout_secs).await
     }
 
     pub async fn wait_for_text(

@@ -61,6 +61,15 @@ pub enum ScenarioStep {
         css: String,
     },
     SwitchToDefaultContent,
+    Clear {
+        css: String,
+    },
+    ClickLinkText {
+        text: String,
+    },
+    Submit {
+        css: String,
+    },
 }
 
 pub async fn run_scenario(
@@ -85,12 +94,25 @@ pub async fn run_scenario(
                 Ok(())
             }
             ScenarioStep::Hover { css } => sb.hover(css).await,
-            ScenarioStep::HoverAndClick { hover_css, click_css } => sb.hover_and_click(hover_css, click_css).await,
-            ScenarioStep::SelectOptionByText { css, text } => sb.select_option_by_text(css, text).await,
-            ScenarioStep::SelectOptionByValue { css, value } => sb.select_option_by_value(css, value).await,
-            ScenarioStep::DragAndDrop { source_css, target_css } => sb.drag_and_drop(source_css, target_css).await,
+            ScenarioStep::HoverAndClick {
+                hover_css,
+                click_css,
+            } => sb.hover_and_click(hover_css, click_css).await,
+            ScenarioStep::SelectOptionByText { css, text } => {
+                sb.select_option_by_text(css, text).await
+            }
+            ScenarioStep::SelectOptionByValue { css, value } => {
+                sb.select_option_by_value(css, value).await
+            }
+            ScenarioStep::DragAndDrop {
+                source_css,
+                target_css,
+            } => sb.drag_and_drop(source_css, target_css).await,
             ScenarioStep::SwitchToFrame { css } => sb.switch_to_frame(css).await,
             ScenarioStep::SwitchToDefaultContent => sb.switch_to_default_content().await,
+            ScenarioStep::Clear { css } => sb.clear(css).await,
+            ScenarioStep::ClickLinkText { text } => sb.click_link_text(text).await,
+            ScenarioStep::Submit { css } => sb.submit(css).await,
         };
 
         match result {

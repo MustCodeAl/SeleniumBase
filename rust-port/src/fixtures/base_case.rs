@@ -247,12 +247,20 @@ impl BaseCase {
         Ok(())
     }
 
-    pub async fn get_attribute(&mut self, css: &str, attribute_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+    pub async fn get_attribute(
+        &mut self,
+        css: &str,
+        attribute_name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.get_attribute(by, attribute_name).await
     }
 
-    pub async fn get_property(&mut self, css: &str, property_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+    pub async fn get_property(
+        &mut self,
+        css: &str,
+        property_name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.get_property(by, property_name).await
     }
@@ -264,7 +272,9 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.record("wait_for_element_visible", Some(css), None);
-        self.session.wait_for_element_visible(by, timeout_secs).await?;
+        self.session
+            .wait_for_element_visible(by, timeout_secs)
+            .await?;
         Ok(())
     }
 

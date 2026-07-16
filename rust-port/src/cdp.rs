@@ -60,32 +60,45 @@ impl CdpClient {
 
     pub async fn mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
         // Mouse moved
-        self.execute_with_params("Input.dispatchMouseEvent", json!({
-            "type": "mouseMoved",
-            "x": x,
-            "y": y
-        })).await?;
+        self.execute_with_params(
+            "Input.dispatchMouseEvent",
+            json!({
+                "type": "mouseMoved",
+                "x": x,
+                "y": y
+            }),
+        )
+        .await?;
         // Mouse down
-        self.execute_with_params("Input.dispatchMouseEvent", json!({
-            "type": "mousePressed",
-            "button": "left",
-            "clickCount": 1,
-            "x": x,
-            "y": y
-        })).await?;
+        self.execute_with_params(
+            "Input.dispatchMouseEvent",
+            json!({
+                "type": "mousePressed",
+                "button": "left",
+                "clickCount": 1,
+                "x": x,
+                "y": y
+            }),
+        )
+        .await?;
         // Mouse up
-        self.execute_with_params("Input.dispatchMouseEvent", json!({
-            "type": "mouseReleased",
-            "button": "left",
-            "clickCount": 1,
-            "x": x,
-            "y": y
-        })).await?;
+        self.execute_with_params(
+            "Input.dispatchMouseEvent",
+            json!({
+                "type": "mouseReleased",
+                "button": "left",
+                "clickCount": 1,
+                "x": x,
+                "y": y
+            }),
+        )
+        .await?;
         Ok(())
     }
 
     pub async fn keyboard_insert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
-        self.execute_with_params("Input.insertText", json!({ "text": text })).await?;
+        self.execute_with_params("Input.insertText", json!({ "text": text }))
+            .await?;
         Ok(())
     }
 

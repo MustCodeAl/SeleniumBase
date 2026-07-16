@@ -84,7 +84,9 @@ impl BrowserSession {
         let element = self.driver.find(locator).await?;
         let element_json = element.to_json()?;
         // Form submit via script
-        self.driver.execute("arguments[0].closest('form').submit()", vec![element_json]).await?;
+        self.driver
+            .execute("arguments[0].closest('form').submit()", vec![element_json])
+            .await?;
         Ok(())
     }
 
@@ -188,12 +190,20 @@ impl BrowserSession {
         }
     }
 
-    pub async fn get_attribute(&mut self, locator: By, attribute_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+    pub async fn get_attribute(
+        &mut self,
+        locator: By,
+        attribute_name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.driver.find(locator).await?;
         Ok(element.attr(attribute_name).await?)
     }
 
-    pub async fn get_property(&mut self, locator: By, property_name: &str) -> Result<Option<String>, SeleniumBaseError> {
+    pub async fn get_property(
+        &mut self,
+        locator: By,
+        property_name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.driver.find(locator).await?;
         Ok(element.prop(property_name).await?)
     }
@@ -430,6 +440,20 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
         caps.add_arg("--disable-blink-features=AutomationControlled")?;
         caps.add_arg("--disable-infobars")?;
         caps.add_arg("--disable-popup-blocking")?;
+        caps.add_arg("--no-first-run")?;
+        caps.add_arg("--disable-notifications")?;
+        caps.add_arg("--disable-background-networking")?;
+        caps.add_arg("--disable-client-side-phishing-detection")?;
+        caps.add_arg("--disable-default-apps")?;
+        caps.add_arg("--disable-prompt-on-repost")?;
+        caps.add_arg("--disable-sync")?;
+        caps.add_arg("--disable-translate")?;
+        caps.add_arg("--metrics-recording-only")?;
+        caps.add_arg("--no-default-browser-check")?;
+        caps.add_arg("--password-store=basic")?;
+        caps.add_arg("--use-mock-keychain")?;
+        caps.add_arg("--disable-search-engine-choice-screen")?;
+        caps.add_arg("--safebrowsing-disable-download-protection")?;
         caps.add_exclude_switch("enable-automation")?;
         caps.add_experimental_option("useAutomationExtension", false)?;
     }

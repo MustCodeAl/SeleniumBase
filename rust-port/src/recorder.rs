@@ -108,12 +108,18 @@ impl ActionRecorder {
                 }
                 "wait_for_element_visible" => {
                     if let Some(css) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.wait_for_element_visible({:?}, 10).await?;\n", css));
+                        out.push_str(&format!(
+                            "    sb.wait_for_element_visible({:?}, 10).await?;\n",
+                            css
+                        ));
                     }
                 }
                 "wait_for_element_absent" => {
                     if let Some(css) = action.target.as_deref() {
-                        out.push_str(&format!("    sb.wait_for_element_absent({:?}, 10).await?;\n", css));
+                        out.push_str(&format!(
+                            "    sb.wait_for_element_absent({:?}, 10).await?;\n",
+                            css
+                        ));
                     }
                 }
                 "clear" => {

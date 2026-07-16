@@ -302,6 +302,26 @@ impl BrowserSession {
         cdp.clear_cache().await
     }
 
+    pub async fn clear_browser_cookies(&self) -> Result<(), SeleniumBaseError> {
+        let cdp = self.cdp_client()?;
+        cdp.clear_cookies().await
+    }
+
+    pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
+        let cdp = self.cdp_client()?;
+        cdp.get_cookies().await
+    }
+
+    pub async fn cdp_mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
+        let cdp = self.cdp_client()?;
+        cdp.mouse_click(x, y).await
+    }
+
+    pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        let cdp = self.cdp_client()?;
+        cdp.keyboard_insert_text(text).await
+    }
+
     pub async fn set_network_conditions(
         &self,
         conditions: &NetworkConditions,

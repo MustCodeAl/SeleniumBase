@@ -56,6 +56,7 @@
 <li>🎭 <a href="https://github.com/seleniumbase/SeleniumBase/blob/master/examples/cdp_mode/playwright/ReadMe.md"><b><span translate="no">Stealthy Playwright Mode</span></b></a> <b>extends CDP Mode's stealth to Playwright.</b></li>
 <li><b><code>pip install seleniumbase</code></b> for the main framework.</li>
 <li><b><code>pip install playwright</code></b> for the Playwright integration.</li>
+<li>🦀 <a href="./rust-port/README.md"><b>Rust Port (Foundation)</b></a> includes an initial Rust crate + CLI with SeleniumBase-aligned module layout.</li>
 </ul>
 
 --------

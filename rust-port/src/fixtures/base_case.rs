@@ -204,6 +204,32 @@ impl BaseCase {
         self.session.clear_browser_cache().await
     }
 
+    pub async fn clear_browser_cookies(&self) -> Result<(), SeleniumBaseError> {
+        self.session.clear_browser_cookies().await
+    }
+
+    pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
+        self.session.get_cookies().await
+    }
+
+    pub async fn cdp_mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
+        self.session.cdp_mouse_click(x, y).await
+    }
+
+    pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        self.session.cdp_type_text(text).await
+    }
+
+    pub async fn cdp_click_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.record("cdp_click_element", Some(css), None);
+        let by = Selector::Css(css).to_by()?;
+        let element = self.session.find(by).await?;
+        let rect = element.rect().await?;
+        let center_x = rect.x + (rect.width / 2.0);
+        let center_y = rect.y + (rect.height / 2.0);
+        self.session.cdp_mouse_click(center_x, center_y).await
+    }
+
     pub async fn set_network_conditions(
         &self,
         conditions: &NetworkConditions,

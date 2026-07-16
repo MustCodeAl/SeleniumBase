@@ -49,6 +49,46 @@ impl CdpClient {
         Ok(())
     }
 
+    pub async fn clear_cookies(&self) -> Result<(), SeleniumBaseError> {
+        self.execute("Network.clearBrowserCookies").await?;
+        Ok(())
+    }
+
+    pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
+        self.execute("Network.getCookies").await
+    }
+
+    pub async fn mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
+        // Mouse moved
+        self.execute_with_params("Input.dispatchMouseEvent", json!({
+            "type": "mouseMoved",
+            "x": x,
+            "y": y
+        })).await?;
+        // Mouse down
+        self.execute_with_params("Input.dispatchMouseEvent", json!({
+            "type": "mousePressed",
+            "button": "left",
+            "clickCount": 1,
+            "x": x,
+            "y": y
+        })).await?;
+        // Mouse up
+        self.execute_with_params("Input.dispatchMouseEvent", json!({
+            "type": "mouseReleased",
+            "button": "left",
+            "clickCount": 1,
+            "x": x,
+            "y": y
+        })).await?;
+        Ok(())
+    }
+
+    pub async fn keyboard_insert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        self.execute_with_params("Input.insertText", json!({ "text": text })).await?;
+        Ok(())
+    }
+
     pub async fn add_init_script(&self, script_source: &str) -> Result<(), SeleniumBaseError> {
         self.execute_with_params(
             "Page.addScriptToEvaluateOnNewDocument",

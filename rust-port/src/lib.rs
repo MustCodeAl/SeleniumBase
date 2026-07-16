@@ -6,6 +6,7 @@ pub mod dashboard;
 pub mod error;
 pub mod fixtures;
 pub mod packages;
+pub mod patcher;
 pub mod recorder;
 pub mod scenario;
 pub mod uc;

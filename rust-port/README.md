@@ -193,11 +193,12 @@ See [`examples/cloud_upload.rs`](./examples/cloud_upload.rs) for the full snippe
 
 ### Playwright mode (optional feature)
 
-Playwright-backed stealth mode is available behind the `playwright` feature. The
-upstream `playwright` crate (`0.0.20`) downloads a native driver during its build
-script; the hosted driver URL is currently unreachable (HTTP 404), so the
-feature may fail to build on hosts without a cached driver. The feature is left
-disabled by default so the main build stays green:
+Playwright-backed stealth mode is available behind the `playwright` feature. It
+uses the [`playwright-rs`](https://github.com/padamson/playwright-rust) crate,
+which downloads the Playwright driver during its build script. Make sure the
+build host can reach the Playwright CDN, or pre-install the driver with
+`npx playwright install`. The feature is disabled by default so the main build
+does not require the driver:
 
 ```bash
 cargo run --example playwright_mode --features playwright

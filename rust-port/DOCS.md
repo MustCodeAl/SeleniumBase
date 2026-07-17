@@ -107,6 +107,30 @@ sb.assert_title("Dashboard").await?;
 sb.assert_element_present(".user-profile").await?;
 ```
 
+### PDF, HTML Parsing, Tours & Charts
+Generate PDFs from pages, parse HTML like BeautifulSoup, build interactive tours, and create charts.
+
+```rust
+// Print the current page to PDF via CDP
+sb.print_to_pdf("page.pdf").await?;
+let text = sb.get_pdf_text("page.pdf")?;
+
+// Parse the current page source
+let soup = sb.get_beautiful_soup_object().await?;
+let heading = soup.get_text("h1")?;
+
+// Build a themed tour
+sb.create_tour_with_theme("Onboarding", TourTheme::Shepherd).await?;
+sb.add_tour_step("Click the logo", Some("#logo")).await?;
+sb.add_tour_step("Fill the form", None).await?;
+sb.play_tour().await?;
+
+// Create and save charts
+sb.create_bar_chart("Sales").await?;
+sb.add_data_point("Q1", 100).await?;
+sb.save_chart("sales.html").await?;
+```
+
 ---
 
 ## Low-Code Scenarios

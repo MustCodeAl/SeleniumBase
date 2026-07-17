@@ -1,15 +1,25 @@
 pub mod artifacts;
+pub mod behave;
 pub mod cdp;
+pub mod common;
 pub mod config;
+pub mod console_scripts;
 pub mod core;
 pub mod dashboard;
+pub mod drivers;
 pub mod error;
+pub mod extensions;
 pub mod fixtures;
+pub mod js_code;
+pub mod masterqa;
 pub mod packages;
 pub mod patcher;
+pub mod plugins;
 pub mod recorder;
+pub mod resources;
 pub mod scenario;
 pub mod uc;
+pub mod undetected;
 
 pub use config::{Browser, BrowserConfig, DriverMode};
 pub use core::session::BrowserSession;

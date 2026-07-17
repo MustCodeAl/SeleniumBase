@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
+use seleniumbase_rs::console_scripts::*;
 use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::scenario::{run_scenario, Scenario};
 use seleniumbase_rs::{BaseCase, Browser, BrowserConfig, DriverMode};
@@ -337,6 +338,35 @@ enum Commands {
         css: String,
         #[arg(long)]
         text: String,
+    },
+    Install,
+    Mkdir {
+        #[arg(long)]
+        dir: String,
+    },
+    Mkfile {
+        #[arg(long)]
+        file: String,
+    },
+    Commander,
+    Caseplans,
+    BehaveGui,
+    Print {
+        #[arg(long)]
+        file: String,
+    },
+    Objectify,
+    Mkpres {
+        #[arg(long)]
+        file: String,
+    },
+    Mkchart {
+        #[arg(long)]
+        file: String,
+    },
+    Mkrec {
+        #[arg(long)]
+        file: String,
     },
     RunScenario {
         #[arg(long)]
@@ -855,6 +885,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             sb.uc_type(&css, &text).await?;
             println!("UC typed into '{}'", css);
+        }
+        Commands::Install => {
+            sb_install::install_drivers();
+        }
+        Commands::Mkdir { dir } => {
+            sb_mkdir::create_test_dir(&dir);
+        }
+        Commands::Mkfile { file } => {
+            sb_mkfile::create_test_file(&file);
+        }
+        Commands::Commander => {
+            sb_commander::run_commander();
+        }
+        Commands::Caseplans => {
+            sb_caseplans::run_caseplans();
+        }
+        Commands::BehaveGui => {
+            sb_behave_gui::run_gui();
+        }
+        Commands::Print { file } => {
+            sb_print::print_file(&file);
+        }
+        Commands::Objectify => {
+            sb_objectify::objectify_page();
+        }
+        Commands::Mkpres { file } => {
+            sb_mkpres::make_presentation(&file);
+        }
+        Commands::Mkchart { file } => {
+            sb_mkchart::make_chart(&file);
+        }
+        Commands::Mkrec { file } => {
+            sb_mkrec::make_recorder_file(&file);
         }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;

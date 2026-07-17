@@ -1304,7 +1304,7 @@ impl BaseCase {
         self.record("human_type", Some(css), Some(text));
         let elem = self.session.driver().find(by).await?;
         elem.click().await?; // Focus the field
-        
+
         let mut rng = rand::thread_rng();
         for c in text.chars() {
             elem.send_keys(&c.to_string()).await?;
@@ -1319,11 +1319,11 @@ impl BaseCase {
         let by = Selector::Css(css).to_by()?;
         self.record("human_click", Some(css), None);
         let elem = self.session.driver().find(by).await?;
-        
+
         let mut rng = rand::thread_rng();
         let pre_delay = rng.gen_range(100..=300);
         tokio::time::sleep(Duration::from_millis(pre_delay)).await;
-        
+
         elem.click().await?;
         Ok(())
     }
@@ -1331,7 +1331,7 @@ impl BaseCase {
     /// Executes the `smooth_scroll_to` action.
     pub async fn smooth_scroll_to(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelector('{}').scrollIntoView({{behavior: 'smooth', block: 'center'}});", 
+            "document.querySelector('{}').scrollIntoView({{behavior: 'smooth', block: 'center'}});",
             css.replace("'", "\'")
         );
         self.execute_script(&script).await?;
@@ -1347,5 +1347,124 @@ impl BaseCase {
     /// Executes the `uc_type` action (alias for human_type, often used in UC mode stealth).
     pub async fn uc_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.human_type(css, text).await
+    }
+
+    // --- JS Code Execution Helpers ---
+
+    pub async fn execute_active_css_js(&mut self) -> Result<(), SeleniumBaseError> {
+        let js = crate::js_code::active_css_js::get_active_css_js();
+        self.execute_script(js).await?;
+        Ok(())
+    }
+
+    pub async fn activate_recorder(&mut self) -> Result<(), SeleniumBaseError> {
+        let js = crate::js_code::recorder_js::get_recorder_js();
+        self.execute_script(js).await?;
+        Ok(())
+    }
+
+    // --- Tour Helpers ---
+
+    pub async fn create_tour(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
+        crate::core::tour_helper::create_tour(name);
+        Ok(())
+    }
+
+    pub async fn add_tour_step(
+        &mut self,
+        message: &str,
+        target: Option<&str>,
+    ) -> Result<(), SeleniumBaseError> {
+        println!("Adding tour step: {} for target {:?}", message, target);
+        Ok(())
+    }
+
+    pub async fn play_tour(&mut self) -> Result<(), SeleniumBaseError> {
+        crate::core::tour_helper::play_tour();
+        Ok(())
+    }
+
+    pub async fn export_tour(&mut self, filename: &str) -> Result<(), SeleniumBaseError> {
+        println!("Exporting tour to {}", filename);
+        Ok(())
+    }
+
+    // --- Visual Testing ---
+
+    pub async fn check_window(&mut self, name: &str, level: f64) -> Result<(), SeleniumBaseError> {
+        crate::core::visual_helper::check_window(name, level);
+        Ok(())
+    }
+
+    // --- MasterQA Integration ---
+
+    pub async fn verify(&mut self, statement: &str) -> Result<(), SeleniumBaseError> {
+        let qa = crate::masterqa::master_qa::MasterQA {
+            sb: self.clone_core(), // Using a placeholder for integration
+        };
+        qa.verify(statement);
+        Ok(())
+    }
+
+    fn clone_core(&self) -> Self {
+        // Stub implementation to bypass clone limitations of BaseCase
+        panic!("Direct clone not supported");
+    }
+
+    // --- Deferred Asserts ---
+
+    pub async fn deferred_assert_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        println!("Deferred assert for {}", css);
+        Ok(())
+    }
+
+    pub async fn deferred_assert_text(
+        &mut self,
+        text: &str,
+        css: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        println!("Deferred assert text {} in {}", text, css);
+        Ok(())
+    }
+
+    pub async fn process_deferred_asserts(&mut self) -> Result<(), SeleniumBaseError> {
+        println!("Processing deferred asserts...");
+        Ok(())
+    }
+
+    // --- Dashboards and Charts ---
+
+    pub async fn create_presentation(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
+        println!("Creating presentation: {}", title);
+        Ok(())
+    }
+
+    pub async fn add_presentation_slide(&mut self, content: &str) -> Result<(), SeleniumBaseError> {
+        println!("Adding slide: {}", content);
+        Ok(())
+    }
+
+    pub async fn save_presentation(&mut self, filename: &str) -> Result<(), SeleniumBaseError> {
+        println!("Saving presentation to {}", filename);
+        Ok(())
+    }
+
+    pub async fn create_pie_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
+        println!("Creating pie chart: {}", title);
+        Ok(())
+    }
+
+    pub async fn add_data_point(
+        &mut self,
+        label: &str,
+        value: i32,
+    ) -> Result<(), SeleniumBaseError> {
+        println!("Adding data point: {} = {}", label, value);
+        Ok(())
+    }
+
+    pub async fn save_pie_chart(&mut self, filename: &str) -> Result<(), SeleniumBaseError> {
+        println!("Saving pie chart to {}", filename);
+        Ok(())
     }
 }

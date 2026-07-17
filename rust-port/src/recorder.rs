@@ -59,10 +59,7 @@ impl ActionRecorder {
                     if let (Some(css), Some(_value)) =
                         (action.target.as_deref(), action.value.as_deref())
                     {
-                        out.push_str(&format!(
-                            "    // sb.assert_attribute({:?}, ...);;\n",
-                            css
-                        ));
+                        out.push_str(&format!("    // sb.assert_attribute({:?}, ...);;\n", css));
                     }
                 }
                 "assert_title" => {

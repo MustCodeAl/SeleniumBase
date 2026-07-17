@@ -7,11 +7,11 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 
 ### Key Features Ported
 
-- **BaseCase API**: Over 50+ actions, waits, assertions, and DOM manipulation methods.
+- **BaseCase API**: 200+ actions, waits, assertions, and DOM manipulation methods.
   - Basic interactions: `open`, `click`, `type_text`, `submit`, `clear`, `hover`
   - Advanced interactions: `double_click`, `context_click`, `slow_click`, `drag_and_drop`
   - JS interactions: `js_click`, `js_type`, `execute_script`, `execute_async_script`
-  - Selectors & Shadow DOM: `find_element`, `find_elements`, `get_shadow_root`
+  - Selectors & Shadow DOM: `find_element`, `find_elements`, `shadow_click`, `shadow_type`, `shadow_get_text`
   - Attributes/Properties: `get_attribute`, `get_property`, `set_attribute`, `remove_attribute`
   - Windows & Frames: `switch_to_frame`, `switch_to_default_content`, `switch_to_window`, `switch_to_new_window`, `maximize_window`
   - Navigation: `go_back`, `go_forward`, `refresh`
@@ -19,17 +19,30 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
   - Alerts: `accept_alert`, `dismiss_alert`, `type_alert_text`
   - Cookies & Storage: `get_cookie`, `add_cookie`, `delete_all_cookies`, `set_local_storage_item`, `clear_local_storage`, `remove_local_storage_item`
   - Uploads: `choose_file`
+  - MFA/TOTP: `get_totp_code`
+  - PDF: `save_as_pdf`, `get_pdf_text`, `assert_pdf_text`
+  - HTML parsing: `soup_find`, `soup_find_all`, `get_beautiful_soup_object`
 - **Driver Modes (`BrowserConfig`)**: `WebDriver`, `Cdp`, `Uc` (Undetected Chromedriver).
 - **Stealth Integrations**:
   - UC mode (Chromium flags + `navigator.webdriver` evasion).
   - CDC stealth binary patcher to strip hardcoded signatures from the `chromedriver` executable.
-- **CDP Execution**: 
-  - Send raw commands: `execute_cdp`, `execute_cdp_with_params`.
+- **CDP Automation**:
+  - Raw CDP commands: `execute_cdp`, `execute_cdp_with_params`.
+  - High-level CDP page API: `cdp_open`, `cdp_click`, `cdp_type`, `cdp_get_text`, `cdp_evaluate`, `cdp_screenshot`.
+  - Standalone async CDP driver (`CdpDriver`) for direct WebSocket control.
   - Network & Cache: `set_network_conditions`, `clear_browser_cache`.
+- **Playwright Mode** (optional `playwright` feature): Bypass bot-detection using a Playwright-backed driver.
+- **GUI Automation**: OS-level mouse and keyboard control via `enigo` (`gui_click`, `gui_type`, `gui_key_sequence`).
+- **Native Dialogs**: Cross-platform message/confirm/input dialogs via `rfd` (`dialog`, `dialog_confirm`, `dialog_input`).
+- **HTML Inspector**: Lint-like checks for missing alt text, empty links, duplicate ids, skipped headings, and landmarks.
+- **MasterQA**: Hybrid manual testing session with Markdown test-case reports.
+- **Global Config**: Load `sbase_config.toml` / `.sbase_config` with env overrides.
+- **Commander TUI**: Terminal UI for browsing and running tests (`sbase commander`).
+- **Recorder CLI**: Capture interactions and generate Rust tests (`sbase recorder`).
 - **Test Artifacts**: `save_screenshot_to_logs()`, `save_page_source_to_logs()`.
 - **Low-Code Runner**: JSON scenario execution with an HTML dashboard.
 - **Action Recorder**: Captures browser interactions and compiles them into a JSON scenario or a standalone Rust script.
-- **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal.
+- **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal with `--headless`, `--mobile`, `--proxy`, `--proxy-pac-url`, `--user-data-dir`, `--extension-dir`, `--reuse-session`, and `-n` threads.
 
 ## Documentation
 
@@ -82,6 +95,58 @@ You can patch your downloaded `chromedriver` executable directly to remove hardc
 
 ```bash
 cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
+```
+
+### CDP page automation
+
+```rust
+use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut sb = BaseCase::new(BrowserConfig {
+        mode: DriverMode::Cdp,
+        ..Default::default()
+    }).await?;
+    sb.cdp_open("https://seleniumbase.io").await?;
+    let text = sb.cdp_get_text("h1").await?;
+    println!("{text}");
+    sb.quit().await?;
+    Ok(())
+}
+```
+
+### Shadow DOM piercing
+
+```rust
+sb.shadow_click("my-app ::shadow button").await?;
+sb.shadow_type("my-app ::shadow input", "hello").await?;
+```
+
+### Native dialogs
+
+```rust
+sb.show_message("Welcome", "Welcome to the SeleniumBase Rust demo!");
+if sb.show_confirm("Continue?", "Do you want to continue?") {
+    let result = sb.show_prompt("Your name", "What is your name?", Some("guest"));
+    let name = result.text.unwrap_or_else(|| "guest".to_string());
+    sb.show_message("Hello", &format!("Hello, {name}!"));
+}
+```
+
+### HTML Inspector
+
+```rust
+let inspection = sb.inspect_html().await?;
+assert!(inspection.is_clean(), "{inspection:?}");
+```
+
+### GUI automation
+
+```rust
+sb.gui_click_x_y(100, 200)?;
+sb.gui_write("hello")?;
+sb.gui_press_keys(&["command", "a"])?;
 ```
 
 ### Run JSON scenario and generate dashboard

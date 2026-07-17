@@ -784,56 +784,5 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     caps: &mut C,
     config: &BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
-    caps.add_arg("--disable-gpu")?;
-    caps.add_arg("--window-size=1280,720")?;
-    if config.headless {
-        caps.add_arg("--headless=new")?;
-    }
-    if config.ad_block {
-        caps.add_arg("--blink-settings=imagesEnabled=false")?;
-    }
-    if let Some(locale) = config.locale.as_deref() {
-        caps.add_arg(&format!("--lang={locale}"))?;
-    }
-    if let Some(user_agent) = config.user_agent.as_deref() {
-        caps.add_arg(&format!("--user-agent={user_agent}"))?;
-    }
-    if let Some(proxy) = config.proxy.as_deref() {
-        caps.add_arg(&format!("--proxy-server={proxy}"))?;
-    }
-    if let Some(pac_url) = config.proxy_pac_url.as_deref() {
-        caps.add_arg(&format!("--proxy-pac-url={pac_url}"))?;
-    }
-    if let Some(user_data_dir) = config.user_data_dir.as_deref() {
-        caps.add_arg(&format!("--user-data-dir={user_data_dir}"))?;
-    }
-    if let Some(extension_dir) = config.extension_dir.as_deref() {
-        caps.add_arg(&format!("--load-extension={extension_dir}"))?;
-    }
-    if config.mobile {
-        caps.add_arg("--user-agent=Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")?;
-        caps.add_arg("--window-size=390,844")?;
-    }
-    if config.is_uc_enabled() {
-        caps.add_arg("--disable-blink-features=AutomationControlled")?;
-        caps.add_arg("--disable-infobars")?;
-        caps.add_arg("--disable-popup-blocking")?;
-        caps.add_arg("--no-first-run")?;
-        caps.add_arg("--disable-notifications")?;
-        caps.add_arg("--disable-background-networking")?;
-        caps.add_arg("--disable-client-side-phishing-detection")?;
-        caps.add_arg("--disable-default-apps")?;
-        caps.add_arg("--disable-prompt-on-repost")?;
-        caps.add_arg("--disable-sync")?;
-        caps.add_arg("--disable-translate")?;
-        caps.add_arg("--metrics-recording-only")?;
-        caps.add_arg("--no-default-browser-check")?;
-        caps.add_arg("--password-store=basic")?;
-        caps.add_arg("--use-mock-keychain")?;
-        caps.add_arg("--disable-search-engine-choice-screen")?;
-        caps.add_arg("--safebrowsing-disable-download-protection")?;
-        caps.add_exclude_switch("enable-automation")?;
-        caps.add_experimental_option("useAutomationExtension", false)?;
-    }
-    Ok(())
+    crate::stealth::options::StealthOptions::from(config).apply_to(caps)
 }

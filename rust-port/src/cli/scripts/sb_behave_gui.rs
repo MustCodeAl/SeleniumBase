@@ -1,13 +1,9 @@
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::PathBuf;
 
-pub fn run_gui() {
-    println!("SeleniumBase BDD Feature Generator");
-    println!("==================================");
-
-    if !Path::new("features").exists() {
-        println!("Creating features/ directory...");
-        let _ = std::fs::create_dir_all("features");
+pub fn run_gui() -> std::io::Result<PathBuf> {
+    if !PathBuf::from("features").exists() {
+        std::fs::create_dir_all("features")?;
     }
 
     let feature_name = prompt("Feature file name (without .feature): ");
@@ -25,10 +21,10 @@ pub fn run_gui() {
     );
 
     let scenario_count = prompt("How many scenarios? ");
-    let scenario_count: usize = scenario_count.trim().parse().unwrap_or(1);
+    let scenario_count = scenario_count.trim().parse::<usize>().unwrap_or(1);
 
-    for i in 1..=scenario_count {
-        let scenario_name = prompt(&format!("Scenario {} name: ", i));
+    for index in 1..=scenario_count {
+        let scenario_name = prompt(&format!("Scenario {} name: ", index));
         feature_content.push_str(&format!("  Scenario: {}\n", scenario_name));
 
         loop {
@@ -42,13 +38,10 @@ pub fn run_gui() {
         feature_content.push('\n');
     }
 
-    let file_path = format!("features/{}.feature", feature_name.trim());
-    match std::fs::write(&file_path, feature_content) {
-        Ok(_) => println!("Created BDD feature file: {}", file_path),
-        Err(e) => eprintln!("Failed to write feature file {}: {}", file_path, e),
-    }
+    let feature_path = PathBuf::from("features").join(format!("{}.feature", feature_name.trim()));
+    std::fs::write(&feature_path, feature_content)?;
 
-    let readme_path = "features/README.md";
+    let readme_path = PathBuf::from("features/README.md");
     let readme = r#"# BDD Features
 
 This directory contains Gherkin feature files for behavior-driven development tests.
@@ -62,7 +55,8 @@ cucumber = "0.21"
 
 See the `cucumber` crate documentation for wiring step definitions to these features.
 "#;
-    let _ = std::fs::write(readme_path, readme);
+    std::fs::write(&readme_path, readme)?;
+    Ok(feature_path)
 }
 
 fn prompt(message: &str) -> String {

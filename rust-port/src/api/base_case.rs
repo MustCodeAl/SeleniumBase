@@ -30,6 +30,7 @@ pub struct BaseCase {
     deferred: DeferredAsserts,
     presentation: Option<Presentation>,
     chart: Option<PieChart>,
+    time_limit_secs: Option<u64>,
 }
 
 impl BaseCase {
@@ -43,12 +44,9 @@ impl BaseCase {
             deferred: DeferredAsserts::default(),
             presentation: None,
             chart: None,
+            time_limit_secs: None,
         })
     }
-
-    /// Executes the `open` action.
-
-    /// Executes the `is_element_visible` action.
 
     /// Executes the `assert_text_visible` action.
     pub async fn assert_text_visible(
@@ -118,8 +116,9 @@ impl BaseCase {
     pub async fn wait_for_ready_state_complete(&self) -> Result<(), SeleniumBaseError> {
         let script = "return document.readyState;";
         let start = std::time::Instant::now();
+        let timeout_secs = self.time_limit_secs.unwrap_or(10);
         loop {
-            if start.elapsed().as_secs() > 10 {
+            if start.elapsed().as_secs() > timeout_secs {
                 return Err(SeleniumBaseError::WaitTimeout(
                     "Page readyState did not become 'complete'".into(),
                 ));
@@ -198,7 +197,7 @@ impl BaseCase {
         self.record("wait_for_element_not_visible", Some(css), None);
         let by = Selector::Css(css).to_by()?;
         let start = std::time::Instant::now();
-        let timeout_dur = Duration::from_secs(timeout);
+        let timeout_dur = Duration::from_secs(self.effective_timeout(timeout));
         loop {
             if start.elapsed() > timeout_dur {
                 return Err(SeleniumBaseError::WaitTimeout(format!(
@@ -250,8 +249,6 @@ impl BaseCase {
         self.highlight(css).await?;
         self.click(css).await
     }
-
-    /// Executes the `hover_and_click` action.
 
     /// Executes the `is_checked` action.
     pub async fn is_checked(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
@@ -347,7 +344,7 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         let start = std::time::Instant::now();
-        let timeout_dur = Duration::from_secs(timeout);
+        let timeout_dur = Duration::from_secs(self.effective_timeout(timeout));
         loop {
             if start.elapsed() > timeout_dur {
                 return Err(SeleniumBaseError::WaitTimeout(format!(
@@ -1011,10 +1008,7 @@ impl BaseCase {
 
     /// Executes the `assert_element_not_visible` action.
     pub async fn assert_element_not_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
-        let is_visible = match self.is_displayed(css).await {
-            Ok(visible) => visible,
-            Err(_) => false,
-        };
+        let is_visible = self.is_displayed(css).await.unwrap_or_default();
         if !is_visible {
             return Ok(());
         }
@@ -1355,8 +1349,8 @@ impl BaseCase {
     /// Executes the `smooth_scroll_to` action.
     pub async fn smooth_scroll_to(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
-            "document.querySelector('{}').scrollIntoView({{behavior: 'smooth', block: 'center'}});",
-            css.replace("'", "\'")
+            "document.querySelector({}).scrollIntoView({{behavior: 'smooth', block: 'center'}});",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         tokio::time::sleep(Duration::from_millis(800)).await;
@@ -1818,8 +1812,9 @@ impl BaseCase {
         crate::utils::selectors::xpath_to_css(xpath)
     }
 
-    /// No-op placeholder matching Python `set_time_limit`.
-    pub fn set_time_limit(&mut self, _seconds: u64) -> Result<(), SeleniumBaseError> {
+    /// Set a soft upper bound for wait-based helpers.
+    pub fn set_time_limit(&mut self, seconds: u64) -> Result<(), SeleniumBaseError> {
+        self.time_limit_secs = Some(seconds);
         Ok(())
     }
 
@@ -1858,6 +1853,12 @@ impl BaseCase {
     pub async fn is_element_enabled(&self, css: &str) -> Result<bool, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         self.session.is_enabled(by).await
+    }
+
+    fn effective_timeout(&self, requested: u64) -> u64 {
+        self.time_limit_secs
+            .map(|limit| limit.min(requested))
+            .unwrap_or(requested)
     }
 
     /// Return whether `text` exactly matches the visible text of the element.

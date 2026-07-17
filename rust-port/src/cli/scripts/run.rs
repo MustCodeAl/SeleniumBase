@@ -1,13 +1,5 @@
-use std::process::Command;
+use std::process::{Command, Output};
 
-pub fn run_tests() {
-    println!("Running SeleniumBase Rust tests...");
-    let output = Command::new("cargo").arg("test").output();
-    match output {
-        Ok(out) => {
-            println!("{}", String::from_utf8_lossy(&out.stdout));
-            eprintln!("{}", String::from_utf8_lossy(&out.stderr));
-        }
-        Err(e) => eprintln!("Failed to run tests: {}", e),
-    }
+pub fn run_tests() -> std::io::Result<Output> {
+    Command::new("cargo").arg("test").output()
 }

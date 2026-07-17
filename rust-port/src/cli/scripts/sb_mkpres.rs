@@ -1,8 +1,7 @@
-use std::fs::File;
-use std::io::Write;
+use std::path::PathBuf;
 
-pub fn make_presentation(filename: &str) {
-    let mut file = File::create(filename).unwrap();
+pub fn make_presentation(filename: &str) -> std::io::Result<PathBuf> {
+    let path = PathBuf::from(filename);
     let content = r#"<!DOCTYPE html>
 <html>
 <head>
@@ -20,6 +19,6 @@ pub fn make_presentation(filename: &str) {
     <script>Reveal.initialize();</script>
 </body>
 </html>"#;
-    file.write_all(content.as_bytes()).unwrap();
-    println!("Created presentation at {}", filename);
+    std::fs::write(&path, content)?;
+    Ok(path)
 }

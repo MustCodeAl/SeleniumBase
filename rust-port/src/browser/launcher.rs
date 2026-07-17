@@ -91,14 +91,9 @@ async fn ensure_chromedriver_binary() -> Result<PathBuf, SeleniumBaseError> {
         }
     }
 
-    // Not found locally — download the latest stable chromedriver.
-    download_chrome_driver().await?;
-
-    for name in &candidate_names {
-        let path = dest_dir.join(name);
-        if path.exists() {
-            return Ok(path);
-        }
+    let downloaded = download_chrome_driver().await?;
+    if downloaded.exists() {
+        return Ok(downloaded);
     }
 
     Err(SeleniumBaseError::InvalidConfig(

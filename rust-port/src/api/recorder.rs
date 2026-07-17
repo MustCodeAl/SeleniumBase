@@ -56,10 +56,17 @@ impl ActionRecorder {
                     }
                 }
                 "assert_attribute" => {
-                    if let (Some(css), Some(_value)) =
+                    if let (Some(css), Some(value)) =
                         (action.target.as_deref(), action.value.as_deref())
                     {
-                        out.push_str(&format!("    // sb.assert_attribute({:?}, ...);;\n", css));
+                        if let Some((attribute, expected)) = value.split_once('=') {
+                            out.push_str(&format!(
+                                "    sb.assert_attribute({:?}, {:?}, {:?}).await?;\n",
+                                css,
+                                attribute.trim(),
+                                expected.trim()
+                            ));
+                        }
                     }
                 }
                 "assert_title" => {
@@ -402,18 +409,19 @@ impl ActionRecorder {
                     }
                 }
                 "set_attribute" => {
-                    // Recorder logic for attributes might require more params but let's map it roughly
-                    if let (Some(css), Some(_val)) =
-                        (action.target.as_deref(), action.value.as_deref())
-                    {
-                        // Assuming value holds "attr=val" ? Just a placeholder
-                        out.push_str(&format!(
-                            "    // sb.set_attribute({:?}, ...);
-",
-                            css
-                        ));
-                    }
-                }
+                   if let (Some(css), Some(value)) =
+                       (action.target.as_deref(), action.value.as_deref())
+                   {
+                       if let Some((attribute, new_value)) = value.split_once('=') {
+                           out.push_str(&format!(
+                               "    sb.set_attribute({:?}, {:?}, {:?}).await?;\n",
+                               css,
+                               attribute.trim(),
+                               new_value.trim()
+                           ));
+                       }
+                   }
+               }
                 "choose_file" => {
                     if let (Some(css), Some(path)) =
                         (action.target.as_deref(), action.value.as_deref())

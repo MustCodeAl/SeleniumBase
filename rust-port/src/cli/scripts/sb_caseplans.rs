@@ -1,8 +1,7 @@
-use std::fs::File;
-use std::io::Write;
+use std::path::PathBuf;
 
-pub fn run_caseplans() {
-    let mut file = File::create("CASE_PLANS.md").unwrap();
+pub fn run_caseplans() -> std::io::Result<PathBuf> {
+    let path = PathBuf::from("CASE_PLANS.md");
     let content = r#"# Test Case Plans
 
 ## Smoke Tests
@@ -15,6 +14,6 @@ pub fn run_caseplans() {
 - [ ] File upload
 - [ ] API integration
 "#;
-    file.write_all(content.as_bytes()).unwrap();
-    println!("Generated CASE_PLANS.md");
+    std::fs::write(&path, content)?;
+    Ok(path)
 }

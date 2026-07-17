@@ -1,24 +1,9 @@
-use std::process::Command;
+use std::process::{Command, Output};
 
-pub fn run_commander() {
-    println!("Executing SeleniumBase commander command: default");
+pub fn run_commander() -> std::io::Result<Output> {
+    commander("echo SeleniumBase commander is ready")
 }
 
-pub fn commander(command: &str) {
-    println!("Executing SeleniumBase commander command: {}", command);
-    let output = Command::new("sh").arg("-c").arg(command).output();
-
-    match output {
-        Ok(out) => {
-            if !out.stdout.is_empty() {
-                println!("{}", String::from_utf8_lossy(&out.stdout));
-            }
-            if !out.stderr.is_empty() {
-                eprintln!("{}", String::from_utf8_lossy(&out.stderr));
-            }
-        }
-        Err(e) => {
-            eprintln!("Failed to execute commander command: {}", e);
-        }
-    }
+pub fn commander(command: &str) -> std::io::Result<Output> {
+    Command::new("sh").arg("-c").arg(command).output()
 }

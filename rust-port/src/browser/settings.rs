@@ -10,8 +10,8 @@ pub const EXTENSION_TIMEOUT: f64 = 0.5;
 pub const MULTI_TIMEOUT: f64 = 0.05;
 pub const DEFAULT_MAX_TRIES: u64 = 5;
 
-pub const OBFUSCATION_START_TOKEN: &'static str = "$^*ENCRYPT=";
-pub const OBFUSCATION_END_TOKEN: &'static str = "?&;";
+pub const OBFUSCATION_START_TOKEN: &str = "$^*ENCRYPT=";
+pub const OBFUSCATION_END_TOKEN: &str = "?&;";
 
-pub const S3_PROJECT_FOLDER: &'static str = "test_results";
-pub const S3_LOG_BUCKET: &'static str = "log_bucket";
+pub const S3_PROJECT_FOLDER: &str = "test_results";
+pub const S3_LOG_BUCKET: &str = "log_bucket";

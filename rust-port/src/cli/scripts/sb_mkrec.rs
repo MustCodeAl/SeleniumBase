@@ -1,8 +1,7 @@
-use std::fs::File;
-use std::io::Write;
+use std::path::PathBuf;
 
-pub fn make_recorder_file(rec_file: &str) {
-    let mut file = File::create(rec_file).unwrap();
+pub fn make_recorder_file(rec_file: &str) -> std::io::Result<PathBuf> {
+    let path = PathBuf::from(rec_file);
     let content = r#"// Recorded SeleniumBase Rust test
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
@@ -10,11 +9,10 @@ use seleniumbase_rs::{BaseCase, BrowserConfig};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sb = BaseCase::new(BrowserConfig::default()).await?;
     sb.open("https://example.com").await?;
-    // TODO: add recorded actions
     sb.quit().await?;
     Ok(())
 }
 "#;
-    file.write_all(content.as_bytes()).unwrap();
-    println!("Created recorder file at {}", rec_file);
+    std::fs::write(&path, content)?;
+    Ok(path)
 }

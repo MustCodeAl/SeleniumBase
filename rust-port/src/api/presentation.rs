@@ -52,11 +52,11 @@ fn markdown_to_html(md: &str) -> String {
         .map(|line| {
             let trimmed = line.trim();
             if trimmed.starts_with("# ") {
-                format!("<h1>{}</h1>", html_escape(&trimmed[2..]))
-            } else if trimmed.starts_with("## ") {
-                format!("<h2>{}</h2>", html_escape(&trimmed[3..]))
-            } else if trimmed.starts_with("- ") {
-                format!("<li>{}</li>", html_escape(&trimmed[2..]))
+            format!("<h1>{}</h1>", html_escape(trimmed.strip_prefix("# ").unwrap_or(trimmed)))
+        } else if let Some(stripped) = trimmed.strip_prefix("## ") {
+            format!("<h2>{}</h2>", html_escape(stripped))
+        } else if let Some(stripped) = trimmed.strip_prefix("- ") {
+            format!("<li>{}</li>", html_escape(stripped))
             } else if trimmed.is_empty() {
                 String::new()
             } else {

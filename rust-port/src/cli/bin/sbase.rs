@@ -903,7 +903,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("UC typed into '{}'", css);
         }
         Commands::Install => {
-            sb_install::install_drivers().await;
+            match sb_install::install_drivers().await {
+                Ok(path) => println!("Drivers installed successfully at {}", path.display()),
+                Err(e) => eprintln!("Failed to install driver: {}", e),
+            }
         }
         Commands::Mkdir { dir } => {
             sb_mkdir::create_test_dir(&dir);
@@ -912,28 +915,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb_mkfile::create_test_file(&file);
         }
         Commands::Commander => {
-            sb_commander::run_commander();
+            if let Err(e) = sb_commander::run_commander() {
+                eprintln!("Failed to execute commander command: {}", e);
+            }
         }
         Commands::Caseplans => {
-            sb_caseplans::run_caseplans();
+            match sb_caseplans::run_caseplans() {
+                Ok(path) => println!("Generated {}", path.display()),
+                Err(e) => eprintln!("Failed to generate case plans: {}", e),
+            }
         }
         Commands::BehaveGui => {
-            sb_behave_gui::run_gui();
+            match sb_behave_gui::run_gui() {
+                Ok(path) => println!("Created BDD feature file at {}", path.display()),
+                Err(e) => eprintln!("Failed to create BDD feature file: {}", e),
+            }
         }
         Commands::Print { file } => {
-            sb_print::print_file(&file);
+            match sb_print::print_file(&file) {
+                Ok(content) => println!("{}", content),
+                Err(e) => eprintln!("Failed to read file {}: {}", file, e),
+            }
         }
         Commands::Objectify => {
-            sb_objectify::objectify_page();
+            match sb_objectify::objectify_page() {
+                Ok(path) => println!("Generated {}", path.display()),
+                Err(e) => eprintln!("Failed to generate page object: {}", e),
+            }
         }
         Commands::Mkpres { file } => {
-            sb_mkpres::make_presentation(&file);
+            match sb_mkpres::make_presentation(&file) {
+                Ok(path) => println!("Created presentation at {}", path.display()),
+                Err(e) => eprintln!("Failed to create presentation: {}", e),
+            }
         }
         Commands::Mkchart { file } => {
-            sb_mkchart::make_chart(&file);
+            match sb_mkchart::make_chart(&file) {
+                Ok(path) => println!("Created chart at {}", path.display()),
+                Err(e) => eprintln!("Failed to create chart: {}", e),
+            }
         }
         Commands::Mkrec { file } => {
-            sb_mkrec::make_recorder_file(&file);
+            match sb_mkrec::make_recorder_file(&file) {
+                Ok(path) => println!("Created recorder file at {}", path.display()),
+                Err(e) => eprintln!("Failed to create recorder file: {}", e),
+            }
         }
         Commands::RunScenario { file, dashboard } => {
             let scenario_json = std::fs::read_to_string(&file)?;

@@ -1,121 +1,113 @@
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{self, Cursor};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use reqwest::Client;
 use zip::ZipArchive;
 
 use crate::error::SeleniumBaseError;
 
-/// Downloads and extracts the latest chromedriver for the current platform
-pub async fn download_chrome_driver() -> Result<(), SeleniumBaseError> {
+/// Download and extract the latest chromedriver for the current platform.
+pub async fn download_chrome_driver() -> Result<PathBuf, SeleniumBaseError> {
+    let platform = platform_label()?;
     let client = Client::new();
-    
-    // Determine platform
-    let os = std::env::consts::OS;
-    let arch = std::env::consts::ARCH;
-    
-    let platform = match (os, arch) {
-        ("macos", "aarch64") => "mac-arm64",
-        ("macos", "x86_64") => "mac-x64",
-        ("linux", _) => "linux64",
-        ("windows", "x86_64") => "win64",
-        ("windows", "x86") => "win32",
-        _ => return Err(SeleniumBaseError::Unsupported(format!("Unsupported platform: {}-{}", os, arch))),
-    };
+    let version_info = fetch_version_info(&client).await?;
+    let download_url = chromedriver_download_url(&version_info, platform)?;
 
-    println!("Fetching latest Chrome for Testing (CfT) version info...");
-    
-    // Fetch latest version info
-    let version_url = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
-    let resp = client.get(version_url).send().await
-        .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to fetch version info: {}", e)))?;
-        
-    let json: serde_json::Value = resp.json().await
-        .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to parse version JSON: {}", e)))?;
-        
-    let stable_info = &json["channels"]["Stable"];
-    let version = stable_info["version"].as_str().unwrap_or("unknown");
-    
-    println!("Latest stable Chrome version: {}", version);
-    
-    // Find the correct download URL for this platform
-    let downloads = &stable_info["downloads"]["chromedriver"];
-    let mut download_url = None;
-    
-    if let Some(arr) = downloads.as_array() {
-        for dl in arr {
-            if dl["platform"].as_str() == Some(platform) {
-                download_url = dl["url"].as_str();
-                break;
-            }
-        }
-    }
-    
-    let url = download_url.ok_or_else(|| {
-        SeleniumBaseError::Unsupported(format!("No chromedriver download found for platform: {}", platform))
-    })?;
-
-    println!("Downloading chromedriver from {}...", url);
-    
-    // Download the ZIP file
-    let resp = client.get(url).send().await
-        .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to download chromedriver: {}", e)))?;
-        
-    let bytes = resp.bytes().await
-        .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to read downloaded bytes: {}", e)))?;
-        
-    println!("Extracting chromedriver...");
-    
-    // Create downloaded_drivers directory if it doesn't exist
     let dest_dir = PathBuf::from("downloaded_drivers");
-    if !dest_dir.exists() {
-        std::fs::create_dir_all(&dest_dir)
-            .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to create drivers directory: {}", e)))?;
+    fs::create_dir_all(&dest_dir).map_err(io_error)?;
+
+    let dest_path = extract_chromedriver(&client, &download_url, &dest_dir).await?;
+    make_executable(&dest_path)?;
+    Ok(dest_path)
+}
+
+fn platform_label() -> Result<&'static str, SeleniumBaseError> {
+    match (std::env::consts::OS, std::env::consts::ARCH) {
+        ("macos", "aarch64") => Ok("mac-arm64"),
+        ("macos", "x86_64") => Ok("mac-x64"),
+        ("linux", _) => Ok("linux64"),
+        ("windows", "x86_64") => Ok("win64"),
+        ("windows", "x86") => Ok("win32"),
+        other => Err(SeleniumBaseError::Unsupported(format!(
+            "unsupported platform: {}-{}",
+            other.0, other.1
+        ))),
     }
-    
-    // Extract the ZIP archive
+}
+
+async fn fetch_version_info(client: &Client) -> Result<serde_json::Value, SeleniumBaseError> {
+    let url =
+        "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
+    let response = client.get(url).send().await.map_err(io_error)?;
+    response.json().await.map_err(io_error)
+}
+
+fn chromedriver_download_url(
+    version_info: &serde_json::Value,
+    platform: &str,
+) -> Result<String, SeleniumBaseError> {
+    let stable = &version_info["channels"]["Stable"];
+    let downloads = stable["downloads"]["chromedriver"]
+        .as_array()
+        .ok_or_else(|| SeleniumBaseError::Unsupported("invalid chromedriver download metadata".to_owned()))?;
+
+    downloads
+        .iter()
+        .find(|download| download["platform"].as_str() == Some(platform))
+        .and_then(|download| download["url"].as_str())
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| {
+            SeleniumBaseError::Unsupported(format!(
+                "no chromedriver download found for platform: {platform}"
+            ))
+        })
+}
+
+async fn extract_chromedriver(
+    client: &Client,
+    download_url: &str,
+    dest_dir: &Path,
+) -> Result<PathBuf, SeleniumBaseError> {
+    let response = client.get(download_url).send().await.map_err(io_error)?;
+    let bytes = response.bytes().await.map_err(io_error)?;
     let reader = Cursor::new(bytes);
-    let mut archive = ZipArchive::new(reader)
-        .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to read ZIP archive: {}", e)))?;
-        
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
-            .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to read file in ZIP: {}", e)))?;
-            
-        let outpath = match file.enclosed_name() {
-            Some(path) => path.to_owned(),
-            None => continue,
+    let mut archive = ZipArchive::new(reader).map_err(io_error)?;
+
+    for index in 0..archive.len() {
+        let mut file = archive.by_index(index).map_err(io_error)?;
+        let file_name = file
+            .enclosed_name()
+            .and_then(|path| path.file_name().map(|name| name.to_owned()));
+
+        let Some(file_name) = file_name else {
+            continue;
         };
-        
-        // We only care about the actual chromedriver executable, not the folder structure
-        let file_name = outpath.file_name().unwrap_or_default().to_string_lossy();
+
         if file_name == "chromedriver" || file_name == "chromedriver.exe" {
-            let mut dest_path = dest_dir.clone();
-            dest_path.push(file_name.as_ref());
-            
-            let mut outfile = File::create(&dest_path)
-                .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to create output file {:?}: {}", dest_path, e)))?;
-                
-            io::copy(&mut file, &mut outfile)
-                .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to extract file: {}", e)))?;
-                
-            // Set executable permissions on Unix
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                let mut perms = std::fs::metadata(&dest_path)
-                    .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to read metadata: {}", e)))?
-                    .permissions();
-                perms.set_mode(0o755);
-                std::fs::set_permissions(&dest_path, perms)
-                    .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to set permissions: {}", e)))?;
-            }
-            
-            println!("Successfully installed to {:?}", dest_path);
-            return Ok(());
+            let dest_path = dest_dir.join(&file_name);
+            let mut outfile = File::create(&dest_path).map_err(io_error)?;
+            io::copy(&mut file, &mut outfile).map_err(io_error)?;
+            return Ok(dest_path);
         }
     }
-    
-    Err(SeleniumBaseError::Unsupported("chromedriver executable not found in ZIP archive".to_string()))
+
+    Err(SeleniumBaseError::Unsupported(
+        "chromedriver executable not found in ZIP archive".to_owned(),
+    ))
+}
+
+fn make_executable(path: &Path) -> Result<(), SeleniumBaseError> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(path).map_err(io_error)?.permissions();
+        perms.set_mode(0o755);
+        fs::set_permissions(path, perms).map_err(io_error)?;
+    }
+    Ok(())
+}
+
+fn io_error(err: impl std::fmt::Display) -> SeleniumBaseError {
+    SeleniumBaseError::Unsupported(err.to_string())
 }

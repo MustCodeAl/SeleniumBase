@@ -9,10 +9,31 @@ pub struct TourStep {
     pub target: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum TourTheme {
+    #[default]
+    SeleniumBase,
+    Shepherd,
+    IntroJs,
+    DriverJs,
+}
+
+impl TourTheme {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TourTheme::SeleniumBase => "seleniumbase",
+            TourTheme::Shepherd => "shepherd",
+            TourTheme::IntroJs => "introjs",
+            TourTheme::DriverJs => "driverjs",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Tour {
     pub name: String,
     pub steps: Vec<TourStep>,
+    pub theme: TourTheme,
 }
 
 impl Tour {
@@ -20,7 +41,13 @@ impl Tour {
         Self {
             name: name.to_owned(),
             steps: Vec::new(),
+            theme: TourTheme::SeleniumBase,
         }
+    }
+
+    pub fn with_theme(mut self, theme: TourTheme) -> Self {
+        self.theme = theme;
+        self
     }
 
     pub fn add_step(&mut self, message: &str, target: Option<&str>) {
@@ -32,6 +59,15 @@ impl Tour {
 
     /// Injects a self-contained JavaScript tour into the current page.
     pub async fn play(&self, sb: &BaseCase) -> Result<(), SeleniumBaseError> {
+        match self.theme {
+            TourTheme::Shepherd => self.play_shepherd(sb).await,
+            TourTheme::IntroJs => self.play_introjs(sb).await,
+            TourTheme::DriverJs => self.play_driverjs(sb).await,
+            TourTheme::SeleniumBase => self.play_default(sb).await,
+        }
+    }
+
+    async fn play_default(&self, sb: &BaseCase) -> Result<(), SeleniumBaseError> {
         let steps_json = serde_json::to_string(
             &self
                 .steps
@@ -100,6 +136,161 @@ impl Tour {
                     document.getElementById('sb-rs-tour-end').onclick = function() {{ removeOverlay(); box.remove(); }};
                 }}
                 showStep();
+            }})();
+            "#
+        );
+        sb.execute_script(&script).await?;
+        Ok(())
+    }
+
+    async fn play_shepherd(&self, sb: &BaseCase) -> Result<(), SeleniumBaseError> {
+        let steps_json = serde_json::to_string(
+            &self
+                .steps
+                .iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "title": self.name,
+                        "text": s.message,
+                        "attachTo": s.target.as_ref().map(|t| serde_json::json!({"element": t, "on": "bottom"}))
+                    })
+                })
+                .collect::<Vec<_>>(),
+        )
+        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("Failed to serialize tour: {e}")))?;
+
+        let script = format!(
+            r#"
+            (function() {{
+                function loadScript(src) {{
+                    return new Promise(function(resolve, reject) {{
+                        const s = document.createElement('script');
+                        s.src = src;
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    }});
+                }}
+                function loadCss(href) {{
+                    const l = document.createElement('link');
+                    l.rel = 'stylesheet';
+                    l.href = href;
+                    document.head.appendChild(l);
+                }}
+                loadCss('https://cdn.jsdelivr.net/npm/shepherd.js@11.0.1/dist/css/shepherd.css');
+                loadScript('https://cdn.jsdelivr.net/npm/shepherd.js@11.0.1/dist/js/shepherd.min.js')
+                    .then(function() {{
+                        const tour = new Shepherd.Tour({{
+                            useModalOverlay: true,
+                            defaultStepOptions: {{
+                                cancelIcon: {{ enabled: true }},
+                                classes: 'shadow-md bg-purple-dark',
+                                scrollTo: {{ behavior: 'smooth', block: 'center' }}
+                            }}
+                        }});
+                        const steps = {steps_json};
+                        steps.forEach(function(step) {{
+                            if (!step.attachTo) delete step.attachTo;
+                            tour.addStep(step);
+                        }});
+                        tour.start();
+                    }});
+            }})();
+            "#
+        );
+        sb.execute_script(&script).await?;
+        Ok(())
+    }
+
+    async fn play_introjs(&self, sb: &BaseCase) -> Result<(), SeleniumBaseError> {
+        let steps_json = serde_json::to_string(
+            &self
+                .steps
+                .iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "intro": s.message,
+                        "element": s.target.as_deref().unwrap_or("body")
+                    })
+                })
+                .collect::<Vec<_>>(),
+        )
+        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("Failed to serialize tour: {e}")))?;
+
+        let script = format!(
+            r#"
+            (function() {{
+                function loadScript(src) {{
+                    return new Promise(function(resolve, reject) {{
+                        const s = document.createElement('script');
+                        s.src = src;
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    }});
+                }}
+                function loadCss(href) {{
+                    const l = document.createElement('link');
+                    l.rel = 'stylesheet';
+                    l.href = href;
+                    document.head.appendChild(l);
+                }}
+                loadCss('https://unpkg.com/intro.js@7.0.1/minified/introjs.min.css');
+                loadScript('https://unpkg.com/intro.js@7.0.1/minified/intro.min.js')
+                    .then(function() {{
+                        introJs().setOptions({{ steps: {steps_json} }}).start();
+                    }});
+            }})();
+            "#
+        );
+        sb.execute_script(&script).await?;
+        Ok(())
+    }
+
+    async fn play_driverjs(&self, sb: &BaseCase) -> Result<(), SeleniumBaseError> {
+        let steps_json = serde_json::to_string(
+            &self
+                .steps
+                .iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "element": s.target.as_deref().unwrap_or("body"),
+                        "popover": {
+                            "title": self.name,
+                            "description": s.message,
+                            "position": "bottom"
+                        }
+                    })
+                })
+                .collect::<Vec<_>>(),
+        )
+        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("Failed to serialize tour: {e}")))?;
+
+        let script = format!(
+            r#"
+            (function() {{
+                function loadScript(src) {{
+                    return new Promise(function(resolve, reject) {{
+                        const s = document.createElement('script');
+                        s.src = src;
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    }});
+                }}
+                function loadCss(href) {{
+                    const l = document.createElement('link');
+                    l.rel = 'stylesheet';
+                    l.href = href;
+                    document.head.appendChild(l);
+                }}
+                loadCss('https://unpkg.com/driver.js@1.3.1/dist/driver.css');
+                loadScript('https://unpkg.com/driver.js@1.3.1/dist/driver.js.iife.js')
+                    .then(function() {{
+                        const driver = window.driver.js.driver({{ showProgress: true }});
+                        const steps = {steps_json};
+                        driver.drive({{ steps: steps }});
+                    }});
             }})();
             "#
         );

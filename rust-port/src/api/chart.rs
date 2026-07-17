@@ -2,16 +2,29 @@ use crate::error::SeleniumBaseError;
 use std::fs;
 use std::path::Path;
 
-#[derive(Clone, Debug, Default)]
-pub struct PieChart {
+/// Supported chart types.
+#[derive(Clone, Debug)]
+pub enum ChartType {
+    Pie,
+    Bar,
+    Line,
+    Area,
+    Column,
+}
+
+/// A simple HTML/Chart.js chart generator.
+#[derive(Clone, Debug)]
+pub struct Chart {
     pub title: String,
+    pub chart_type: ChartType,
     pub data: Vec<(String, i32)>,
 }
 
-impl PieChart {
-    pub fn new(title: &str) -> Self {
+impl Chart {
+    pub fn new(title: &str, chart_type: ChartType) -> Self {
         Self {
             title: title.to_owned(),
+            chart_type,
             data: Vec::new(),
         }
     }
@@ -38,6 +51,14 @@ impl PieChart {
         let values_json = format!("[{}]", values.join(", "));
         let colors_json = format!("[{}]", colors.join(", "));
 
+        let (chart_type, fill, index_axis) = match self.chart_type {
+            ChartType::Pie => ("'pie'", "false", ""),
+            ChartType::Bar => ("'bar'", "false", "indexAxis: 'x',"),
+            ChartType::Line => ("'line'", "true", ""),
+            ChartType::Area => ("'line'", "true", ""),
+            ChartType::Column => ("'bar'", "false", "indexAxis: 'y',"),
+        };
+
         let html = format!(
             r#"<!DOCTYPE html>
 <html>
@@ -51,31 +72,63 @@ impl PieChart {
 <canvas id="chart"></canvas>
 <script>
 new Chart(document.getElementById('chart'), {{
-    type: 'pie',
+    type: {chart_type},
     data: {{
         labels: {labels},
         datasets: [{{
+            label: '{title}',
             data: {values},
-            backgroundColor: {colors}
+            backgroundColor: {colors},
+            fill: {fill}
         }}]
+    }},
+    options: {{
+        {index_axis}
+        responsive: true
     }}
 }});
 </script>
 </body>
 </html>"#,
             title = self.title,
+            chart_type = chart_type,
             labels = labels_json,
             values = values_json,
-            colors = colors_json
+            colors = colors_json,
+            fill = fill,
+            index_axis = index_axis
         );
 
-        fs::write(path.as_ref(), html).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!(
-                "failed to write chart '{}': {e}",
-                path.as_ref().display()
-            ))
-        })?;
+        fs::write(path.as_ref(), html)?;
         Ok(())
+    }
+}
+
+/// Backwards-compatible pie chart constructor.
+#[derive(Clone, Debug, Default)]
+pub struct PieChart {
+    pub title: String,
+    pub data: Vec<(String, i32)>,
+}
+
+impl PieChart {
+    pub fn new(title: &str) -> Self {
+        Self {
+            title: title.to_owned(),
+            data: Vec::new(),
+        }
+    }
+
+    pub fn add_data_point(&mut self, label: &str, value: i32) {
+        self.data.push((label.to_owned(), value));
+    }
+
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), SeleniumBaseError> {
+        let mut chart = Chart::new(&self.title, ChartType::Pie);
+        for (label, value) in &self.data {
+            chart.add_data_point(label, *value);
+        }
+        chart.save(path)
     }
 }
 
@@ -93,8 +146,8 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn save_chart_contains_data() {
-        let mut chart = PieChart::new("Votes");
+    fn save_pie_chart_contains_data() {
+        let mut chart = Chart::new("Votes", ChartType::Pie);
         chart.add_data_point("A", 10);
         chart.add_data_point("B", 20);
 
@@ -108,5 +161,19 @@ mod tests {
         assert!(html.contains("10"));
         assert!(html.contains("chart.js"));
         assert!(html.contains("'pie'"));
+    }
+
+    #[test]
+    fn save_bar_chart_contains_data() {
+        let mut chart = Chart::new("Sales", ChartType::Bar);
+        chart.add_data_point("Q1", 100);
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("chart.html");
+        chart.save(&path).unwrap();
+
+        let html = fs::read_to_string(&path).unwrap();
+        assert!(html.contains("'bar'"));
+        assert!(html.contains("100"));
     }
 }

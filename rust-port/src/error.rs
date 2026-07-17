@@ -15,4 +15,8 @@ pub enum SeleniumBaseError {
     InvalidConfig(String),
     #[error("unsupported operation: {0}")]
     Unsupported(String),
+    #[error("I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 }

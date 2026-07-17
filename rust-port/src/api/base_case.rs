@@ -1,16 +1,19 @@
 #![allow(deprecated)]
 
+use base64::prelude::*;
 use rand::RngExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::api::chart::PieChart;
+use crate::api::chart::{Chart, ChartType};
 use crate::api::deferred::DeferredAsserts;
+use crate::api::html::BeautifulSoup;
 use crate::api::master_qa::MasterQA;
+use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction};
-use crate::api::tour::Tour;
+use crate::api::tour::{Tour, TourTheme};
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::BrowserConfig;
 use crate::browser::session::BrowserSession;
@@ -30,7 +33,7 @@ pub struct BaseCase {
     tour: Option<Tour>,
     deferred: DeferredAsserts,
     presentation: Option<Presentation>,
-    chart: Option<PieChart>,
+    chart: Option<Chart>,
     time_limit_secs: Option<u64>,
 }
 
@@ -1540,7 +1543,27 @@ impl BaseCase {
     }
 
     pub async fn create_pie_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
-        self.chart = Some(PieChart::new(title));
+        self.chart = Some(Chart::new(title, ChartType::Pie));
+        Ok(())
+    }
+
+    pub async fn create_bar_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
+        self.chart = Some(Chart::new(title, ChartType::Bar));
+        Ok(())
+    }
+
+    pub async fn create_line_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
+        self.chart = Some(Chart::new(title, ChartType::Line));
+        Ok(())
+    }
+
+    pub async fn create_area_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
+        self.chart = Some(Chart::new(title, ChartType::Area));
+        Ok(())
+    }
+
+    pub async fn create_column_chart(&mut self, title: &str) -> Result<(), SeleniumBaseError> {
+        self.chart = Some(Chart::new(title, ChartType::Column));
         Ok(())
     }
 
@@ -1561,6 +1584,10 @@ impl BaseCase {
     }
 
     pub async fn save_pie_chart(&self, filename: &str) -> Result<(), SeleniumBaseError> {
+        self.save_chart(filename).await
+    }
+
+    pub async fn save_chart(&self, filename: &str) -> Result<(), SeleniumBaseError> {
         match self.chart.as_ref() {
             Some(chart) => chart.save(filename),
             None => Err(SeleniumBaseError::InvalidConfig(
@@ -2179,3 +2206,8 @@ impl BaseCase {
         self.wait_for_element(css, timeout_secs).await
     }
 }
+
+// Additional BaseCase implementations split out to keep the file manageable.
+include!("base_case_impl_pdf_html.rs");
+include!("base_case_impl_extra.rs");
+

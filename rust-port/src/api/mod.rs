@@ -4,7 +4,9 @@
 pub mod base_case;
 pub mod chart;
 pub mod deferred;
+pub mod html;
 pub mod master_qa;
+pub mod pdf;
 pub mod presentation;
 pub mod recorder;
 pub mod scenario;

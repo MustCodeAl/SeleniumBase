@@ -5,7 +5,8 @@ use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
 use seleniumbase_rs::cli::scripts::*;
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
-use seleniumbase_rs::{BaseCase, Browser, BrowserConfig, DriverMode};
+use seleniumbase_rs::config::settings::Settings;
+use seleniumbase_rs::{BaseCase, Browser, DriverMode};
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
 
@@ -38,17 +39,37 @@ struct Cli {
     #[arg(long, default_value_t = false)]
     headed: bool,
     #[arg(long, default_value_t = false)]
+    headless: bool,
+    #[arg(long, default_value_t = false)]
     cdp: bool,
     #[arg(long, default_value_t = false)]
     uc: bool,
     #[arg(long)]
     user_agent: Option<String>,
+    #[arg(short = 'a', long)]
+    agent: Option<String>,
     #[arg(long)]
     locale: Option<String>,
     #[arg(long, default_value_t = false)]
     ad_block: bool,
     #[arg(long)]
     proxy: Option<String>,
+    #[arg(long)]
+    proxy_pac_url: Option<String>,
+    #[arg(long)]
+    user_data_dir: Option<String>,
+    #[arg(long)]
+    extension_dir: Option<String>,
+    #[arg(long)]
+    reuse_session: bool,
+    #[arg(long)]
+    rs: bool,
+    #[arg(long, default_value_t = false)]
+    mobile: bool,
+    #[arg(short = 'n', long)]
+    threads: Option<usize>,
+    #[arg(short = 'c', long)]
+    config: Option<String>,
     #[command(subcommand)]
     command: Commands,
 }
@@ -384,24 +405,72 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if args.cdp && args.uc {
         return Err("Choose either --cdp or --uc, not both.".into());
     }
-    let mode = if args.uc {
-        DriverMode::Uc
-    } else if args.cdp {
-        DriverMode::Cdp
-    } else {
-        DriverMode::WebDriver
+
+    // Start from global config file (if any) and apply CLI overrides.
+    let mut settings = match args.config.as_deref() {
+        Some(path) => Settings::load(Some(path))?,
+        None => Settings::load_global()?,
     };
-    let config = BrowserConfig {
-        webdriver_url: args.webdriver,
-        browser: args.browser.into(),
-        headless: !args.headed,
-        mode,
-        user_agent: args.user_agent,
-        locale: args.locale,
-        ad_block: args.ad_block,
-        proxy: args.proxy,
-        auto_start_driver: true,
+    settings.browser = match args.browser {
+        BrowserArg::Chrome => "chrome".to_owned(),
+        BrowserArg::Chromium => "chromium".to_owned(),
+        BrowserArg::Edge => "edge".to_owned(),
+        BrowserArg::Firefox => "firefox".to_owned(),
     };
+    if args.headless {
+        settings.headless = true;
+    } else if args.headed {
+        settings.headless = false;
+    }
+    if args.cdp {
+        settings.mode = Some("cdp".to_owned());
+    } else if args.uc {
+        settings.mode = Some("uc".to_owned());
+    }
+    if let Some(v) = args.user_agent.as_ref().or(args.agent.as_ref()) {
+        settings.user_agent = Some(v.clone());
+    }
+    if let Some(v) = args.locale {
+        settings.locale = Some(v);
+    }
+    if args.ad_block {
+        settings.ad_block = true;
+    }
+    if let Some(v) = args.proxy {
+        settings.proxy = Some(v);
+    }
+    if let Some(v) = args.proxy_pac_url {
+        settings.proxy_pac_url = Some(v);
+    }
+    if let Some(v) = args.user_data_dir {
+        settings.user_data_dir = Some(v);
+    }
+    if let Some(v) = args.extension_dir {
+        settings.extension_dir = Some(v);
+    }
+    if args.reuse_session || args.rs {
+        settings.reuse_session = true;
+    }
+    if args.mobile {
+        settings.mobile = true;
+    }
+    if let Some(v) = args.threads {
+        settings.threads = Some(v);
+    }
+
+    let mode = settings
+        .mode
+        .as_deref()
+        .map(|m| match m.to_lowercase().as_str() {
+            "uc" => DriverMode::Uc,
+            "cdp" => DriverMode::Cdp,
+            _ => DriverMode::WebDriver,
+        })
+        .unwrap_or(DriverMode::WebDriver);
+    let mut config = settings.to_browser_config();
+    config.webdriver_url = args.webdriver;
+    config.mode = mode;
+    config.auto_start_driver = true;
 
     match args.command {
         Commands::Open { url } => {
@@ -916,7 +985,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Commander => {
             if let Err(e) = sb_commander::run_commander() {
-                eprintln!("Failed to execute commander command: {}", e);
+                eprintln!("Failed to run commander: {}", e);
+                std::process::exit(1);
             }
         }
         Commands::Caseplans => {
@@ -956,7 +1026,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Mkrec { file } => {
-            match sb_mkrec::make_recorder_file(&file) {
+            match sb_recorder::make_recorder_file(&file) {
                 Ok(path) => println!("Created recorder file at {}", path.display()),
                 Err(e) => eprintln!("Failed to create recorder file: {}", e),
             }

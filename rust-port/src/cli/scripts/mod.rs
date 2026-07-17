@@ -11,6 +11,5 @@ pub mod sb_caseplans;
 pub mod sb_commander;
 pub mod sb_mkchart;
 pub mod sb_mkpres;
-pub mod sb_mkrec;
 pub mod sb_objectify;
 pub mod sb_print;

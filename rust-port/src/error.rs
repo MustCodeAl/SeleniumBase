@@ -19,4 +19,10 @@ pub enum SeleniumBaseError {
     Io(#[from] std::io::Error),
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("CDP driver error: {0}")]
+    CdpDriver(String),
+    #[error("GUI input error: {0}")]
+    Gui(String),
+    #[error("playwright error: {0}")]
+    Playwright(String),
 }

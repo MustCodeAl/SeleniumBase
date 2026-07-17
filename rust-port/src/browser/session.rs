@@ -799,6 +799,19 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     if let Some(proxy) = config.proxy.as_deref() {
         caps.add_arg(&format!("--proxy-server={proxy}"))?;
     }
+    if let Some(pac_url) = config.proxy_pac_url.as_deref() {
+        caps.add_arg(&format!("--proxy-pac-url={pac_url}"))?;
+    }
+    if let Some(user_data_dir) = config.user_data_dir.as_deref() {
+        caps.add_arg(&format!("--user-data-dir={user_data_dir}"))?;
+    }
+    if let Some(extension_dir) = config.extension_dir.as_deref() {
+        caps.add_arg(&format!("--load-extension={extension_dir}"))?;
+    }
+    if config.mobile {
+        caps.add_arg("--user-agent=Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")?;
+        caps.add_arg("--window-size=390,844")?;
+    }
     if config.is_uc_enabled() {
         caps.add_arg("--disable-blink-features=AutomationControlled")?;
         caps.add_arg("--disable-infobars")?;

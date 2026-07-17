@@ -39,6 +39,7 @@ pub mod utilities;
 
 pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};
+pub use api::gui::Gui;
 pub use api::tour::TourTheme;
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::session::BrowserSession;

@@ -30,6 +30,12 @@ pub struct BrowserConfig {
     pub locale: Option<String>,
     pub ad_block: bool,
     pub proxy: Option<String>,
+    pub proxy_pac_url: Option<String>,
+    pub user_data_dir: Option<String>,
+    pub extension_dir: Option<String>,
+    pub reuse_session: bool,
+    pub mobile: bool,
+    pub threads: Option<usize>,
     pub auto_start_driver: bool,
 }
 
@@ -44,6 +50,12 @@ impl Default for BrowserConfig {
             locale: None,
             ad_block: false,
             proxy: None,
+            proxy_pac_url: None,
+            user_data_dir: None,
+            extension_dir: None,
+            reuse_session: false,
+            mobile: false,
+            threads: None,
             auto_start_driver: true,
         }
     }

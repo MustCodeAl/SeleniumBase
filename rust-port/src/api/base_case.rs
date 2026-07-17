@@ -9,11 +9,13 @@ use std::time::Duration;
 use crate::api::chart::{Chart, ChartType};
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
-use crate::api::master_qa::MasterQA;
+use crate::api::master_qa::{MasterQA, MasterQaSession};
 use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction};
 use crate::api::tour::{Tour, TourTheme};
+#[cfg(feature = "playwright")]
+use crate::browser::playwright::PlaywrightSession;
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::BrowserConfig;
 use crate::browser::session::BrowserSession;
@@ -34,7 +36,11 @@ pub struct BaseCase {
     deferred: DeferredAsserts,
     presentation: Option<Presentation>,
     chart: Option<Chart>,
+    qa_session: Option<MasterQaSession>,
+    #[cfg(feature = "playwright")]
+    playwright_session: Option<PlaywrightSession>,
     time_limit_secs: Option<u64>,
+    gui_held: Option<(i32, i32)>,
 }
 
 impl BaseCase {
@@ -49,8 +55,32 @@ impl BaseCase {
             deferred: DeferredAsserts::default(),
             presentation: None,
             chart: None,
+            qa_session: None,
+            #[cfg(feature = "playwright")]
+            playwright_session: None,
             time_limit_secs: None,
+            gui_held: None,
         })
+    }
+
+    /// Activates the optional Playwright-backed stealth browser mode.
+    ///
+    /// This creates a fresh Chromium session through the [`playwright`] crate
+    /// and stores it in the test case. When this mode is active you can use
+    /// [`playwright_session`](BaseCase::playwright_session) or the helpers in
+    /// [`crate::api::playwright`] to interact with pages.
+    ///
+    /// This method is only available when the `playwright` feature is enabled.
+    #[cfg(feature = "playwright")]
+    pub async fn activate_playwright_mode(&mut self) -> Result<(), SeleniumBaseError> {
+        self.playwright_session = Some(PlaywrightSession::launch().await?);
+        Ok(())
+    }
+
+    /// Returns a mutable reference to the active Playwright session, if any.
+    #[cfg(feature = "playwright")]
+    pub fn playwright_session(&mut self) -> Option<&mut PlaywrightSession> {
+        self.playwright_session.as_mut()
     }
 
     /// Asserts that `text` is visible inside the element selected by `css`.
@@ -2210,4 +2240,9 @@ impl BaseCase {
 // Additional BaseCase implementations split out to keep the file manageable.
 include!("base_case_impl_pdf_html.rs");
 include!("base_case_impl_extra.rs");
+include!("base_case_impl_cdp_page.rs");
+include!("base_case_impl_dialog_inspector.rs");
+include!("base_case_impl_shadow.rs");
+include!("base_case_impl_gui.rs");
+include!("base_case_impl_masterqa.rs");
 

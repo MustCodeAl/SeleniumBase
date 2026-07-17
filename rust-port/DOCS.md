@@ -185,4 +185,110 @@ sbase human-type --css "#search" --text "Concurrency"
 ```
 
 ---
+
+## GUI Automation
+
+Automate the mouse and keyboard at the OS level using PyAutoGUI-style helpers. This is useful for interacting with native dialogs or browsers that do not expose a WebDriver endpoint.
+
+```rust
+sb.gui_click_x_y(100, 200).await?;
+sb.gui_write("Hello from Rust").await?;
+sb.gui_press_key("Enter").await?;
+sb.gui_drag_and_drop("#source", "#target").await?;
+```
+
+## CDP Page / Driver Mode
+
+When `DriverMode::Cdp` or `DriverMode::Uc` is enabled, you can interact with the page through Chrome DevTools Protocol primitives:
+
+```rust
+sb.cdp_open("https://example.com").await?;
+sb.cdp_click("#button").await?;
+sb.cdp_type("#input", "text").await?;
+let text = sb.cdp_get_text("#result").await?;
+let value = sb.cdp_evaluate("document.title").await?;
+```
+
+## Shadow DOM Selectors
+
+Pierce through closed shadow trees with the `::shadow` combinator:
+
+```rust
+sb.shadow_click("my-app ::shadow .button").await?;
+sb.shadow_type("my-app ::shadow form ::shadow input", "value").await?;
+let text = sb.shadow_get_text("my-app ::shadow .label").await?;
+```
+
+## HTML Inspector
+
+Run accessibility and markup checks on the current page:
+
+```rust
+let inspection = sb.inspect_html().await?;
+for issue in &inspection.issues {
+    println!("[{}] {}", issue.rule, issue.message);
+}
+sb.assert_no_html_issues().await?;
+```
+
+## Dialog Builder
+
+Request user input during a test run with native dialogs:
+
+```rust
+let ok = sb.show_confirm("Continue?", "Do you want to proceed?");
+let result = sb.show_prompt("Input required", "Enter your name:", Some("guest"));
+if let Some(path) = sb.choose_file_dialog("Pick a file") {
+    println!("Selected: {}", path);
+}
+```
+
+## MasterQA / Test-Case Management
+
+Record manual verification steps and export a Markdown test-case report:
+
+```rust
+sb.start_qa_session("Login flow");
+sb.manual_verify("Login page loads correctly");
+sb.manual_verify("Error message appears for bad credentials");
+let report_path = sb.save_qa_report(&[], "Login flow", None::<&str>)?;
+```
+
+## Global Config File
+
+Create `sbase_config.toml` in your project root to set defaults:
+
+```toml
+browser = "chrome"
+headless = true
+mode = "uc"
+mobile = false
+proxy = "http://proxy:8080"
+user_data_dir = "/tmp/sb-profile"
+extension_dir = "/path/to/extension"
+threads = 4
+```
+
+Override any value with CLI flags, e.g. `sbase --mobile --proxy-pac-url http://proxy/proxy.pac open https://example.com`.
+
+## SeleniumBase Commander
+
+Launch the TUI test runner with:
+
+```bash
+sbase commander
+```
+
+Use arrow keys to navigate discovered tests, press Enter to run them, and `q` to quit.
+
+## Recorder Mode
+
+Record browser actions and export them as a Rust test:
+
+```bash
+sbase mkrec my_test.rs
+sbase recorder
+```
+
+---
 *For more detailed API references, you can run `cargo doc --open` inside your project directory to view the generated Rustdocs.*

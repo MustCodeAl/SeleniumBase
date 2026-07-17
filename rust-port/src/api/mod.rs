@@ -1,3 +1,6 @@
+//! Public test API: `BaseCase` and helpers for tours, charts, presentations,
+//! deferred assertions, scenario management, and action recording.
+
 pub mod base_case;
 pub mod chart;
 pub mod deferred;

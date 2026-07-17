@@ -1,8 +1,9 @@
-## SeleniumBase Rust Port (CDP/UC/CDC Foundation)
+# SeleniumBase for Rust
 
-This directory contains a complete Rust port of SeleniumBase using `thirtyfour` as the underlying WebDriver engine.
+A Rust port of SeleniumBase using `thirtyfour` as the underlying WebDriver engine.
 
-It is designed to provide 1:1 API parity with the Python SeleniumBase library for core DOM interactions, along with the powerful stealth modes and CDP integrations.
+It provides API parity with the Python SeleniumBase library for core DOM
+interactions, plus stealth modes, CDP integrations, and a command-line helper.
 
 ### Key Features Ported
 
@@ -30,7 +31,14 @@ It is designed to provide 1:1 API parity with the Python SeleniumBase library fo
 - **Action Recorder**: Captures browser interactions and compiles them into a JSON scenario or a standalone Rust script.
 - **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal.
 
-### Quick start
+## Documentation
+
+- [Getting Started](./docs/tutorials/getting_started.md)
+- [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
+- [CLI Usage](./docs/tutorials/cli_usage.md)
+- [API Reference](./docs/tutorials/api_reference.md)
+
+## Quick start
 
 ```bash
 cd rust-port

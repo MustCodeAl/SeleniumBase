@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+/// Supported browser types.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Browser {
     #[default]
@@ -9,6 +10,7 @@ pub enum Browser {
     Firefox,
 }
 
+/// Driver execution mode.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum DriverMode {
     #[default]
@@ -17,6 +19,7 @@ pub enum DriverMode {
     Uc,
 }
 
+/// Configuration for a browser session.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BrowserConfig {
     pub webdriver_url: String,

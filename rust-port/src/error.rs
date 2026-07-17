@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+/// Errors that can occur when using SeleniumBase.
 #[derive(Debug, Error)]
 pub enum SeleniumBaseError {
     #[error("wait timeout: {0}")]

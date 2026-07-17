@@ -41,6 +41,7 @@ pdf-extract = "0.8"
 scraper = "0.23"
 rfd = "0.15"
 toml = "0.8"
+tempfile = "3.27.0"
 # Optional Playwright integration via the actively-maintained `playwright-rs`
 # bindings. Disabled by default because it downloads the Playwright driver
 # during the build; enable only when the driver can be fetched/installed.
@@ -57,6 +58,5 @@ azure = ["dep:azure_storage_blob", "dep:azure_core"]
 gcp = []
 
 [dev-dependencies]
-tempfile = "3.27.0"
 printpdf = "0.7"
 syn = { version = "2", features = ["full"] }

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::api::chart::{Chart, ChartType};
+use crate::api::chart::{Chart, ChartSeries, ChartType};
 use crate::api::deferred::DeferredAsserts;
 use crate::api::html::BeautifulSoup;
 use crate::api::master_qa::{MasterQA, MasterQaSession};
@@ -787,8 +787,8 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `post_message` action.
-    pub async fn post_message(
+    /// Displays a transient message overlay on the page for `duration_secs`.
+    pub async fn post_message_for(
         &self,
         message: &str,
         duration_secs: u64,
@@ -826,7 +826,10 @@ impl BaseCase {
     }
 
     /// Captures a screenshot and writes it to `path`.
-    pub async fn save_screenshot<P: AsRef<Path>>(&self, path: P) -> Result<(), SeleniumBaseError> {
+    async fn save_screenshot_to_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), SeleniumBaseError> {
         self.session.screenshot(path.as_ref()).await
     }
 
@@ -835,8 +838,11 @@ impl BaseCase {
         self.session.screenshot_as_png().await
     }
 
-    /// Executes the `save_page_source` action.
-    pub async fn save_page_source<P: AsRef<Path>>(&self, path: P) -> Result<(), SeleniumBaseError> {
+    /// Saves the current page source to `path`.
+    async fn save_page_source_to_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> Result<(), SeleniumBaseError> {
         let html = self.get_page_source().await?;
         std::fs::write(path.as_ref(), html).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!(
@@ -851,7 +857,7 @@ impl BaseCase {
     pub async fn save_screenshot_to_logs(&self) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = artifact_path(&dir, "screenshot", "png");
-        self.save_screenshot(&path).await?;
+        self.save_screenshot_to_path(&path).await?;
         Ok(path)
     }
 
@@ -859,7 +865,7 @@ impl BaseCase {
     pub async fn save_page_source_to_logs(&self) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = artifact_path(&dir, "page_source", "html");
-        self.save_page_source(&path).await?;
+        self.save_page_source_to_path(&path).await?;
         Ok(path)
     }
 
@@ -2293,3 +2299,19 @@ include!("base_case_impl_dialog_inspector.rs");
 include!("base_case_impl_shadow.rs");
 include!("base_case_impl_gui.rs");
 include!("base_case_impl_masterqa.rs");
+include!("base_case_impl_remaining.rs");
+include!("base_case_impl_remaining_links.rs");
+include!("base_case_impl_remaining_downloads.rs");
+include!("base_case_impl_remaining_storage.rs");
+include!("base_case_impl_remaining_dom.rs");
+include!("base_case_impl_remaining_window.rs");
+include!("base_case_impl_remaining_mouse.rs");
+include!("base_case_impl_remaining_alerts.rs");
+include!("base_case_impl_remaining_browser.rs");
+include!("base_case_impl_remaining_nav.rs");
+include!("base_case_impl_remaining_media.rs");
+include!("base_case_impl_remaining_tours.rs");
+include!("base_case_impl_remaining_charts.rs");
+include!("base_case_impl_remaining_presentations.rs");
+include!("base_case_impl_remaining_jslibs.rs");
+include!("base_case_impl_remaining_misc.rs");

@@ -16,6 +16,8 @@ pub enum TourTheme {
     Shepherd,
     IntroJs,
     DriverJs,
+    Bootstrap,
+    Hopscotch,
 }
 
 impl TourTheme {
@@ -25,6 +27,8 @@ impl TourTheme {
             TourTheme::Shepherd => "shepherd",
             TourTheme::IntroJs => "introjs",
             TourTheme::DriverJs => "driverjs",
+            TourTheme::Bootstrap => "bootstrap",
+            TourTheme::Hopscotch => "hopscotch",
         }
     }
 }
@@ -63,7 +67,9 @@ impl Tour {
             TourTheme::Shepherd => self.play_shepherd(sb).await,
             TourTheme::IntroJs => self.play_introjs(sb).await,
             TourTheme::DriverJs => self.play_driverjs(sb).await,
-            TourTheme::SeleniumBase => self.play_default(sb).await,
+            TourTheme::Bootstrap | TourTheme::Hopscotch | TourTheme::SeleniumBase => {
+                self.play_default(sb).await
+            }
         }
     }
 

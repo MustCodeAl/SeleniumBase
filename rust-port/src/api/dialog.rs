@@ -47,7 +47,9 @@ pub fn show_prompt(title: &str, message: &str, default: Option<&str>) -> Option<
         let _ = tx.send((result, default_for_thread));
     });
     match rx.recv() {
-        Ok((Ok(rfd::MessageDialogResult::Yes) | Ok(rfd::MessageDialogResult::Ok), default)) => default,
+        Ok((Ok(rfd::MessageDialogResult::Yes) | Ok(rfd::MessageDialogResult::Ok), default)) => {
+            default
+        }
         _ => None,
     }
 }

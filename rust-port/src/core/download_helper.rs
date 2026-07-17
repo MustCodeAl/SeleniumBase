@@ -16,7 +16,10 @@ pub async fn download_file<P: AsRef<Path>>(
 }
 
 /// Download a file synchronously using a blocking client.
-pub fn download_file_blocking<P: AsRef<Path>>(url: &str, dest: P) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub fn download_file_blocking<P: AsRef<Path>>(
+    url: &str,
+    dest: P,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
         .build()?;

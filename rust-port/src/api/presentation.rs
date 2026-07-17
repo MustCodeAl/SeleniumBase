@@ -21,9 +21,8 @@ impl Presentation {
     }
 
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), SeleniumBaseError> {
-        let mut html = String::from(
-            "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>",
-        );
+        let mut html =
+            String::from("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>");
         html.push_str(&self.title);
         html.push_str(
             "</title>\n<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/reveal.js@4/dist/reveal.css\">\n</head>\n<body>\n<div class=\"reveal\"><div class=\"slides\">\n",
@@ -52,11 +51,14 @@ fn markdown_to_html(md: &str) -> String {
         .map(|line| {
             let trimmed = line.trim();
             if trimmed.starts_with("# ") {
-            format!("<h1>{}</h1>", html_escape(trimmed.strip_prefix("# ").unwrap_or(trimmed)))
-        } else if let Some(stripped) = trimmed.strip_prefix("## ") {
-            format!("<h2>{}</h2>", html_escape(stripped))
-        } else if let Some(stripped) = trimmed.strip_prefix("- ") {
-            format!("<li>{}</li>", html_escape(stripped))
+                format!(
+                    "<h1>{}</h1>",
+                    html_escape(trimmed.strip_prefix("# ").unwrap_or(trimmed))
+                )
+            } else if let Some(stripped) = trimmed.strip_prefix("## ") {
+                format!("<h2>{}</h2>", html_escape(stripped))
+            } else if let Some(stripped) = trimmed.strip_prefix("- ") {
+                format!("<li>{}</li>", html_escape(stripped))
             } else if trimmed.is_empty() {
                 String::new()
             } else {

@@ -7,8 +7,7 @@ use std::path::Path;
 /// Extracts text from a PDF file.
 pub fn extract_text_from_file<P: AsRef<Path>>(path: P) -> Result<String, SeleniumBaseError> {
     let path = path.as_ref();
-    pdf_extract::extract_text(path)
-        .map_err(|e| SeleniumBaseError::Io(std::io::Error::other(e)))
+    pdf_extract::extract_text(path).map_err(|e| SeleniumBaseError::Io(std::io::Error::other(e)))
 }
 
 /// Extracts text from raw PDF bytes.
@@ -31,16 +30,15 @@ mod tests {
     use std::io::BufWriter;
 
     fn write_sample_pdf<P: AsRef<Path>>(path: P) {
-        let (doc, page, layer) = PdfDocument::new(
-            "Sample",
-            Mm(210.0),
-            Mm(297.0),
-            "Layer 1",
-        );
+        let (doc, page, layer) = PdfDocument::new("Sample", Mm(210.0), Mm(297.0), "Layer 1");
         let font = doc.add_builtin_font(BuiltinFont::Helvetica).unwrap();
-        doc.get_page(page)
-            .get_layer(layer)
-            .use_text("Hello SeleniumBase", 12.0, Mm(50.0), Mm(250.0), &font);
+        doc.get_page(page).get_layer(layer).use_text(
+            "Hello SeleniumBase",
+            12.0,
+            Mm(50.0),
+            Mm(250.0),
+            &font,
+        );
         doc.save(&mut BufWriter::new(File::create(path).unwrap()))
             .unwrap();
     }

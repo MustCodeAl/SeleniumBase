@@ -5,6 +5,14 @@
 //! arguments and exposes a small, synchronous-feeling API that mirrors the
 //! WebDriver-backed [`BrowserSession`] where practical.
 //!
+//! # Limitations
+//!
+//! The upstream `playwright` crate (`0.0.20`) downloads a native Playwright
+//! driver during its build script. The hosted driver URL is currently
+//! unreachable (returns HTTP 404), so the feature may fail to build on hosts
+//! that do not already have a cached driver. The feature is therefore left
+//! disabled by default and does not affect the main build.
+//!
 //! # Example
 //!
 //! ```no_run
@@ -75,17 +83,18 @@ impl PlaywrightSession {
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("init failed: {e}")))?;
 
+        let args: Vec<String> = STEALTH_ARGS.iter().map(|s| (*s).to_owned()).collect();
         let browser = playwright
             .chromium()
             .launcher()
-            .headless(headless)
-            .args(STEALTH_ARGS.iter().map(|s| s.to_string()).collect())
+            .headless(Some(headless))
+            .args(Some(&args))
             .launch()
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("launch failed: {e}")))?;
 
         let context = browser
-            .new_context_builder()
+            .context_builder()
             .build()
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("context failed: {e}")))?;
@@ -109,7 +118,7 @@ impl PlaywrightSession {
     pub async fn new_context(&mut self) -> Result<(), SeleniumBaseError> {
         self.context = self
             .browser
-            .new_context_builder()
+            .context_builder()
             .build()
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("context failed: {e}")))?;
@@ -144,7 +153,8 @@ impl PlaywrightSession {
     /// Clicks the element selected by `selector`.
     pub async fn click(&self, selector: &str) -> Result<(), SeleniumBaseError> {
         self.page
-            .click(selector)
+            .click_builder(selector)
+            .click()
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("click failed: {e}")))?;
         Ok(())
@@ -153,7 +163,8 @@ impl PlaywrightSession {
     /// Clears and types `text` into the element selected by `selector`.
     pub async fn type_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.page
-            .fill(selector, text)
+            .fill_builder(selector, text)
+            .fill()
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("type_text failed: {e}")))?;
         Ok(())
@@ -163,7 +174,7 @@ impl PlaywrightSession {
     pub async fn get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
         let text = self
             .page
-            .inner_text(selector)
+            .inner_text(selector, None)
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("get_text failed: {e}")))?;
         Ok(text)
@@ -171,9 +182,9 @@ impl PlaywrightSession {
 
     /// Evaluates `expression` in the active page and returns the JSON result.
     pub async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
-        let value = self
+        let value: Value = self
             .page
-            .evaluate(expression)
+            .evaluate(expression, ())
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("evaluate failed: {e}")))?;
         Ok(value)
@@ -181,12 +192,14 @@ impl PlaywrightSession {
 
     /// Saves a screenshot of the active page to `path`.
     pub async fn screenshot(&self, path: &Path) -> Result<(), SeleniumBaseError> {
-        self.page
+        let bytes = self
+            .page
             .screenshot_builder()
-            .path(path)
+            .path(Some(path.to_path_buf()))
             .screenshot()
             .await
             .map_err(|e| SeleniumBaseError::Playwright(format!("screenshot failed: {e}")))?;
+        std::fs::write(path, bytes)?;
         Ok(())
     }
 

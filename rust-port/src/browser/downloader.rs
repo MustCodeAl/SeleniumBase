@@ -50,7 +50,9 @@ fn chromedriver_download_url(
     let stable = &version_info["channels"]["Stable"];
     let downloads = stable["downloads"]["chromedriver"]
         .as_array()
-        .ok_or_else(|| SeleniumBaseError::Unsupported("invalid chromedriver download metadata".to_owned()))?;
+        .ok_or_else(|| {
+            SeleniumBaseError::Unsupported("invalid chromedriver download metadata".to_owned())
+        })?;
 
     downloads
         .iter()

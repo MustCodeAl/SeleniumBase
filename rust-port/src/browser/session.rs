@@ -46,50 +46,50 @@ impl BrowserSession {
         Ok(session)
     }
 
-        /// Navigates to `url`.
+    /// Navigates to `url`.
     pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.driver().goto(url).await?;
         Ok(())
     }
 
-        /// Navigates back in browser history.
+    /// Navigates back in browser history.
     pub async fn back(&self) -> Result<(), SeleniumBaseError> {
         self.driver().back().await?;
         Ok(())
     }
 
-        /// Navigates forward in browser history.
+    /// Navigates forward in browser history.
     pub async fn forward(&self) -> Result<(), SeleniumBaseError> {
         self.driver().forward().await?;
         Ok(())
     }
 
-        /// Reloads the current page.
+    /// Reloads the current page.
     pub async fn refresh(&self) -> Result<(), SeleniumBaseError> {
         self.driver().refresh().await?;
         Ok(())
     }
 
-        /// Returns the current page title.
+    /// Returns the current page title.
     pub async fn current_title(&mut self) -> Result<String, SeleniumBaseError> {
         let title = self.driver().title().await?;
         Ok(title)
     }
 
-        /// Returns the current page URL as a string.
+    /// Returns the current page URL as a string.
     pub async fn current_url(&mut self) -> Result<String, SeleniumBaseError> {
         let url = self.driver().current_url().await?;
         Ok(url.as_str().to_owned())
     }
 
-        /// Clicks the element located by `locator`.
+    /// Clicks the element located by `locator`.
     pub async fn click(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         element.click().await?;
         Ok(())
     }
 
-        /// Clears and types `text` into the element located by `locator`.
+    /// Clears and types `text` into the element located by `locator`.
     pub async fn type_text(&mut self, locator: By, text: &str) -> Result<(), SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         element.clear().await?;
@@ -97,14 +97,14 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Clears the value of the element located by `locator`.
+    /// Clears the value of the element located by `locator`.
     pub async fn clear(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         element.clear().await?;
         Ok(())
     }
 
-        /// Submits the form containing the element located by `locator`.
+    /// Submits the form containing the element located by `locator`.
     pub async fn submit(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         let element_json = element.to_json()?;
@@ -115,13 +115,13 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Returns the visible text of the element located by `locator`.
+    /// Returns the visible text of the element located by `locator`.
     pub async fn text(&mut self, locator: By) -> Result<String, SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         Ok(element.text().await?)
     }
 
-        /// Hovers over the element located by `locator`.
+    /// Hovers over the element located by `locator`.
     pub async fn hover(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         self.driver()
@@ -132,7 +132,7 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Selects the option with visible text `text`.
+    /// Selects the option with visible text `text`.
     pub async fn select_option_by_text(
         &mut self,
         locator: By,
@@ -144,7 +144,7 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Selects the option whose `value` matches.
+    /// Selects the option whose `value` matches.
     pub async fn select_option_by_value(
         &mut self,
         locator: By,
@@ -156,20 +156,20 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Switches context into the frame located by `locator`.
+    /// Switches context into the frame located by `locator`.
     pub async fn switch_to_frame(&mut self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         element.enter_frame().await?;
         Ok(())
     }
 
-        /// Switches context back to the top-level document.
+    /// Switches context back to the top-level document.
     pub async fn switch_to_default_content(&mut self) -> Result<(), SeleniumBaseError> {
         self.driver().enter_default_frame().await?;
         Ok(())
     }
 
-        /// Drags the source element onto the target element.
+    /// Drags the source element onto the target element.
     pub async fn drag_and_drop(
         &mut self,
         source_locator: By,
@@ -185,29 +185,29 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Returns the full HTML source of the current page.
+    /// Returns the full HTML source of the current page.
     pub async fn page_source(&self) -> Result<String, SeleniumBaseError> {
         Ok(self.driver().source().await?)
     }
 
-        /// Returns the first element matching `locator`.
+    /// Returns the first element matching `locator`.
     pub async fn find(&mut self, locator: By) -> Result<WebElement, SeleniumBaseError> {
         let element = self.driver().find(locator).await?;
         Ok(element)
     }
 
-        /// Returns all elements matching `locator`.
+    /// Returns all elements matching `locator`.
     pub async fn find_all(&self, locator: By) -> Result<Vec<WebElement>, SeleniumBaseError> {
         Ok(self.driver().find_all(locator).await?)
     }
 
-        /// WebDriver interaction: `element_present`.
+    /// WebDriver interaction: `element_present`.
     pub async fn element_present(&self, locator: By) -> Result<bool, SeleniumBaseError> {
         let elements = self.find_all(locator).await?;
         Ok(!elements.is_empty())
     }
 
-        /// WebDriver interaction: `wait_for_element`.
+    /// WebDriver interaction: `wait_for_element`.
     pub async fn wait_for_element(
         &self,
         locator: By,
@@ -227,7 +227,7 @@ impl BrowserSession {
         }
     }
 
-        /// WebDriver interaction: `get_attribute`.
+    /// WebDriver interaction: `get_attribute`.
     pub async fn get_attribute(
         &mut self,
         locator: By,
@@ -237,7 +237,7 @@ impl BrowserSession {
         Ok(element.attr(attribute_name).await?)
     }
 
-        /// WebDriver interaction: `get_property`.
+    /// WebDriver interaction: `get_property`.
     pub async fn get_property(
         &mut self,
         locator: By,
@@ -247,7 +247,7 @@ impl BrowserSession {
         Ok(element.prop(property_name).await?)
     }
 
-        /// Waits up to `timeout` seconds for `locator` to become visible.
+    /// Waits up to `timeout` seconds for `locator` to become visible.
     pub async fn wait_for_element_visible(
         &self,
         locator: By,
@@ -269,7 +269,7 @@ impl BrowserSession {
         }
     }
 
-        /// Waits up to `timeout` seconds for `locator` to become clickable.
+    /// Waits up to `timeout` seconds for `locator` to become clickable.
     pub async fn wait_for_element_clickable(
         &self,
         locator: By,
@@ -293,7 +293,7 @@ impl BrowserSession {
         }
     }
 
-        /// WebDriver interaction: `execute_async_script`.
+    /// WebDriver interaction: `execute_async_script`.
     pub async fn execute_async_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
         self.driver()
             .execute_async(script, vec![])
@@ -302,7 +302,7 @@ impl BrowserSession {
             .map(|ret| ret.json().clone())
     }
 
-        /// WebDriver interaction: `maximize_window`.
+    /// WebDriver interaction: `maximize_window`.
     pub async fn maximize_window(&self) -> Result<(), SeleniumBaseError> {
         self.driver()
             .maximize_window()
@@ -310,7 +310,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// WebDriver interaction: `set_window_size`.
+    /// WebDriver interaction: `set_window_size`.
     pub async fn set_window_size(&self, width: u32, height: u32) -> Result<(), SeleniumBaseError> {
         self.driver()
             .set_window_rect(0, 0, width, height)
@@ -318,7 +318,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// Returns the current window size as `(width, height)`.
+    /// Returns the current window size as `(width, height)`.
     pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
         let rect = self
             .driver()
@@ -328,7 +328,7 @@ impl BrowserSession {
         Ok((rect.width as u32, rect.height as u32))
     }
 
-        /// Switches to the window/tab identified by `handle`.
+    /// Switches to the window/tab identified by `handle`.
     pub async fn switch_to_window(&self, handle: &str) -> Result<(), SeleniumBaseError> {
         let h = thirtyfour::common::types::WindowHandle::from(handle.to_string());
         self.driver()
@@ -337,7 +337,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// Double-clicks the element located by `locator`.
+    /// Double-clicks the element located by `locator`.
     pub async fn double_click(&self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.wait_for_element_clickable(locator.clone(), 10).await?;
         self.driver()
@@ -348,7 +348,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// Right-clicks the element located by `locator`.
+    /// Right-clicks the element located by `locator`.
     pub async fn context_click(&self, locator: By) -> Result<(), SeleniumBaseError> {
         let element = self.wait_for_element_clickable(locator.clone(), 10).await?;
         self.driver()
@@ -359,7 +359,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// Returns `true` if the element located by `locator` is enabled.
+    /// Returns `true` if the element located by `locator` is enabled.
     pub async fn is_enabled(&self, locator: By) -> Result<bool, SeleniumBaseError> {
         let element = self
             .driver()
@@ -372,7 +372,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// Returns `true` if the element located by `locator` is selected.
+    /// Returns `true` if the element located by `locator` is selected.
     pub async fn is_selected(&self, locator: By) -> Result<bool, SeleniumBaseError> {
         let element = self
             .driver()
@@ -385,7 +385,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// WebDriver interaction: `is_displayed`.
+    /// WebDriver interaction: `is_displayed`.
     pub async fn is_displayed(&self, locator: By) -> Result<bool, SeleniumBaseError> {
         if let Ok(element) = self.driver().find(locator).await {
             element
@@ -397,7 +397,7 @@ impl BrowserSession {
         }
     }
 
-        /// WebDriver interaction: `switch_to_alert_accept`.
+    /// WebDriver interaction: `switch_to_alert_accept`.
     pub async fn switch_to_alert_accept(&self) -> Result<(), SeleniumBaseError> {
         self.driver()
             .accept_alert()
@@ -405,7 +405,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// WebDriver interaction: `switch_to_alert_dismiss`.
+    /// WebDriver interaction: `switch_to_alert_dismiss`.
     pub async fn switch_to_alert_dismiss(&self) -> Result<(), SeleniumBaseError> {
         self.driver()
             .dismiss_alert()
@@ -413,7 +413,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// WebDriver interaction: `get_alert_text`.
+    /// WebDriver interaction: `get_alert_text`.
     pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
         self.driver()
             .get_alert_text()
@@ -421,7 +421,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// WebDriver interaction: `type_alert_text`.
+    /// WebDriver interaction: `type_alert_text`.
     pub async fn type_alert_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.driver()
             .send_alert_text(text)
@@ -429,7 +429,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// WebDriver interaction: `add_cookie`.
+    /// WebDriver interaction: `add_cookie`.
     pub async fn add_cookie(&self, name: &str, value: &str) -> Result<(), SeleniumBaseError> {
         let cookie = thirtyfour::cookie::Cookie::new(name, value);
         self.driver()
@@ -439,7 +439,7 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// WebDriver interaction: `get_cookie`.
+    /// WebDriver interaction: `get_cookie`.
     pub async fn get_cookie(
         &self,
         name: &str,
@@ -450,7 +450,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// WebDriver interaction: `delete_cookie`.
+    /// WebDriver interaction: `delete_cookie`.
     pub async fn delete_cookie(&self, name: &str) -> Result<(), SeleniumBaseError> {
         self.driver()
             .delete_cookie(name)
@@ -459,7 +459,7 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// WebDriver interaction: `delete_all_cookies`.
+    /// WebDriver interaction: `delete_all_cookies`.
     pub async fn delete_all_cookies(&self) -> Result<(), SeleniumBaseError> {
         self.driver()
             .delete_all_cookies()
@@ -468,7 +468,7 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// WebDriver interaction: `find_elements`.
+    /// WebDriver interaction: `find_elements`.
     pub async fn find_elements(
         &self,
         locator: thirtyfour::By,
@@ -479,7 +479,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::WebDriver)
     }
 
-        /// Opens and switches to a new browser window/tab.
+    /// Opens and switches to a new browser window/tab.
     pub async fn switch_to_new_window(&self) -> Result<(), SeleniumBaseError> {
         let handle = self
             .driver()
@@ -493,7 +493,7 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Waits up to `timeout` seconds for `locator` to be removed.
+    /// Waits up to `timeout` seconds for `locator` to be removed.
     pub async fn wait_for_element_absent(
         &self,
         locator: By,
@@ -515,7 +515,7 @@ impl BrowserSession {
         }
     }
 
-        /// WebDriver interaction: `wait_for_text`.
+    /// WebDriver interaction: `wait_for_text`.
     pub async fn wait_for_text(
         &self,
         locator: By,
@@ -539,24 +539,24 @@ impl BrowserSession {
         }
     }
 
-        /// Executes arbitrary JavaScript and returns the result.
+    /// Executes arbitrary JavaScript and returns the result.
     pub async fn execute_script(&self, script: &str) -> Result<Value, SeleniumBaseError> {
         let ret = self.driver().execute(script, Vec::new()).await?;
         Ok(ret.json().clone())
     }
 
-        /// Captures a screenshot and writes it to `path`.
+    /// Captures a screenshot and writes it to `path`.
     pub async fn screenshot(&self, path: &Path) -> Result<(), SeleniumBaseError> {
         self.driver().screenshot(path).await?;
         Ok(())
     }
 
-        /// Captures a screenshot and returns the raw PNG bytes.
+    /// Captures a screenshot and returns the raw PNG bytes.
     pub async fn screenshot_as_png(&self) -> Result<Vec<u8>, SeleniumBaseError> {
         Ok(self.driver().screenshot_as_png().await?)
     }
 
-        /// Enables Page/Network/Runtime CDP domains.
+    /// Enables Page/Network/Runtime CDP domains.
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.enable_default_domains()
@@ -565,13 +565,13 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Executes a CDP command without parameters.
+    /// Executes a CDP command without parameters.
     pub async fn execute_cdp(&self, method: &str) -> Result<Value, SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.execute(method).await
     }
 
-        /// Executes a CDP command with JSON parameters.
+    /// Executes a CDP command with JSON parameters.
     pub async fn execute_cdp_with_params(
         &self,
         method: &str,
@@ -581,37 +581,37 @@ impl BrowserSession {
         cdp.execute_with_params(method, params).await
     }
 
-        /// Clears the browser cache via CDP.
+    /// Clears the browser cache via CDP.
     pub async fn clear_browser_cache(&self) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.clear_cache().await
     }
 
-        /// Clears all browser cookies via CDP.
+    /// Clears all browser cookies via CDP.
     pub async fn clear_browser_cookies(&self) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.clear_cookies().await
     }
 
-        /// Returns all cookies via CDP as JSON.
+    /// Returns all cookies via CDP as JSON.
     pub async fn get_cookies(&self) -> Result<Value, SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.get_cookies().await
     }
 
-        /// Dispatches a CDP mouse click at `(x, y)`.
+    /// Dispatches a CDP mouse click at `(x, y)`.
     pub async fn cdp_mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.mouse_click(x, y).await
     }
 
-        /// Inserts `text` via CDP without element focus.
+    /// Inserts `text` via CDP without element focus.
     pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.keyboard_insert_text(text).await
     }
 
-        /// Configures network throttling via CDP.
+    /// Configures network throttling via CDP.
     pub async fn set_network_conditions(
         &self,
         conditions: &NetworkConditions,
@@ -620,7 +620,7 @@ impl BrowserSession {
         cdp.set_network_conditions(conditions.clone()).await
     }
 
-        /// Sets the browser geolocation via CDP.
+    /// Sets the browser geolocation via CDP.
     pub async fn set_geolocation(
         &self,
         latitude: f64,
@@ -631,13 +631,13 @@ impl BrowserSession {
         uc::override_geolocation(cdp, latitude, longitude, accuracy).await
     }
 
-        /// Sets the browser timezone via CDP.
+    /// Sets the browser timezone via CDP.
     pub async fn set_timezone(&self, timezone_id: &str) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         uc::override_timezone(cdp, timezone_id).await
     }
 
-        /// Applies UC stealth patches and user-agent overrides.
+    /// Applies UC stealth patches and user-agent overrides.
     pub async fn enable_uc_mode(&self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
         cdp.enable_default_domains()
@@ -683,7 +683,9 @@ impl BrowserSession {
             self.driver_process = process;
         }
         self.cdp = if config.is_cdp_enabled() {
-            Some(CdpClient::from_handle(self.driver.as_ref().unwrap().handle().clone()))
+            Some(CdpClient::from_handle(
+                self.driver.as_ref().unwrap().handle().clone(),
+            ))
         } else {
             None
         };
@@ -691,7 +693,7 @@ impl BrowserSession {
         Ok(())
     }
 
-        /// Closes the browser session and any auto-started driver process.
+    /// Closes the browser session and any auto-started driver process.
     pub async fn quit(self) -> Result<(), SeleniumBaseError> {
         if let Some(driver) = self.driver {
             driver.quit().await?;

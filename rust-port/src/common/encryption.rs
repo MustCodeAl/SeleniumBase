@@ -27,9 +27,9 @@ pub fn xor_deobfuscate(ciphertext: &str, key: &str) -> Result<String, SeleniumBa
 }
 
 pub fn aes_encrypt(plaintext: &str, key: &[u8]) -> Result<String, SeleniumBaseError> {
-    let key: &[u8; 32] = key.try_into().map_err(|_| {
-        SeleniumBaseError::InvalidConfig("AES key must be 32 bytes".to_string())
-    })?;
+    let key: &[u8; 32] = key
+        .try_into()
+        .map_err(|_| SeleniumBaseError::InvalidConfig("AES key must be 32 bytes".to_string()))?;
     let unbound = UnboundKey::new(&AES_256_GCM, key)
         .map_err(|e| SeleniumBaseError::Unsupported(format!("AES key setup failed: {e}")))?;
     let key = LessSafeKey::new(unbound);
@@ -47,14 +47,16 @@ pub fn aes_encrypt(plaintext: &str, key: &[u8]) -> Result<String, SeleniumBaseEr
 }
 
 pub fn aes_decrypt(ciphertext: &str, key: &[u8]) -> Result<String, SeleniumBaseError> {
-    let key: &[u8; 32] = key.try_into().map_err(|_| {
-        SeleniumBaseError::InvalidConfig("AES key must be 32 bytes".to_string())
-    })?;
+    let key: &[u8; 32] = key
+        .try_into()
+        .map_err(|_| SeleniumBaseError::InvalidConfig("AES key must be 32 bytes".to_string()))?;
     let data = base64::engine::general_purpose::STANDARD
         .decode(ciphertext)
         .map_err(|e| SeleniumBaseError::InvalidConfig(format!("bad base64: {e}")))?;
     if data.len() < 12 {
-        return Err(SeleniumBaseError::InvalidConfig("ciphertext too short".to_string()));
+        return Err(SeleniumBaseError::InvalidConfig(
+            "ciphertext too short".to_string(),
+        ));
     }
     let (nonce_bytes, cipher) = data.split_at(12);
     let nonce_bytes: [u8; 12] = nonce_bytes.try_into().unwrap();
@@ -112,10 +114,7 @@ mod tests {
         let encrypted = aes_encrypt("message", key).unwrap();
         let mut tampered = encrypted.into_bytes();
         tampered[15] = tampered[15].wrapping_add(1);
-        let result = aes_decrypt(
-            std::str::from_utf8(&tampered).unwrap(),
-            key,
-        );
+        let result = aes_decrypt(std::str::from_utf8(&tampered).unwrap(), key);
         assert!(result.is_err());
     }
 }

@@ -36,7 +36,10 @@ mod tests {
     #[test]
     fn base64_encode_encodes_bytes() {
         let encoded = base64_encode("hello");
-        assert_eq!(encoded, base64::engine::general_purpose::STANDARD.encode("hello"));
+        assert_eq!(
+            encoded,
+            base64::engine::general_purpose::STANDARD.encode("hello")
+        );
     }
 
     #[test]

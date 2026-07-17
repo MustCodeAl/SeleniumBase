@@ -17,9 +17,7 @@ impl<'a> Selector<'a> {
             Self::Css(value) if !value.trim().is_empty() => Ok(By::Css(value.to_owned())),
             Self::XPath(value) if !value.trim().is_empty() => Ok(By::XPath(value.to_owned())),
             Self::Id(value) if !value.trim().is_empty() => Ok(By::Id(value.to_owned())),
-            Self::LinkText(value) if !value.trim().is_empty() => {
-                Ok(By::LinkText(value.to_owned()))
-            }
+            Self::LinkText(value) if !value.trim().is_empty() => Ok(By::LinkText(value.to_owned())),
             Self::PartialLinkText(value) if !value.trim().is_empty() => {
                 Ok(By::PartialLinkText(value.to_owned()))
             }
@@ -39,21 +37,18 @@ pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
         .trim_start_matches('/')
         .trim();
     if body.is_empty() {
-        return Err(SeleniumBaseError::InvalidSelector(
-            "empty xpath".to_owned(),
-        ));
+        return Err(SeleniumBaseError::InvalidSelector("empty xpath".to_owned()));
     }
     // Split tag and predicate, e.g. div[@id='x']
     let re = regex::Regex::new(r"^([a-zA-Z0-9*]+)(?:\[(.+)\])?$").unwrap();
-    let caps = re.captures(body).ok_or_else(|| {
-        SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}"))
-    })?;
+    let caps = re
+        .captures(body)
+        .ok_or_else(|| SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}")))?;
     let tag = caps.get(1).map(|m| m.as_str()).unwrap_or("*");
     let mut css = tag.to_owned();
     if let Some(pred) = caps.get(2).map(|m| m.as_str()) {
         // Support @attr='value' or @attr=\"value\"
-        let attr_re =
-            regex::Regex::new(r#"@([a-zA-Z0-9_-]+)\s*=\s*['\"]([^'\"]+)['\"]"#).unwrap();
+        let attr_re = regex::Regex::new(r#"@([a-zA-Z0-9_-]+)\s*=\s*['\"]([^'\"]+)['\"]"#).unwrap();
         for cap in attr_re.captures_iter(pred) {
             let attr = cap.get(1).unwrap().as_str();
             let val = cap.get(2).unwrap().as_str();

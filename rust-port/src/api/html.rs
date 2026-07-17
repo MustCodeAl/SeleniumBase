@@ -28,16 +28,26 @@ impl BeautifulSoup {
 
     /// Finds the first element matching a CSS selector.
     pub fn find(&self, selector: &str) -> Result<Option<SoupNode>, SeleniumBaseError> {
-        let sel = Selector::parse(selector)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(format!("Bad selector '{selector}': {e:?}")))?;
-        Ok(self.document.select(&sel).next().map(SoupNode::from_element))
+        let sel = Selector::parse(selector).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Bad selector '{selector}': {e:?}"))
+        })?;
+        Ok(self
+            .document
+            .select(&sel)
+            .next()
+            .map(SoupNode::from_element))
     }
 
     /// Finds all elements matching a CSS selector.
     pub fn find_all(&self, selector: &str) -> Result<Vec<SoupNode>, SeleniumBaseError> {
-        let sel = Selector::parse(selector)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(format!("Bad selector '{selector}': {e:?}")))?;
-        Ok(self.document.select(&sel).map(SoupNode::from_element).collect())
+        let sel = Selector::parse(selector).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("Bad selector '{selector}': {e:?}"))
+        })?;
+        Ok(self
+            .document
+            .select(&sel)
+            .map(SoupNode::from_element)
+            .collect())
     }
 
     /// Returns the inner text of the first element matching `selector`.
@@ -51,7 +61,9 @@ impl BeautifulSoup {
         selector: &str,
         attr: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        Ok(self.find(selector)?.and_then(|e| e.attributes.get(attr).cloned()))
+        Ok(self
+            .find(selector)?
+            .and_then(|e| e.attributes.get(attr).cloned()))
     }
 }
 

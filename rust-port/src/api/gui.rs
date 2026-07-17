@@ -5,10 +5,7 @@
 //! WebDriver-based `BaseCase` API so it can be used standalone or composed into
 //! higher-level helper methods.
 
-use enigo::{
-    Axis, Button, Coordinate, Direction,
-    Enigo, Key, Keyboard, Mouse, Settings,
-};
+use enigo::{Axis, Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
 
 use crate::error::SeleniumBaseError;
 
@@ -25,7 +22,7 @@ pub struct Gui {
 impl Gui {
     /// Create a new `Gui` with default `enigo` settings.
     pub fn new() -> Result<Self, SeleniumBaseError> {
-        let enigo = Enigo::new(&Settings::default()).map_err(|e| SeleniumBaseError::Gui(e.to_string()))?;
+        let enigo = Enigo::new(&Settings::default())?;
         Ok(Self { enigo })
     }
 
@@ -119,11 +116,7 @@ impl Gui {
     }
 
     /// Drag the left mouse button from `from` to `to`.
-    pub fn drag(
-        &mut self,
-        from: (i32, i32),
-        to: (i32, i32),
-    ) -> Result<(), SeleniumBaseError> {
+    pub fn drag(&mut self, from: (i32, i32), to: (i32, i32)) -> Result<(), SeleniumBaseError> {
         self.enigo.move_mouse(from.0, from.1, Coordinate::Abs)?;
         self.enigo.button(Button::Left, Direction::Press)?;
         self.enigo.move_mouse(to.0, to.1, Coordinate::Abs)?;
@@ -199,6 +192,12 @@ impl Gui {
 
 impl From<enigo::InputError> for SeleniumBaseError {
     fn from(err: enigo::InputError) -> Self {
+        SeleniumBaseError::Gui(err.to_string())
+    }
+}
+
+impl From<enigo::NewConError> for SeleniumBaseError {
+    fn from(err: enigo::NewConError) -> Self {
         SeleniumBaseError::Gui(err.to_string())
     }
 }

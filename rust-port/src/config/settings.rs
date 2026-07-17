@@ -27,7 +27,6 @@ pub struct Settings {
     pub threads: Option<usize>,
 }
 
-
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -59,22 +58,27 @@ impl Settings {
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
         let path = path.as_ref();
-        let content = fs::read_to_string(path)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}")))?;
+        let content = fs::read_to_string(path).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("failed to read settings: {e}"))
+        })?;
         if path.extension().is_some_and(|ext| ext == "toml") {
-            toml::from_str(&content)
-                .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}")))
+            toml::from_str(&content).map_err(|e| {
+                SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
+            })
         } else {
-            serde_json::from_str(&content)
-                .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}")))
+            serde_json::from_str(&content).map_err(|e| {
+                SeleniumBaseError::InvalidConfig(format!("failed to parse settings: {e}"))
+            })
         }
     }
 
     pub fn from_toml<P: AsRef<Path>>(path: P) -> Result<Self, SeleniumBaseError> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to read TOML settings: {e}")))?;
-        toml::from_str(&content)
-            .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}")))
+        let content = fs::read_to_string(path).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("failed to read TOML settings: {e}"))
+        })?;
+        toml::from_str(&content).map_err(|e| {
+            SeleniumBaseError::InvalidConfig(format!("failed to parse TOML settings: {e}"))
+        })
     }
 
     pub fn from_env() -> Result<Self, SeleniumBaseError> {
@@ -192,9 +196,10 @@ impl Settings {
             settings.mobile = parse_bool(&v)?;
         }
         if let Ok(v) = std::env::var("SB_THREADS") {
-            settings.threads = Some(v.parse().map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!("SB_THREADS: {e}"))
-            })?);
+            settings.threads = Some(
+                v.parse()
+                    .map_err(|e| SeleniumBaseError::InvalidConfig(format!("SB_THREADS: {e}")))?,
+            );
         }
         if let Ok(v) = std::env::var("SB_PROXY_PAC_URL") {
             settings.proxy_pac_url = Some(v);
@@ -207,7 +212,9 @@ fn parse_bool(value: &str) -> Result<bool, SeleniumBaseError> {
     match value.to_lowercase().as_str() {
         "true" | "1" | "yes" | "on" => Ok(true),
         "false" | "0" | "no" | "off" => Ok(false),
-        _ => Err(SeleniumBaseError::InvalidConfig(format!("cannot parse bool: {value}"))),
+        _ => Err(SeleniumBaseError::InvalidConfig(format!(
+            "cannot parse bool: {value}"
+        ))),
     }
 }
 
@@ -276,12 +283,18 @@ threads = 4
             ..Default::default()
         };
         let config = s.to_browser_config();
-        assert!(matches!(config.browser, crate::browser::config::Browser::Firefox));
+        assert!(matches!(
+            config.browser,
+            crate::browser::config::Browser::Firefox
+        ));
         assert!(config.headless);
         assert!(matches!(config.mode, DriverMode::Cdp));
         assert!(config.mobile);
         assert_eq!(config.threads, Some(2));
-        assert_eq!(config.proxy_pac_url, Some("http://proxy/proxy.pac".to_string()));
+        assert_eq!(
+            config.proxy_pac_url,
+            Some("http://proxy/proxy.pac".to_string())
+        );
     }
 
     #[test]

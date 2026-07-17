@@ -102,10 +102,7 @@ pub async fn record_live_session(url: &str) -> Result<(), SeleniumBaseError> {
     Ok(())
 }
 
-async fn handle_live_command(
-    sb: &mut BaseCase,
-    input: &str,
-) -> Result<(), SeleniumBaseError> {
+async fn handle_live_command(sb: &mut BaseCase, input: &str) -> Result<(), SeleniumBaseError> {
     if let Some(rest) = input.strip_prefix("open ") {
         let url = rest.trim();
         sb.open(url).await?;

@@ -83,7 +83,9 @@ impl App {
     }
 
     fn selected_item(&self) -> Option<&TestItem> {
-        self.filtered.get(self.selected).and_then(|&i| self.items.get(i))
+        self.filtered
+            .get(self.selected)
+            .and_then(|&i| self.items.get(i))
     }
 
     fn move_selection(&mut self, delta: isize) {
@@ -183,7 +185,11 @@ fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
 
 fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> io::Result<()> {
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
     terminal.show_cursor()?;
     Ok(())
 }

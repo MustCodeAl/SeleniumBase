@@ -23,7 +23,9 @@ pub fn write_log(workspace: &Path, name: &str, content: &str) -> std::io::Result
 
 /// Return an ISO-8601 style timestamp string.
 pub fn timestamp() -> String {
-    chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string()
+    chrono::Local::now()
+        .format("%Y-%m-%d %H:%M:%S%.3f")
+        .to_string()
 }
 
 #[cfg(test)]

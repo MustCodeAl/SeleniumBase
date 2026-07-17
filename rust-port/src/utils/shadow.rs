@@ -23,8 +23,7 @@ pub fn build_shadow_query(fragments: &[String]) -> String {
         script.push_str("  if (!el) return null;\n");
         script.push_str("  el = el.shadowRoot ? el.shadowRoot.querySelector(");
         script.push_str(&serde_json::json!(fragment).to_string());
-        script.push_str(") : null;\n",
-        );
+        script.push_str(") : null;\n");
     }
     script.push_str("  return el;\n})();");
     script
@@ -51,10 +50,7 @@ pub fn build_shadow_type(fragments: &[String], text: &str) -> String {
         script.push_str(");\n");
     }
     script.push_str("  if (!el) return false;\n");
-    script.push_str(&format!(
-        "  el.value = {};\n",
-        serde_json::json!(text)
-    ));
+    script.push_str(&format!("  el.value = {};\n", serde_json::json!(text)));
     script.push_str("  el.dispatchEvent(new Event('input', {bubbles: true}));\n");
     script.push_str("  el.dispatchEvent(new Event('change', {bubbles: true}));\n");
     script.push_str("  return true;\n})();");

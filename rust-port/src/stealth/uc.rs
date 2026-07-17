@@ -239,7 +239,10 @@ pub async fn override_user_agent(
 }
 
 /// Overrides the browser timezone via CDP (useful for locale-matched UC profiles).
-pub async fn override_timezone(cdp: &CdpClient, timezone_id: &str) -> Result<(), SeleniumBaseError> {
+pub async fn override_timezone(
+    cdp: &CdpClient,
+    timezone_id: &str,
+) -> Result<(), SeleniumBaseError> {
     cdp.execute_with_params(
         "Emulation.setTimezoneOverride",
         json!({ "timezoneId": timezone_id }),

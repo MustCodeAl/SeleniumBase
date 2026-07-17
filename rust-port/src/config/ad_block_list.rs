@@ -33,14 +33,16 @@ impl AdBlockList {
 }
 
 fn extract_host(url: &str) -> Option<&str> {
-    let rest = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://"))?;
+    let rest = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))?;
     let end = rest.find('/').unwrap_or(rest.len());
     let host = &rest[..end];
     Some(host.split(':').next().unwrap_or(host))
 }
 
 fn matches_domain(host: &str, blocked: &str) -> bool {
-    host == blocked || host.ends_with(&format!(".{}" , blocked))
+    host == blocked || host.ends_with(&format!(".{}", blocked))
 }
 
 #[cfg(test)]

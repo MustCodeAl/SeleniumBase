@@ -34,8 +34,8 @@ pub mod js_code;
 pub mod plugins;
 pub mod resources;
 pub mod stealth;
-pub mod utils;
 pub mod utilities;
+pub mod utils;
 
 pub use api::base_case::BaseCase;
 pub use api::chart::{Chart, ChartType};

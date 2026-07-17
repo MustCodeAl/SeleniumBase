@@ -16,13 +16,7 @@ impl ScreenshotOnFailurePlugin {
 }
 
 impl SeleniumBasePlugin for ScreenshotOnFailurePlugin {
-    fn on_failure(
-        &mut self,
-        command: &str,
-        target: &str,
-        _value: &str,
-        error: &str,
-    ) {
+    fn on_failure(&mut self, command: &str, target: &str, _value: &str, error: &str) {
         let dir = Path::new(&self.output_dir);
         fs::create_dir_all(dir).ok();
         let safe = target.replace(['/', '\\', ':', ' '], "_");

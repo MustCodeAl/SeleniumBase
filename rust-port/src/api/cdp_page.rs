@@ -29,15 +29,18 @@ pub struct CdpNode {
 impl CdpNode {
     /// Parses a `DOM.querySelector` response into a [`CdpNode`].
     pub fn from_query_result(value: &Value, selector: &str) -> Option<Self> {
-        value.get("nodeId").and_then(|v| v.as_i64()).map(|node_id| Self {
-            node_id,
-            backend_node_id: value.get("backendNodeId").and_then(|v| v.as_i64()),
-            object_id: value
-                .get("objectId")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_owned()),
-            selector: Some(selector.to_owned()),
-        })
+        value
+            .get("nodeId")
+            .and_then(|v| v.as_i64())
+            .map(|node_id| Self {
+                node_id,
+                backend_node_id: value.get("backendNodeId").and_then(|v| v.as_i64()),
+                object_id: value
+                    .get("objectId")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_owned()),
+                selector: Some(selector.to_owned()),
+            })
     }
 
     /// Parses a single `nodeId` value (for example from `DOM.querySelectorAll`).
@@ -77,22 +80,31 @@ impl<'a> CdpPage<'a> {
     pub async fn find_element(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
         self.session.execute_cdp("DOM.enable").await.ok();
         let response = self
-            .execute("DOM.querySelector", json!({"nodeId": 1, "selector": selector}))
+            .execute(
+                "DOM.querySelector",
+                json!({"nodeId": 1, "selector": selector}),
+            )
             .await?;
-        CdpNode::from_query_result(&response, selector)
-            .ok_or_else(|| SeleniumBaseError::InvalidSelector(format!("Element not found: {selector}")))
+        CdpNode::from_query_result(&response, selector).ok_or_else(|| {
+            SeleniumBaseError::InvalidSelector(format!("Element not found: {selector}"))
+        })
     }
 
     /// Finds all elements matching `selector` via `DOM.querySelectorAll`.
     pub async fn find_all(&self, selector: &str) -> Result<Vec<CdpNode>, SeleniumBaseError> {
         self.session.execute_cdp("DOM.enable").await.ok();
         let response = self
-            .execute("DOM.querySelectorAll", json!({"nodeId": 1, "selector": selector}))
+            .execute(
+                "DOM.querySelectorAll",
+                json!({"nodeId": 1, "selector": selector}),
+            )
             .await?;
         let node_ids = response
             .get("nodeIds")
             .and_then(|v| v.as_array())
-            .ok_or_else(|| SeleniumBaseError::Unsupported("DOM.querySelectorAll missing nodeIds".to_owned()))?;
+            .ok_or_else(|| {
+                SeleniumBaseError::Unsupported("DOM.querySelectorAll missing nodeIds".to_owned())
+            })?;
         Ok(node_ids
             .iter()
             .filter_map(|v| v.as_i64().map(|id| CdpNode::from_node_id(id, selector)))
@@ -105,7 +117,9 @@ impl<'a> CdpPage<'a> {
     /// `mouseMoved`, `mousePressed`, and `mouseReleased` input events.
     pub async fn click(&self, selector: &str) -> Result<(), SeleniumBaseError> {
         let node = self.find_element(selector).await?;
-        let model = self.execute("DOM.getBoxModel", json!({"nodeId": node.node_id})).await?;
+        let model = self
+            .execute("DOM.getBoxModel", json!({"nodeId": node.node_id}))
+            .await?;
         let (center_x, center_y) = box_model_center(&model)?;
 
         for event_type in ["mouseMoved", "mousePressed", "mouseReleased"] {
@@ -196,10 +210,15 @@ impl<'a> CdpPage<'a> {
     /// and returns the raw CDP result object.
     pub async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
         let response = self
-            .execute("Runtime.evaluate", json!({"expression": expression, "returnByValue": true}))
+            .execute(
+                "Runtime.evaluate",
+                json!({"expression": expression, "returnByValue": true}),
+            )
             .await?;
         if let Some(exc) = response.get("exceptionDetails") {
-            return Err(SeleniumBaseError::Unsupported(format!("JS exception: {exc}")));
+            return Err(SeleniumBaseError::Unsupported(format!(
+                "JS exception: {exc}"
+            )));
         }
         Ok(response.get("result").cloned().unwrap_or(Value::Null))
     }
@@ -223,7 +242,11 @@ impl<'a> CdpPage<'a> {
     }
 
     /// Selects the `<option>` with matching visible text inside `<select>`.
-    pub async fn select_option_by_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_text(
+        &self,
+        selector: &str,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
         let escaped_text = text.replace('\\', "\\\\").replace('\'', "\\'");
         let script = format!(
@@ -250,7 +273,11 @@ impl<'a> CdpPage<'a> {
     }
 
     /// Selects the `<option>` with the given value inside `<select>`.
-    pub async fn select_option_by_value(&self, selector: &str, value: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_value(
+        &self,
+        selector: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let escaped_selector = selector.replace('\\', "\\\\").replace('\'', "\\'");
         let escaped_value = value.replace('\\', "\\\\").replace('\'', "\\'");
         let script = format!(
@@ -281,9 +308,9 @@ impl<'a> CdpPage<'a> {
             .get("data")
             .and_then(|v| v.as_str())
             .ok_or_else(|| SeleniumBaseError::Unsupported("Screenshot data missing".to_owned()))?;
-        let bytes = BASE64_STANDARD
-            .decode(data)
-            .map_err(|e| SeleniumBaseError::Unsupported(format!("Failed to decode screenshot: {e}")))?;
+        let bytes = BASE64_STANDARD.decode(data).map_err(|e| {
+            SeleniumBaseError::Unsupported(format!("Failed to decode screenshot: {e}"))
+        })?;
         std::fs::write(path, bytes)?;
         Ok(())
     }
@@ -295,16 +322,19 @@ fn box_model_center(model: &Value) -> Result<(f64, f64), SeleniumBaseError> {
         .get("model")
         .and_then(|m| m.get("content"))
         .and_then(|c| c.as_array())
-        .ok_or_else(|| SeleniumBaseError::Unsupported("DOM.getBoxModel content missing".to_owned()))?;
+        .ok_or_else(|| {
+            SeleniumBaseError::Unsupported("DOM.getBoxModel content missing".to_owned())
+        })?;
     if content.len() < 8 {
-        return Err(SeleniumBaseError::Unsupported("Invalid box model content".to_owned()));
+        return Err(SeleniumBaseError::Unsupported(
+            "Invalid box model content".to_owned(),
+        ));
     }
-    let coords: Vec<f64> = content
-        .iter()
-        .filter_map(|v| v.as_f64())
-        .collect();
+    let coords: Vec<f64> = content.iter().filter_map(|v| v.as_f64()).collect();
     if coords.len() < 8 {
-        return Err(SeleniumBaseError::Unsupported("Invalid box model coordinates".to_owned()));
+        return Err(SeleniumBaseError::Unsupported(
+            "Invalid box model coordinates".to_owned(),
+        ));
     }
     let center_x = (coords[0] + coords[2] + coords[4] + coords[6]) / 4.0;
     let center_y = (coords[1] + coords[3] + coords[5] + coords[7]) / 4.0;
@@ -319,7 +349,10 @@ fn single_element_script(selector: &str, inner: &str) -> String {
 
 /// Extracts a string `value` from a CDP `Runtime.evaluate` result object.
 fn extract_string_value(result: &Value) -> Option<String> {
-    result.get("value").and_then(|v| v.as_str()).map(|s| s.to_owned())
+    result
+        .get("value")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_owned())
 }
 
 #[cfg(test)]

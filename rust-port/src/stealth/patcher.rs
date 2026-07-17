@@ -34,7 +34,9 @@ pub fn patch_chromedriver<P: AsRef<Path>>(path: P) -> Result<(), SeleniumBaseErr
             let mut rng = rand::rng();
             let ran_len = rng.random_range(6..=rep_len);
 
-            let chars: Vec<u8> = (0..ran_len).map(|_| rng.random_range(b'a'..=b'z')).collect();
+            let chars: Vec<u8> = (0..ran_len)
+                .map(|_| rng.random_range(b'a'..=b'z'))
+                .collect();
 
             let mut out = Vec::with_capacity(caps[0].len());
             out.push(b'\'');

@@ -14,19 +14,19 @@ use crate::api::pdf;
 use crate::api::presentation::Presentation;
 use crate::api::recorder::{ActionRecorder, RecordedAction};
 use crate::api::tour::{Tour, TourTheme};
-#[cfg(feature = "playwright")]
-use crate::browser::playwright::PlaywrightSession;
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
 use crate::browser::config::BrowserConfig;
+#[cfg(feature = "playwright")]
+use crate::browser::playwright::PlaywrightSession;
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
 use crate::utils::selectors::Selector;
 use serde_json::Value;
 use std::collections::HashMap;
+use thirtyfour::common::keys::Key;
 #[allow(deprecated)]
 use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::By;
-use thirtyfour::common::keys::Key;
 
 pub struct BaseCase {
     session: BrowserSession,
@@ -658,7 +658,9 @@ impl BaseCase {
         longitude: f64,
         accuracy: f64,
     ) -> Result<(), SeleniumBaseError> {
-        self.session.set_geolocation(latitude, longitude, accuracy).await
+        self.session
+            .set_geolocation(latitude, longitude, accuracy)
+            .await
     }
 
     /// Alias for `wait_for_element_present`.
@@ -1406,7 +1408,8 @@ impl BaseCase {
     pub async fn smooth_scroll_to(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).scrollIntoView({{behavior: 'smooth', block: 'center'}});",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         tokio::time::sleep(Duration::from_millis(800)).await;
@@ -1481,11 +1484,7 @@ impl BaseCase {
 
     // --- Visual Testing ---
 
-    pub async fn check_window(
-        &mut self,
-        name: &str,
-        _level: f64,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn check_window(&mut self, name: &str, _level: f64) -> Result<(), SeleniumBaseError> {
         let baseline_dir = PathBuf::from("visual_baseline");
         std::fs::create_dir_all(&baseline_dir).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("failed to create visual_baseline dir: {e}"))
@@ -1639,7 +1638,8 @@ impl BaseCase {
     pub async fn focus(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).focus();",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1708,7 +1708,8 @@ impl BaseCase {
         self.record("js_click_all", Some(css), None);
         let script = format!(
             "document.querySelectorAll({}).forEach(e => e.click());",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1722,9 +1723,12 @@ impl BaseCase {
                 if (window.jQuery && jQuery({}).length) {{ jQuery({})[0].click(); }}
                 else {{ document.querySelector({}).click(); }}
             }})();",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1734,7 +1738,8 @@ impl BaseCase {
     pub async fn hide_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).style.display='none';",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1744,7 +1749,8 @@ impl BaseCase {
     pub async fn show_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).style.display='block';",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1754,7 +1760,8 @@ impl BaseCase {
     pub async fn remove_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "var e=document.querySelector({}); if(e) e.parentNode.removeChild(e);",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1773,7 +1780,8 @@ impl BaseCase {
         let joined = selectors.join(",");
         let script = format!(
             "document.querySelectorAll({}).forEach(e => e.remove());",
-            serde_json::to_string(&joined).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(&joined)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1839,7 +1847,10 @@ impl BaseCase {
     }
 
     /// Return all visible text options for a `<select>` element.
-    pub async fn get_select_options(&mut self, css: &str) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn get_select_options(
+        &mut self,
+        css: &str,
+    ) -> Result<Vec<String>, SeleniumBaseError> {
         let by = Selector::Css(css).to_by()?;
         let element = self.session.wait_for_element(by, 10).await?;
         let select = thirtyfour::components::SelectElement::new(&element).await?;
@@ -1854,8 +1865,10 @@ impl BaseCase {
     pub async fn set_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).value = {};",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(value).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(value)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1865,8 +1878,10 @@ impl BaseCase {
     pub async fn set_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "document.querySelector({}).textContent = {};",
-            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(text).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(css)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(text)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -1913,7 +1928,10 @@ impl BaseCase {
 
     /// Get the browser locale code.
     pub async fn get_locale_code(&self) -> Result<String, SeleniumBaseError> {
-        match self.execute_script("return navigator.language || 'en-US';").await? {
+        match self
+            .execute_script("return navigator.language || 'en-US';")
+            .await?
+        {
             Value::String(l) => Ok(l),
             _ => Ok("en-US".to_owned()),
         }
@@ -1973,7 +1991,10 @@ impl BaseCase {
     }
 
     /// Assert that all provided CSS selectors are present.
-    pub async fn assert_elements_present(&self, selectors: &[&str]) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_elements_present(
+        &self,
+        selectors: &[&str],
+    ) -> Result<(), SeleniumBaseError> {
         for css in selectors {
             self.assert_element(css).await?;
         }
@@ -2061,8 +2082,10 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "window.sessionStorage.setItem({}, {});",
-            serde_json::to_string(key).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
-            serde_json::to_string(value).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(key)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(value)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2071,7 +2094,8 @@ impl BaseCase {
     pub async fn get_session_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
         let script = format!(
             "return window.sessionStorage.getItem({});",
-            serde_json::to_string(key).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(key)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await
     }
@@ -2079,19 +2103,24 @@ impl BaseCase {
     pub async fn remove_session_storage_item(&self, key: &str) -> Result<(), SeleniumBaseError> {
         let script = format!(
             "window.sessionStorage.removeItem({});",
-            serde_json::to_string(key).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+            serde_json::to_string(key)
+                .map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
         );
         self.execute_script(&script).await?;
         Ok(())
     }
 
     pub async fn clear_session_storage(&self) -> Result<(), SeleniumBaseError> {
-        self.execute_script("window.sessionStorage.clear();").await?;
+        self.execute_script("window.sessionStorage.clear();")
+            .await?;
         Ok(())
     }
 
     pub async fn get_session_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        match self.execute_script("return Object.keys(window.sessionStorage);").await? {
+        match self
+            .execute_script("return Object.keys(window.sessionStorage);")
+            .await?
+        {
             Value::Array(arr) => Ok(arr
                 .into_iter()
                 .filter_map(|v| v.as_str().map(|s| s.to_owned()))
@@ -2121,7 +2150,10 @@ impl BaseCase {
     }
 
     pub async fn get_local_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        match self.execute_script("return Object.keys(window.localStorage);").await? {
+        match self
+            .execute_script("return Object.keys(window.localStorage);")
+            .await?
+        {
             Value::Array(arr) => Ok(arr
                 .into_iter()
                 .filter_map(|v| v.as_str().map(|s| s.to_owned()))
@@ -2130,7 +2162,9 @@ impl BaseCase {
         }
     }
 
-    pub async fn get_local_storage_items(&self) -> Result<HashMap<String, String>, SeleniumBaseError> {
+    pub async fn get_local_storage_items(
+        &self,
+    ) -> Result<HashMap<String, String>, SeleniumBaseError> {
         let script = r#"
             const items = {};
             for (let i = 0; i < window.localStorage.length; i++) {
@@ -2217,22 +2251,36 @@ impl BaseCase {
     }
 
     /// Alias to find an element that can be used for further chaining.
-    pub async fn get_element(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    pub async fn get_element(
+        &mut self,
+        css: &str,
+    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
         self.find_element(css).await
     }
 
     /// Alias for `find_element`.
-    pub async fn locator(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+    pub async fn locator(
+        &mut self,
+        css: &str,
+    ) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
         self.find_element(css).await
     }
 
     /// Alias for `wait_for_element_visible`.
-    pub async fn wait_for_selector(&self, css: &str, timeout_secs: u64) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_selector(
+        &self,
+        css: &str,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         self.wait_for_element_visible(css, timeout_secs).await
     }
 
     /// Alias for `wait_for_element` (present).
-    pub async fn wait_for_query_selector(&self, css: &str, timeout_secs: u64) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_query_selector(
+        &self,
+        css: &str,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         self.wait_for_element(css, timeout_secs).await
     }
 }
@@ -2245,4 +2293,3 @@ include!("base_case_impl_dialog_inspector.rs");
 include!("base_case_impl_shadow.rs");
 include!("base_case_impl_gui.rs");
 include!("base_case_impl_masterqa.rs");
-

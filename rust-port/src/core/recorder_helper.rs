@@ -2,7 +2,9 @@ use regex::Regex;
 
 /// Sanitize a selector string so it can be embedded in generated Rust code.
 pub fn sanitize_selector(sel: &str) -> String {
-    sel.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")
+    sel.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
 }
 
 /// Convert a recorded action into a SeleniumBase Rust API call snippet.

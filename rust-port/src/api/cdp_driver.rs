@@ -63,10 +63,9 @@ impl CdpDriver {
             .send()
             .await
             .map_err(|e| SeleniumBaseError::CdpDriver(format!("reqwest failed: {e}")))?;
-        let json: Value = response
-            .json()
-            .await
-            .map_err(|e| SeleniumBaseError::CdpDriver(format!("failed to read version JSON: {e}")))?;
+        let json: Value = response.json().await.map_err(|e| {
+            SeleniumBaseError::CdpDriver(format!("failed to read version JSON: {e}"))
+        })?;
         let ws_url = json
             .get("webSocketDebuggerUrl")
             .and_then(|v| v.as_str())
@@ -118,7 +117,9 @@ impl CdpDriver {
             let message = ws
                 .next()
                 .await
-                .ok_or_else(|| SeleniumBaseError::CdpDriver("WebSocket closed unexpectedly".to_owned()))?
+                .ok_or_else(|| {
+                    SeleniumBaseError::CdpDriver("WebSocket closed unexpectedly".to_owned())
+                })?
                 .map_err(|e| SeleniumBaseError::CdpDriver(format!("receive failed: {e}")))?;
 
             if let Message::Text(text) = message {
@@ -136,7 +137,8 @@ impl CdpDriver {
 
     /// Navigates to `url` via `Page.navigate`.
     pub async fn get(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
-        self.send_command("Page.navigate", json!({"url": url})).await?;
+        self.send_command("Page.navigate", json!({"url": url}))
+            .await?;
         Ok(())
     }
 
@@ -144,10 +146,14 @@ impl CdpDriver {
     pub async fn find(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
         self.send_command("DOM.enable", Value::Null).await.ok();
         let response = self
-            .send_command("DOM.querySelector", json!({"nodeId": 1, "selector": selector}))
+            .send_command(
+                "DOM.querySelector",
+                json!({"nodeId": 1, "selector": selector}),
+            )
             .await?;
-        CdpNode::from_query_result(&response, selector)
-            .ok_or_else(|| SeleniumBaseError::InvalidSelector(format!("Element not found: {selector}")))
+        CdpNode::from_query_result(&response, selector).ok_or_else(|| {
+            SeleniumBaseError::InvalidSelector(format!("Element not found: {selector}"))
+        })
     }
 
     /// Clicks the center of the element matching `selector`.
@@ -214,9 +220,9 @@ impl CdpDriver {
             .get("data")
             .and_then(|v| v.as_str())
             .ok_or_else(|| SeleniumBaseError::CdpDriver("Screenshot data missing".to_owned()))?;
-        let bytes = base64::prelude::BASE64_STANDARD
-            .decode(data)
-            .map_err(|e| SeleniumBaseError::CdpDriver(format!("Failed to decode screenshot: {e}")))?;
+        let bytes = base64::prelude::BASE64_STANDARD.decode(data).map_err(|e| {
+            SeleniumBaseError::CdpDriver(format!("Failed to decode screenshot: {e}"))
+        })?;
         std::fs::write(path, bytes)?;
         Ok(())
     }
@@ -228,13 +234,19 @@ fn box_model_center(model: &Value) -> Result<(f64, f64), SeleniumBaseError> {
         .get("model")
         .and_then(|m| m.get("content"))
         .and_then(|c| c.as_array())
-        .ok_or_else(|| SeleniumBaseError::CdpDriver("DOM.getBoxModel content missing".to_owned()))?;
+        .ok_or_else(|| {
+            SeleniumBaseError::CdpDriver("DOM.getBoxModel content missing".to_owned())
+        })?;
     if content.len() < 8 {
-        return Err(SeleniumBaseError::CdpDriver("Invalid box model content".to_owned()));
+        return Err(SeleniumBaseError::CdpDriver(
+            "Invalid box model content".to_owned(),
+        ));
     }
     let coords: Vec<f64> = content.iter().filter_map(|v| v.as_f64()).collect();
     if coords.len() < 8 {
-        return Err(SeleniumBaseError::CdpDriver("Invalid box model coordinates".to_owned()));
+        return Err(SeleniumBaseError::CdpDriver(
+            "Invalid box model coordinates".to_owned(),
+        ));
     }
     let center_x = (coords[0] + coords[2] + coords[4] + coords[6]) / 4.0;
     let center_y = (coords[1] + coords[3] + coords[5] + coords[7]) / 4.0;

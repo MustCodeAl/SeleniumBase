@@ -29,7 +29,10 @@ pub async fn pw_goto(session: &PlaywrightSession, url: &str) -> Result<(), Selen
 }
 
 /// Clicks an element in the active Playwright page.
-pub async fn pw_click(session: &PlaywrightSession, selector: &str) -> Result<(), SeleniumBaseError> {
+pub async fn pw_click(
+    session: &PlaywrightSession,
+    selector: &str,
+) -> Result<(), SeleniumBaseError> {
     session.click(selector).await
 }
 
@@ -43,16 +46,25 @@ pub async fn pw_type_text(
 }
 
 /// Reads the visible text of an element in the active Playwright page.
-pub async fn pw_get_text(session: &PlaywrightSession, selector: &str) -> Result<String, SeleniumBaseError> {
+pub async fn pw_get_text(
+    session: &PlaywrightSession,
+    selector: &str,
+) -> Result<String, SeleniumBaseError> {
     session.get_text(selector).await
 }
 
 /// Evaluates a JavaScript expression in the active Playwright page.
-pub async fn pw_evaluate(session: &PlaywrightSession, expression: &str) -> Result<Value, SeleniumBaseError> {
+pub async fn pw_evaluate(
+    session: &PlaywrightSession,
+    expression: &str,
+) -> Result<Value, SeleniumBaseError> {
     session.evaluate(expression).await
 }
 
 /// Takes a screenshot of the active Playwright page.
-pub async fn pw_screenshot(session: &PlaywrightSession, path: &Path) -> Result<(), SeleniumBaseError> {
+pub async fn pw_screenshot(
+    session: &PlaywrightSession,
+    path: &Path,
+) -> Result<(), SeleniumBaseError> {
     session.screenshot(path).await
 }

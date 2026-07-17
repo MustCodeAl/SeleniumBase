@@ -37,7 +37,12 @@ impl HtmlInspector {
         let mut issues = Vec::new();
 
         // Missing page title
-        if soup.get_text("title")?.unwrap_or_default().trim().is_empty() {
+        if soup
+            .get_text("title")?
+            .unwrap_or_default()
+            .trim()
+            .is_empty()
+        {
             issues.push(HtmlIssue {
                 rule: "missing-title".to_owned(),
                 message: "Page is missing a non-empty <title> element.".to_owned(),
@@ -88,7 +93,10 @@ impl HtmlInspector {
         // Missing labels on form inputs
         for (idx, input) in soup.find_all("input")?.iter().enumerate() {
             let typ = input.attr("type").unwrap_or_default();
-            if matches!(typ.as_str(), "hidden" | "submit" | "button" | "image" | "reset") {
+            if matches!(
+                typ.as_str(),
+                "hidden" | "submit" | "button" | "image" | "reset"
+            ) {
                 continue;
             }
             let has_label = input.attr("id").is_some()
@@ -127,15 +135,16 @@ impl HtmlInspector {
         let headings = soup.find_all("h1, h2, h3, h4, h5, h6")?;
         let mut last_level = 0usize;
         for (idx, h) in headings.iter().enumerate() {
-            let level = h.tag_name.strip_prefix('h').unwrap_or("0").parse::<usize>().unwrap_or(0);
+            let level = h
+                .tag_name
+                .strip_prefix('h')
+                .unwrap_or("0")
+                .parse::<usize>()
+                .unwrap_or(0);
             if level > 0 && level > last_level + 1 {
                 issues.push(HtmlIssue {
                     rule: "skipped-heading".to_owned(),
-                    message: format!(
-                        "Heading level jumps from h{} to h{}.",
-                        last_level,
-                        level
-                    ),
+                    message: format!("Heading level jumps from h{} to h{}.", last_level, level),
                     selector: Some(format!("{}:nth-of-type({})", h.tag_name, idx + 1)),
                 });
             }
@@ -172,7 +181,8 @@ mod tests {
 
     #[test]
     fn detects_missing_alt() {
-        let html = r#"<html lang="en"><head><title>T</title></head><body><img src="a.png"></body></html>"#;
+        let html =
+            r#"<html lang="en"><head><title>T</title></head><body><img src="a.png"></body></html>"#;
         let result = HtmlInspector::inspect(html).unwrap();
         assert!(result.issues.iter().any(|i| i.rule == "missing-alt"));
     }

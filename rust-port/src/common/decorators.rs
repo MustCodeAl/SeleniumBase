@@ -48,7 +48,11 @@ where
         times.retain(|t| now.duration_since(*t) < window);
         if times.len() >= max_calls as usize {
             let elapsed = now.duration_since(times[0]);
-            let sleep = if elapsed < window { window - elapsed } else { Duration::ZERO };
+            let sleep = if elapsed < window {
+                window - elapsed
+            } else {
+                Duration::ZERO
+            };
             std::thread::sleep(sleep);
             let now = Instant::now();
             times.retain(|t| now.duration_since(*t) < window);
@@ -122,7 +126,11 @@ mod tests {
         let third = limited();
         let elapsed = start.elapsed();
         assert_eq!(third, 3);
-        assert!(elapsed >= Duration::from_secs(1), "expected delay, got {:?}", elapsed);
+        assert!(
+            elapsed >= Duration::from_secs(1),
+            "expected delay, got {:?}",
+            elapsed
+        );
     }
 
     #[test]

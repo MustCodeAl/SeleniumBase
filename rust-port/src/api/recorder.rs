@@ -41,9 +41,8 @@ impl ActionRecorder {
 
     pub fn to_rust_test(&self, test_name: &str) -> String {
         let fn_name = rust_identifier(test_name);
-        let mut out = String::from(
-            "use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::test]\n",
-        );
+        let mut out =
+            String::from("use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::test]\n");
         out.push_str(&format!(
             "async fn {}() -> Result<(), Box<dyn std::error::Error>> {{\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
             fn_name
@@ -193,7 +192,10 @@ impl ActionRecorder {
             }
             "assert_text" => {
                 if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.assert_text({:?}, {:?}).await?;", css, text));
+                    line(
+                        out,
+                        &format!("sb.assert_text({:?}, {:?}).await?;", css, text),
+                    );
                 }
             }
             "assert_text_visible" => {
@@ -208,10 +210,7 @@ impl ActionRecorder {
                 if let (Some(css), Some(text)) = (target, value) {
                     line(
                         out,
-                        &format!(
-                            "sb.assert_text_not_visible({:?}, {:?}).await?;",
-                            text, css
-                        ),
+                        &format!("sb.assert_text_not_visible({:?}, {:?}).await?;", text, css),
                     );
                 }
             }
@@ -309,7 +308,10 @@ impl ActionRecorder {
             }
             "add_cookie" => {
                 if let (Some(name), Some(val)) = (target, value) {
-                    line(out, &format!("sb.add_cookie({:?}, {:?}).await?;", name, val));
+                    line(
+                        out,
+                        &format!("sb.add_cookie({:?}, {:?}).await?;", name, val),
+                    );
                 }
             }
             "double_click" => {
@@ -402,10 +404,7 @@ impl ActionRecorder {
                 if let (Some(css), Some(attribute)) = (target, value) {
                     line(
                         out,
-                        &format!(
-                            "sb.remove_attribute({:?}, {:?}).await?;",
-                            css, attribute
-                        ),
+                        &format!("sb.remove_attribute({:?}, {:?}).await?;", css, attribute),
                     );
                 }
             }
@@ -457,10 +456,7 @@ impl ActionRecorder {
                 if let (Some(key), Some(val)) = (target, value) {
                     line(
                         out,
-                        &format!(
-                            "sb.set_local_storage_item({:?}, {:?}).await?;",
-                            key, val
-                        ),
+                        &format!("sb.set_local_storage_item({:?}, {:?}).await?;", key, val),
                     );
                 }
             }
@@ -498,7 +494,10 @@ impl ActionRecorder {
             }
             "get_shadow_root" => {
                 if let Some(css) = target {
-                    line(out, &format!("let _ = sb.get_shadow_root({:?}).await?;", css));
+                    line(
+                        out,
+                        &format!("let _ = sb.get_shadow_root({:?}).await?;", css),
+                    );
                 }
             }
             "slow_click" => {
@@ -508,7 +507,10 @@ impl ActionRecorder {
             }
             "human_type" => {
                 if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.human_type({:?}, {:?}).await?;", css, text));
+                    line(
+                        out,
+                        &format!("sb.human_type({:?}, {:?}).await?;", css, text),
+                    );
                 }
             }
             "human_click" => {
@@ -528,7 +530,10 @@ impl ActionRecorder {
             }
             "update_text" => {
                 if let (Some(css), Some(text)) = (target, value) {
-                    line(out, &format!("sb.update_text({:?}, {:?}).await?;", css, text));
+                    line(
+                        out,
+                        &format!("sb.update_text({:?}, {:?}).await?;", css, text),
+                    );
                 }
             }
             "click_xpath" => {
@@ -550,7 +555,13 @@ fn line(out: &mut String, content: &str) {
 fn rust_identifier(name: &str) -> String {
     let mut ident: String = name
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     if ident.is_empty() {
         ident.push_str("recorded_test");
@@ -574,7 +585,11 @@ mod tests {
         recorder.record("clear", Some("#search"), None);
         recorder.record("submit", Some("#form"), None);
         recorder.record("hover", Some("#menu"), None);
-        recorder.record("select_option_by_text", Some("#country"), Some("United States"));
+        recorder.record(
+            "select_option_by_text",
+            Some("#country"),
+            Some("United States"),
+        );
         recorder.record("select_option_by_value", Some("#country"), Some("us"));
         recorder.record("switch_to_frame", Some("#frame"), None);
         recorder.record("switch_to_default_content", None, None);

@@ -39,7 +39,11 @@ impl Chart {
             .iter()
             .map(|(label, _)| format!("\"{}\"", label.replace('"', "\\\"")))
             .collect();
-        let values: Vec<String> = self.data.iter().map(|(_, value)| value.to_string()).collect();
+        let values: Vec<String> = self
+            .data
+            .iter()
+            .map(|(_, value)| value.to_string())
+            .collect();
         let colors: Vec<String> = self
             .data
             .iter()
@@ -134,8 +138,8 @@ impl PieChart {
 
 fn default_color(index: usize) -> String {
     let palette = [
-        "#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6",
-        "#dd4477", "#66aa00", "#b82e2e", "#316395",
+        "#3366cc", "#dc3912", "#ff9900", "#109618", "#990099", "#0099c6", "#dd4477", "#66aa00",
+        "#b82e2e", "#316395",
     ];
     palette[index % palette.len()].to_owned()
 }

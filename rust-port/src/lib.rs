@@ -1,10 +1,18 @@
 pub mod api;
 pub mod artifacts;
+pub mod behave;
 pub mod browser;
 pub mod cli;
+pub mod common;
+pub mod config;
+pub mod core;
 pub mod error;
+pub mod js_code;
+pub mod plugins;
+pub mod resources;
 pub mod stealth;
 pub mod utils;
+pub mod utilities;
 
 pub use api::base_case::BaseCase;
 pub use browser::config::{Browser, BrowserConfig, DriverMode};

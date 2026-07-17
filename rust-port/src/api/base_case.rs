@@ -17,8 +17,11 @@ use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
 use crate::utils::selectors::Selector;
 use serde_json::Value;
+use std::collections::HashMap;
 #[allow(deprecated)]
 use thirtyfour::extensions::cdp::NetworkConditions;
+use thirtyfour::prelude::By;
+use thirtyfour::common::keys::Key;
 
 pub struct BaseCase {
     session: BrowserSession,
@@ -1547,5 +1550,608 @@ impl BaseCase {
                 "No chart created.".to_owned(),
             )),
         }
+    }
+
+    // --- Additional Python parity methods ---
+
+    /// Alias for `type_text` that clears the field first.
+    pub async fn update_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.record("update_text", Some(css), Some(text));
+        let by = Selector::Css(css).to_by()?;
+        self.session.type_text(by, text).await
+    }
+
+    /// Focus the element matching `css`.
+    pub async fn focus(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "document.querySelector({}).focus();",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Minimize the browser window.
+    pub async fn minimize_window(&self) -> Result<(), SeleniumBaseError> {
+        self.session.driver().minimize_window().await?;
+        Ok(())
+    }
+
+    /// Set the window rectangle directly.
+    pub async fn set_window_rect(
+        &self,
+        x: i64,
+        y: i64,
+        width: u32,
+        height: u32,
+    ) -> Result<(), SeleniumBaseError> {
+        self.session
+            .driver()
+            .set_window_rect(x, y, width, height)
+            .await?;
+        Ok(())
+    }
+
+    /// Reset window size to the default 1280x720.
+    pub async fn reset_window_size(&self) -> Result<(), SeleniumBaseError> {
+        self.set_window_size(1280, 720).await
+    }
+
+    /// Scroll vertically by `delta_y` pixels.
+    pub async fn scroll_by_y(&self, delta_y: i64) -> Result<(), SeleniumBaseError> {
+        self.execute_script(&format!("window.scrollBy(0, {delta_y});"))
+            .await?;
+        Ok(())
+    }
+
+    /// Scroll up by 400 pixels.
+    pub async fn scroll_up(&self) -> Result<(), SeleniumBaseError> {
+        self.scroll_by_y(-400).await
+    }
+
+    /// Scroll down by 400 pixels.
+    pub async fn scroll_down(&self) -> Result<(), SeleniumBaseError> {
+        self.scroll_by_y(400).await
+    }
+
+    /// Click the element matching the given XPath.
+    pub async fn click_xpath(&mut self, xpath: &str) -> Result<(), SeleniumBaseError> {
+        self.record("click_xpath", Some(xpath), None);
+        let by = By::XPath(xpath.to_owned());
+        self.session.click(by).await
+    }
+
+    /// JavaScript-click the element only if it is present in the DOM.
+    pub async fn js_click_if_present(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        if self.is_element_present(css).await? {
+            self.js_click(css).await?;
+        }
+        Ok(())
+    }
+
+    /// JavaScript-click all elements matching `css`.
+    pub async fn js_click_all(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.record("js_click_all", Some(css), None);
+        let script = format!(
+            "document.querySelectorAll({}).forEach(e => e.click());",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Click the element using jQuery if available, otherwise fall back to JS click.
+    pub async fn jquery_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.record("jquery_click", Some(css), None);
+        let script = format!(
+            "(function(){{
+                if (window.jQuery && jQuery({}).length) {{ jQuery({})[0].click(); }}
+                else {{ document.querySelector({}).click(); }}
+            }})();",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Hide the element matching `css` by setting `display:none`.
+    pub async fn hide_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "document.querySelector({}).style.display='none';",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Show the element matching `css` by setting `display:block`.
+    pub async fn show_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "document.querySelector({}).style.display='block';",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Remove the element matching `css` from the DOM.
+    pub async fn remove_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "var e=document.querySelector({}); if(e) e.parentNode.removeChild(e);",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Block common ad elements on the current page.
+    pub async fn block_ads(&mut self) -> Result<(), SeleniumBaseError> {
+        let selectors = [
+            "[id*='google_ads']",
+            "[id*='ad-']",
+            "[class*='ad-']",
+            "[class*='ads ']",
+            "iframe[src*='ads']",
+            "iframe[src*='doubleclick']",
+        ];
+        let joined = selectors.join(",");
+        let script = format!(
+            "document.querySelectorAll({}).forEach(e => e.remove());",
+            serde_json::to_string(&joined).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Assert that the current URL exactly equals `expected`.
+    pub async fn assert_url(&mut self, expected: &str) -> Result<(), SeleniumBaseError> {
+        let url = self.get_current_url().await?;
+        if url == expected {
+            return Ok(());
+        }
+        Err(SeleniumBaseError::AssertionFailed(format!(
+            "expected URL '{expected}', got '{url}'"
+        )))
+    }
+
+    /// Return the unique absolute links on the current page.
+    pub async fn get_unique_links(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        let script = r#"
+            return Array.from(document.querySelectorAll('a[href]'))
+                .map(a => a.href)
+                .filter((v, i, a) => a.indexOf(v) === i);
+        "#;
+        match self.execute_script(script).await? {
+            Value::Array(arr) => Ok(arr
+                .into_iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+                .collect()),
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    /// Fail if any link on the page returns HTTP 404.
+    pub async fn assert_no_404_errors(&mut self) -> Result<(), SeleniumBaseError> {
+        let links = self.get_unique_links().await?;
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()
+            .map_err(|e| SeleniumBaseError::Unsupported(e.to_string()))?;
+        let mut broken = Vec::new();
+        for link in links {
+            if link.starts_with("http://") || link.starts_with("https://") {
+                match client.head(&link).send().await {
+                    Ok(resp) if resp.status().as_u16() == 404 => broken.push(link),
+                    _ => {}
+                }
+            }
+        }
+        if broken.is_empty() {
+            Ok(())
+        } else {
+            Err(SeleniumBaseError::AssertionFailed(format!(
+                "found {} broken link(s) with 404: {:?}",
+                broken.len(),
+                broken
+            )))
+        }
+    }
+
+    /// Alias for `assert_no_404_errors`.
+    pub async fn assert_no_broken_links(&mut self) -> Result<(), SeleniumBaseError> {
+        self.assert_no_404_errors().await
+    }
+
+    /// Return all visible text options for a `<select>` element.
+    pub async fn get_select_options(&mut self, css: &str) -> Result<Vec<String>, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        let element = self.session.wait_for_element(by, 10).await?;
+        let select = thirtyfour::components::SelectElement::new(&element).await?;
+        let mut options = Vec::new();
+        for opt in select.options().await? {
+            options.push(opt.text().await.unwrap_or_default());
+        }
+        Ok(options)
+    }
+
+    /// Set the `value` property of the element.
+    pub async fn set_value(&mut self, css: &str, value: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "document.querySelector({}).value = {};",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(value).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Set the text content of the element.
+    pub async fn set_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "document.querySelector({}).textContent = {};",
+            serde_json::to_string(css).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(text).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    /// Get the `src` URL of an image element.
+    pub async fn get_image_url(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+        self.get_attribute(css, "src").await?.ok_or_else(|| {
+            SeleniumBaseError::AssertionFailed(format!("element '{css}' has no src attribute"))
+        })
+    }
+
+    /// Extract the domain (scheme + host) from the current URL.
+    pub async fn get_domain_url(&mut self) -> Result<String, SeleniumBaseError> {
+        let url = self.get_current_url().await?;
+        reqwest::Url::parse(&url)
+            .map_err(|e| SeleniumBaseError::InvalidConfig(e.to_string()))
+            .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or("")))
+    }
+
+    /// Convert a simple XPath expression to an approximate CSS selector.
+    pub fn convert_xpath_to_css(&self, xpath: &str) -> Result<String, SeleniumBaseError> {
+        crate::utils::selectors::xpath_to_css(xpath)
+    }
+
+    /// No-op placeholder matching Python `set_time_limit`.
+    pub fn set_time_limit(&mut self, _seconds: u64) -> Result<(), SeleniumBaseError> {
+        Ok(())
+    }
+
+    /// Return whether a JavaScript alert is currently present.
+    pub async fn is_alert_present(&self) -> Result<bool, SeleniumBaseError> {
+        Ok(self.session.driver().get_alert_text().await.is_ok())
+    }
+
+    /// Get the browser user agent string.
+    pub async fn get_user_agent(&self) -> Result<String, SeleniumBaseError> {
+        match self.execute_script("return navigator.userAgent;").await? {
+            Value::String(ua) => Ok(ua),
+            _ => Ok(String::new()),
+        }
+    }
+
+    /// Get the browser locale code.
+    pub async fn get_locale_code(&self) -> Result<String, SeleniumBaseError> {
+        match self.execute_script("return navigator.language || 'en-US';").await? {
+            Value::String(l) => Ok(l),
+            _ => Ok("en-US".to_owned()),
+        }
+    }
+
+    /// Return whether the element is clickable (visible and enabled).
+    pub async fn is_element_clickable(&self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        match self.session.driver().find(by).await {
+            Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
+                && elem.is_enabled().await.unwrap_or(false)),
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Return whether the element is enabled.
+    pub async fn is_element_enabled(&self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        self.session.is_enabled(by).await
+    }
+
+    /// Return whether `text` exactly matches the visible text of the element.
+    pub async fn is_exact_text_visible(
+        &self,
+        text: &str,
+        css: &str,
+    ) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        match self.session.driver().find(by).await {
+            Ok(elem) => Ok(elem.is_displayed().await.unwrap_or(false)
+                && elem.text().await.unwrap_or_default() == text),
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Return whether the element has any non-empty visible text.
+    pub async fn is_non_empty_text_visible(&self, css: &str) -> Result<bool, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        match self.session.driver().find(by).await {
+            Ok(elem) => {
+                let text = elem.text().await.unwrap_or_default();
+                Ok(elem.is_displayed().await.unwrap_or(false) && !text.trim().is_empty())
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Alias for `assert_element_absent`.
+    pub async fn assert_element_not_present(&self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.assert_element_absent(css).await
+    }
+
+    /// Assert that all provided CSS selectors are present.
+    pub async fn assert_elements_present(&self, selectors: &[&str]) -> Result<(), SeleniumBaseError> {
+        for css in selectors {
+            self.assert_element(css).await?;
+        }
+        Ok(())
+    }
+
+    /// Wait until any of the provided selectors is visible, then return it.
+    pub async fn wait_for_any_of_elements_visible(
+        &self,
+        selectors: &[&str],
+        timeout_secs: u64,
+    ) -> Result<String, SeleniumBaseError> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
+        loop {
+            for css in selectors {
+                if self.is_element_visible(css).await.unwrap_or(false) {
+                    return Ok((*css).to_owned());
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                return Err(SeleniumBaseError::WaitTimeout(
+                    "none of the selectors became visible".to_owned(),
+                ));
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+    }
+
+    /// Assert that at least one of the selectors is visible.
+    pub async fn assert_any_of_elements_visible(
+        &self,
+        selectors: &[&str],
+    ) -> Result<(), SeleniumBaseError> {
+        for css in selectors {
+            if self.is_element_visible(css).await.unwrap_or(false) {
+                return Ok(());
+            }
+        }
+        Err(SeleniumBaseError::AssertionFailed(
+            "none of the selectors is visible".to_owned(),
+        ))
+    }
+
+    /// Return the inner text of the element.
+    pub async fn get_text_content(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+        let by = Selector::Css(css).to_by()?;
+        let elem = self.session.driver().find(by).await?;
+        Ok(elem.text().await.unwrap_or_default())
+    }
+
+    /// Press a named key on the active element.
+    pub async fn press_keys(&self, key_name: &str) -> Result<(), SeleniumBaseError> {
+        let key = match key_name.to_ascii_lowercase().as_str() {
+            "enter" => Key::Enter,
+            "return" => Key::Return,
+            "tab" => Key::Tab,
+            "escape" => Key::Escape,
+            "esc" => Key::Escape,
+            "space" => Key::Space,
+            "up" => Key::Up,
+            "down" => Key::Down,
+            "left" => Key::Left,
+            "right" => Key::Right,
+            _ => {
+                return Err(SeleniumBaseError::InvalidSelector(format!(
+                    "unknown key '{key_name}'"
+                )))
+            }
+        };
+        self.session
+            .driver()
+            .action_chain()
+            .send_keys(key.value().to_string())
+            .perform()
+            .await?;
+        Ok(())
+    }
+
+    // --- Session storage helpers ---
+
+    pub async fn set_session_storage_item(
+        &self,
+        key: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "window.sessionStorage.setItem({}, {});",
+            serde_json::to_string(key).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?,
+            serde_json::to_string(value).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn get_session_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
+        let script = format!(
+            "return window.sessionStorage.getItem({});",
+            serde_json::to_string(key).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await
+    }
+
+    pub async fn remove_session_storage_item(&self, key: &str) -> Result<(), SeleniumBaseError> {
+        let script = format!(
+            "window.sessionStorage.removeItem({});",
+            serde_json::to_string(key).map_err(|e| SeleniumBaseError::InvalidSelector(e.to_string()))?
+        );
+        self.execute_script(&script).await?;
+        Ok(())
+    }
+
+    pub async fn clear_session_storage(&self) -> Result<(), SeleniumBaseError> {
+        self.execute_script("window.sessionStorage.clear();").await?;
+        Ok(())
+    }
+
+    pub async fn get_session_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        match self.execute_script("return Object.keys(window.sessionStorage);").await? {
+            Value::Array(arr) => Ok(arr
+                .into_iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+                .collect()),
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    pub async fn get_session_storage_items(
+        &self,
+    ) -> Result<HashMap<String, String>, SeleniumBaseError> {
+        let script = r#"
+            const items = {};
+            for (let i = 0; i < window.sessionStorage.length; i++) {
+                const k = window.sessionStorage.key(i);
+                items[k] = window.sessionStorage.getItem(k);
+            }
+            return items;
+        "#;
+        match self.execute_script(script).await? {
+            Value::Object(map) => Ok(map
+                .into_iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k, s.to_owned())))
+                .collect()),
+            _ => Ok(HashMap::new()),
+        }
+    }
+
+    pub async fn get_local_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
+        match self.execute_script("return Object.keys(window.localStorage);").await? {
+            Value::Array(arr) => Ok(arr
+                .into_iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+                .collect()),
+            _ => Ok(Vec::new()),
+        }
+    }
+
+    pub async fn get_local_storage_items(&self) -> Result<HashMap<String, String>, SeleniumBaseError> {
+        let script = r#"
+            const items = {};
+            for (let i = 0; i < window.localStorage.length; i++) {
+                const k = window.localStorage.key(i);
+                items[k] = window.localStorage.getItem(k);
+            }
+            return items;
+        "#;
+        match self.execute_script(script).await? {
+            Value::Object(map) => Ok(map
+                .into_iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k, s.to_owned())))
+                .collect()),
+            _ => Ok(HashMap::new()),
+        }
+    }
+
+    // --- Navigation aliases ---
+
+    pub async fn get(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.open(url).await
+    }
+
+    pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.open(url).await
+    }
+
+    pub async fn go_to(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.open(url).await
+    }
+
+    pub async fn open_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.open(url).await
+    }
+
+    pub async fn visit(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.open(url).await
+    }
+
+    pub async fn visit_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.open(url).await
+    }
+
+    pub async fn reload(&mut self) -> Result<(), SeleniumBaseError> {
+        self.refresh().await
+    }
+
+    pub async fn reload_page(&mut self) -> Result<(), SeleniumBaseError> {
+        self.refresh().await
+    }
+
+    /// Open `url` only if the current URL is not already `url`.
+    pub async fn open_if_not_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        if self.get_current_url().await? != url {
+            self.open(url).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn goto_if_not_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.open_if_not_url(url).await
+    }
+
+    // --- Input aliases ---
+
+    pub async fn input(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.type_text(css, text).await
+    }
+
+    pub async fn fill(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.type_text(css, text).await
+    }
+
+    pub async fn write(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.type_text(css, text).await
+    }
+
+    pub async fn select(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        self.select_option_by_text(css, text).await
+    }
+
+    pub async fn right_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.context_click(css).await
+    }
+
+    /// Alias to find an element that can be used for further chaining.
+    pub async fn get_element(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+        self.find_element(css).await
+    }
+
+    /// Alias for `find_element`.
+    pub async fn locator(&mut self, css: &str) -> Result<thirtyfour::WebElement, SeleniumBaseError> {
+        self.find_element(css).await
+    }
+
+    /// Alias for `wait_for_element_visible`.
+    pub async fn wait_for_selector(&self, css: &str, timeout_secs: u64) -> Result<(), SeleniumBaseError> {
+        self.wait_for_element_visible(css, timeout_secs).await
+    }
+
+    /// Alias for `wait_for_element` (present).
+    pub async fn wait_for_query_selector(&self, css: &str, timeout_secs: u64) -> Result<(), SeleniumBaseError> {
+        self.wait_for_element(css, timeout_secs).await
     }
 }

@@ -10,6 +10,7 @@ use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::{By, DesiredCapabilities, WebDriver, WebElement};
 
 use crate::browser::config::{Browser, BrowserConfig};
+use crate::browser::launcher::{launch_chromedriver, DriverProcess};
 use crate::error::SeleniumBaseError;
 use crate::stealth::cdp::*; /* CdpClient */
 use crate::stealth::uc;
@@ -17,6 +18,7 @@ use crate::stealth::uc;
 pub struct BrowserSession {
     driver: WebDriver,
     cdp: Option<CdpClient>,
+    driver_process: Option<DriverProcess>,
 }
 
 impl BrowserSession {
@@ -27,14 +29,18 @@ impl BrowserSession {
 
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         validate_mode_support(&config)?;
-        let driver = connect_driver(&config).await?;
+        let (driver, driver_process) = connect_driver(&config).await?;
         let cdp = if config.is_cdp_enabled() {
             Some(CdpClient::from_handle(driver.handle().clone()))
         } else {
             None
         };
 
-        let session = Self { driver, cdp };
+        let session = Self {
+            driver,
+            cdp,
+            driver_process,
+        };
         session.initialize_mode(&config).await?;
         Ok(session)
     }
@@ -647,6 +653,9 @@ impl BrowserSession {
     /// WebDriver interaction: `quit`.
     pub async fn quit(self) -> Result<(), SeleniumBaseError> {
         self.driver.quit().await?;
+        if let Some(mut process) = self.driver_process {
+            process.kill();
+        }
         Ok(())
     }
 
@@ -683,26 +692,47 @@ fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError
     Ok(())
 }
 
-async fn connect_driver(config: &BrowserConfig) -> Result<WebDriver, SeleniumBaseError> {
+async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, SeleniumBaseError> {
     match config.browser {
         Browser::Chrome | Browser::Chromium => {
             let mut caps = DesiredCapabilities::chrome();
             apply_chromium_capabilities(&mut caps, config)?;
-            Ok(WebDriver::new(&config.webdriver_url, caps).await?)
+            Ok(WebDriver::new(url, caps).await?)
         }
         Browser::Edge => {
             let mut caps = DesiredCapabilities::edge();
             apply_chromium_capabilities(&mut caps, config)?;
-            Ok(WebDriver::new(&config.webdriver_url, caps).await?)
+            Ok(WebDriver::new(url, caps).await?)
         }
         Browser::Firefox => {
             let mut caps = DesiredCapabilities::firefox();
             if config.headless {
                 caps.add_arg("-headless")?;
             }
-            Ok(WebDriver::new(&config.webdriver_url, caps).await?)
+            Ok(WebDriver::new(url, caps).await?)
         }
     }
+}
+
+async fn connect_driver(
+    config: &BrowserConfig,
+) -> Result<(WebDriver, Option<DriverProcess>), SeleniumBaseError> {
+    let mut process: Option<DriverProcess> = None;
+    let mut url = config.webdriver_url.clone();
+
+    if config.auto_start_driver && config.is_default_webdriver_url() {
+        match try_connect(config, &url).await {
+            Ok(driver) => return Ok((driver, None)),
+            Err(_) => {
+                let launched = launch_chromedriver().await?;
+                url = launched.url.clone();
+                process = Some(launched);
+            }
+        }
+    }
+
+    let driver = try_connect(config, &url).await?;
+    Ok((driver, process))
 }
 
 fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(

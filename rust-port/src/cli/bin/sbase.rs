@@ -400,6 +400,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         locale: args.locale,
         ad_block: args.ad_block,
         proxy: args.proxy,
+        auto_start_driver: true,
     };
 
     match args.command {

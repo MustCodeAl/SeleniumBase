@@ -27,6 +27,7 @@ pub struct BrowserConfig {
     pub locale: Option<String>,
     pub ad_block: bool,
     pub proxy: Option<String>,
+    pub auto_start_driver: bool,
 }
 
 impl Default for BrowserConfig {
@@ -40,6 +41,7 @@ impl Default for BrowserConfig {
             locale: None,
             ad_block: false,
             proxy: None,
+            auto_start_driver: true,
         }
     }
 }
@@ -56,5 +58,9 @@ impl BrowserConfig {
 
     pub fn is_uc_enabled(&self) -> bool {
         self.mode == DriverMode::Uc
+    }
+
+    pub fn is_default_webdriver_url(&self) -> bool {
+        self.webdriver_url == "http://localhost:4444" || self.webdriver_url.is_empty()
     }
 }

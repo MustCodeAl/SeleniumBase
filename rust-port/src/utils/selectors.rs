@@ -30,6 +30,45 @@ impl<'a> Selector<'a> {
     }
 }
 
+/// Best-effort conversion of simple XPath expressions to CSS selectors.
+pub fn xpath_to_css(xpath: &str) -> Result<String, SeleniumBaseError> {
+    let trimmed = xpath.trim();
+    // Strip leading //
+    let body = trimmed
+        .trim_start_matches('/')
+        .trim_start_matches('/')
+        .trim();
+    if body.is_empty() {
+        return Err(SeleniumBaseError::InvalidSelector(
+            "empty xpath".to_owned(),
+        ));
+    }
+    // Split tag and predicate, e.g. div[@id='x']
+    let re = regex::Regex::new(r"^([a-zA-Z0-9*]+)(?:\[(.+)\])?$").unwrap();
+    let caps = re.captures(body).ok_or_else(|| {
+        SeleniumBaseError::InvalidSelector(format!("unsupported xpath: {xpath}"))
+    })?;
+    let tag = caps.get(1).map(|m| m.as_str()).unwrap_or("*");
+    let mut css = tag.to_owned();
+    if let Some(pred) = caps.get(2).map(|m| m.as_str()) {
+        // Support @attr='value' or @attr=\"value\"
+        let attr_re =
+            regex::Regex::new(r#"@([a-zA-Z0-9_-]+)\s*=\s*['\"]([^'\"]+)['\"]"#).unwrap();
+        for cap in attr_re.captures_iter(pred) {
+            let attr = cap.get(1).unwrap().as_str();
+            let val = cap.get(2).unwrap().as_str();
+            css.push_str(&format!("[{}='{}']", attr, val));
+        }
+        // Support text()='value' for link text -> :contains not standard CSS, skip
+        if pred.contains("text()") {
+            return Err(SeleniumBaseError::InvalidSelector(
+                "text() predicates are not supported in CSS".to_owned(),
+            ));
+        }
+    }
+    Ok(css)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,5 +110,19 @@ mod tests {
     #[test]
     fn empty_selector_fails() {
         assert!(Selector::Css("  ").to_by().is_err());
+    }
+
+    #[test]
+    fn xpath_to_css_basic() {
+        assert_eq!(xpath_to_css("//div[@id='x']").unwrap(), "div[id='x']");
+        assert_eq!(
+            xpath_to_css("//a[@class='link']").unwrap(),
+            "a[class='link']"
+        );
+    }
+
+    #[test]
+    fn xpath_to_css_text_fails() {
+        assert!(xpath_to_css("//a[text()='Home']").is_err());
     }
 }

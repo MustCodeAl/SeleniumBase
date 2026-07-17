@@ -39,6 +39,8 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - **Global Config**: Load `sbase_config.toml` / `.sbase_config` with env overrides.
 - **Commander TUI**: Terminal UI for browsing and running tests (`sbase commander`).
 - **Recorder CLI**: Capture interactions and generate Rust tests (`sbase recorder`).
+- **Cloud Integrations**: Upload artifacts to S3, Azure Blob Storage, or Google Cloud Storage behind feature flags (`--features s3/azure/gcp`).
+- **CI/CD & Docker**: Ready-to-use GitHub Actions workflows and a `Dockerfile`.
 - **Test Artifacts**: `save_screenshot_to_logs()`, `save_page_source_to_logs()`.
 - **Low-Code Runner**: JSON scenario execution with an HTML dashboard.
 - **Action Recorder**: Captures browser interactions and compiles them into a JSON scenario or a standalone Rust script.
@@ -167,3 +169,49 @@ Example `scenario.json`:
   ]
 }
 ```
+
+### Cloud artifact uploads
+
+Upload screenshots or logs to S3, Azure Blob Storage, or Google Cloud Storage.
+
+```bash
+# S3
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+cargo run --example cloud_upload --features s3
+
+# Azure Blob Storage (SAS URL with write permission)
+export AZURE_BLOB_URL="https://myaccount.blob.core.windows.net/mycontainer/myblob?sv=...&sig=..."
+cargo run --example cloud_upload --features azure
+
+# Google Cloud Storage
+export GCS_ACCESS_TOKEN=$(gcloud auth print-access-token)
+cargo run --example cloud_upload --features gcp
+```
+
+See [`examples/cloud_upload.rs`](./examples/cloud_upload.rs) for the full snippet.
+
+### Playwright mode (optional feature)
+
+Playwright-backed stealth mode is available behind the `playwright` feature. The
+upstream `playwright` crate (`0.0.20`) downloads a native driver during its build
+script; the hosted driver URL is currently unreachable (HTTP 404), so the
+feature may fail to build on hosts without a cached driver. The feature is left
+disabled by default so the main build stays green:
+
+```bash
+cargo run --example playwright_mode --features playwright
+```
+
+If the driver download fails, use the default CDP or UC modes instead.
+
+### Commander TUI
+
+Browse and run tests or examples interactively:
+
+```bash
+cargo run --bin sbase -- commander
+```
+
+Use `↑/↓` or `j/k` to navigate, `Enter` to run the selected item, `/` or `f` to
+filter, `r` to refresh, and `q` to quit.

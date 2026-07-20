@@ -48,17 +48,71 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 
 ## Documentation
 
+### Tutorials
+
 - [Getting Started](./docs/tutorials/getting_started.md)
+- [Selectors](./docs/tutorials/selectors.md)
+- [Waits and Assertions](./docs/tutorials/waits_assertions.md)
+- [Shadow DOM](./docs/tutorials/shadow_dom.md)
+- [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
+- [Recorder Mode](./docs/tutorials/recorder_mode.md)
+- [GUI Automation](./docs/tutorials/gui_automation.md)
+- [MasterQA](./docs/tutorials/masterqa.md)
+- [Tours](./docs/tutorials/tours.md)
+- [Charts](./docs/tutorials/charts.md)
+- [MFA / TOTP](./docs/tutorials/mfa_totp.md)
+- [PDF Parsing](./docs/tutorials/pdf_parsing.md)
+- [Test Translations](./docs/tutorials/translations.md)
 - [CLI Usage](./docs/tutorials/cli_usage.md)
 - [API Reference](./docs/tutorials/api_reference.md)
+- [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
+- [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
+
+### Help pages
+
+- [Customizing Test Runs](./docs/help/customizing_test_runs.md)
+- [Syntax Formats](./docs/help/syntax_formats.md)
+- [Commander TUI](./docs/help/commander.md)
+- [Recorder CLI](./docs/help/recorder_cli.md)
+- [Playwright Mode](./docs/help/playwright_mode.md)
+- [Docker Guide](./docs/help/docker.md)
+- [HTML Inspector](./docs/help/html_inspector.md)
 
 ## Quick start
 
 ```bash
 cd rust-port
-cargo run --bin sbase -- --cdp open https://seleniumbase.io
+cargo run --bin sbase -- --uc open https://seleniumbase.io
 ```
+
+## Examples
+
+| Example | Command |
+|---------|---------|
+| Basic test | `cargo run --example basic_test` |
+| Selectors | `cargo run --example selectors` |
+| Waits & assertions | `cargo run --example waits_assertions` |
+| UC stealth | `cargo run --example uc_stealth` |
+| CDP mode | `cargo run --example cdp_mode` |
+| Shadow DOM | `cargo run --example shadow_dom` |
+| Stealth options | `cargo run --example stealth_options` |
+| Recorder | `cargo run --bin sbase -- recorder --output my_test.rs` |
+| Screenshots & source | `cargo run --example screenshots` |
+| PDF parsing | `cargo run --example pdf_example` |
+| Cookies & storage | `cargo run --example cookies_storage` |
+| JS execution | `cargo run --example js_execution` |
+| Network conditions | `cargo run --example network_conditions` |
+| GUI automation | `cargo run --example gui_automation` |
+| Native dialogs | `cargo run --example dialog` |
+| HTML inspector | `cargo run --example html_inspector` |
+| MasterQA | `cargo run --example masterqa` |
+| Tour maker | `cargo run --example tour_maker` |
+| Chart maker | `cargo run --example chart_maker` |
+| Cloud upload | `cargo run --example cloud_upload --features s3` |
+| Playwright mode | `cargo run --example playwright_mode --features playwright` |
+| TOTP | `cargo run --example totp_login` |
+
 
 The command expects a running WebDriver endpoint at `http://localhost:4444`.
 Override it with `--webdriver` when needed.

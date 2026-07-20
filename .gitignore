@@ -195,6 +195,7 @@ ip_of_grid_hub.dat
 downloaded_files
 archived_files
 assets
+!rust-port/src/utils/extensions/assets/
 temp
 temp_*/
 node_modules

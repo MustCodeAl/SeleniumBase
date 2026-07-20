@@ -209,4 +209,98 @@ impl BaseCase {
         .await?;
         Ok(())
     }
+
+    // Test control helpers (message-overload variants to avoid collisions with
+    // the sync helpers in `base_case_impl_extra.rs` / `base_case_impl_remaining.rs`).
+
+    /// Fails the test unless `condition` is true, with a custom message.
+    pub fn assert_true_msg(
+        &self,
+        condition: bool,
+        message: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        if condition {
+            Ok(())
+        } else {
+            Err(SeleniumBaseError::AssertionFailed(message.to_owned()))
+        }
+    }
+
+    /// Fails the test unless `condition` is false, with a custom message.
+    pub fn assert_false_msg(
+        &self,
+        condition: bool,
+        message: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        self.assert_true_msg(!condition, message)
+    }
+
+    /// Fails the test unless `actual` equals `expected`, with a custom message.
+    pub fn assert_equal_msg<A: std::fmt::Debug + PartialEq<B>, B: std::fmt::Debug>(
+        &self,
+        actual: A,
+        expected: B,
+        message: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(SeleniumBaseError::AssertionFailed(format!(
+                "{}: expected {:?}, got {:?}",
+                message, expected, actual
+            )))
+        }
+    }
+
+    /// Fails the test unless `actual` does not equal `not_expected`, with a custom message.
+    pub fn assert_not_equal_msg<A: std::fmt::Debug + PartialEq<B>, B: std::fmt::Debug>(
+        &self,
+        actual: A,
+        not_expected: B,
+        message: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        if actual != not_expected {
+            Ok(())
+        } else {
+            Err(SeleniumBaseError::AssertionFailed(format!(
+                "{}: unexpected value {:?}",
+                message, actual
+            )))
+        }
+    }
+
+    /// Fails the test if `value` is None, with a custom message, returning the value.
+    pub fn assert_not_none_msg<T: std::fmt::Debug>(
+        &self,
+        value: Option<T>,
+        message: &str,
+    ) -> Result<T, SeleniumBaseError> {
+        value.ok_or_else(|| SeleniumBaseError::AssertionFailed(message.to_owned()))
+    }
+
+    /// Fails the test if `value` is Some, with a custom message.
+    pub fn assert_none_msg<T: std::fmt::Debug>(
+        &self,
+        value: Option<T>,
+        message: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        if value.is_none() {
+            Ok(())
+        } else {
+            Err(SeleniumBaseError::AssertionFailed(message.to_owned()))
+        }
+    }
+
+    /// Evaluates a closure and returns its result, or fails with `message`.
+    pub fn assert_with<T, F>(&self, message: &str, f: F) -> Result<T, SeleniumBaseError>
+    where
+        F: FnOnce() -> Result<T, SeleniumBaseError>,
+    {
+        f().map_err(|e| SeleniumBaseError::AssertionFailed(format!("{}: {}", message, e)))
+    }
+
+    /// Marks the current test as skipped with `message`.
+    pub fn skip_test(&self, message: &str) -> Result<(), SeleniumBaseError> {
+        Err(SeleniumBaseError::Skipped(message.to_owned()))
+    }
 }

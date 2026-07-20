@@ -46,6 +46,16 @@ impl BrowserSession {
         Ok(session)
     }
 
+    /// Creates a disconnected session for test-only use. Any WebDriver call will
+    /// panic, so this must only be used when the caller never touches the driver.
+    pub fn disconnected() -> Self {
+        Self {
+            driver: None,
+            cdp: None,
+            driver_process: None,
+        }
+    }
+
     /// Navigates to `url`.
     pub async fn goto(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
         self.driver().goto(url).await?;

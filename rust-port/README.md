@@ -67,6 +67,9 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - [CLI Usage](./docs/tutorials/cli_usage.md)
 - [API Reference](./docs/tutorials/api_reference.md)
 - [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
+- [Settings and Configuration](./docs/tutorials/settings_and_config.md)
+- [Behave / Gherkin Support](./docs/tutorials/behave.md)
+- [Selenium IDE Migration](./docs/tutorials/selenium_ide.md)
 - [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
 
 ### Help pages
@@ -112,6 +115,9 @@ cargo run --bin sbase -- --uc open https://seleniumbase.io
 | Cloud upload | `cargo run --example cloud_upload --features s3` |
 | Playwright mode | `cargo run --example playwright_mode --features playwright` |
 | TOTP | `cargo run --example totp_login` |
+| Behave / Gherkin | `cargo run --example behave_feature` |
+| Settings config | `cargo run --example settings_config` |
+| Selenium IDE parsing | `cargo run --example selenium_ide` |
 
 
 The command expects a running WebDriver endpoint at `http://localhost:4444`.

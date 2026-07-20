@@ -47,7 +47,13 @@ impl BaseCase {
     /// Creates a new test case and connects to the browser described by `config`.
     pub async fn new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
         let session = BrowserSession::connect(config.clone()).await?;
-        Ok(Self {
+        Ok(Self::with_session(config, session))
+    }
+
+    /// Creates a `BaseCase` from an existing browser session. Used internally for
+    /// reconnecting and for test-only construction.
+    pub fn with_session(config: BrowserConfig, session: BrowserSession) -> Self {
+        Self {
             session,
             config,
             recorder: Arc::new(Mutex::new(ActionRecorder::default())),
@@ -60,7 +66,13 @@ impl BaseCase {
             playwright_session: None,
             time_limit_secs: None,
             gui_held: None,
-        })
+        }
+    }
+
+    /// Creates a `BaseCase` without a live browser session. Useful for unit tests
+    /// of helper methods that do not interact with the browser.
+    pub fn without_session(config: BrowserConfig) -> Self {
+        Self::with_session(config, BrowserSession::disconnected())
     }
 
     /// Activates the optional Playwright-backed stealth browser mode.

@@ -25,4 +25,6 @@ pub enum SeleniumBaseError {
     Gui(String),
     #[error("playwright error: {0}")]
     Playwright(String),
+    #[error("test skipped: {0}")]
+    Skipped(String),
 }

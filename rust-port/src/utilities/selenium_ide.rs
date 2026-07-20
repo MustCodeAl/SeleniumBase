@@ -11,7 +11,9 @@ pub struct IdeCommand {
 }
 
 /// Parse a legacy Selenium IDE HTML file and extract commands.
-pub fn parse_ide_file<P: AsRef<Path>>(path: P) -> Result<Vec<IdeCommand>, Box<dyn std::error::Error>> {
+pub fn parse_ide_file<P: AsRef<Path>>(
+    path: P,
+) -> Result<Vec<IdeCommand>, Box<dyn std::error::Error>> {
     let html = fs::read_to_string(path)?;
     parse_ide_html(&html)
 }

@@ -141,6 +141,7 @@ impl Settings {
             threads: self.threads,
             auto_start_driver: true,
             start_page: None,
+            extra_args: Vec::new(),
         }
     }
 

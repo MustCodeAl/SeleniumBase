@@ -119,6 +119,7 @@ fn default_profiles() -> Vec<Profile> {
             tags: vec![],
             folder_id: "default".into(),
             cookies: vec![],
+            multilogin_params: None,
         },
         Profile {
             id: "profile-b".into(),
@@ -136,35 +137,64 @@ fn default_profiles() -> Vec<Profile> {
             tags: vec![],
             folder_id: "default".into(),
             cookies: vec![],
+            multilogin_params: None,
         },
     ]
 }
 
 pub fn build_config(profile: &Profile) -> BrowserConfig {
-    BrowserConfig {
-        webdriver_url: profile.container_url.clone(),
-        browser: profile.browser,
-        headless: profile.headless,
-        mode: profile.mode,
-        user_agent: profile.user_agent.clone(),
-        proxy: profile.proxy.clone(),
-        locale: profile.locale.clone(),
-        auto_start_driver: false,
-        ..BrowserConfig::default()
+    if let Some(params) = profile.multilogin_params.as_ref() {
+        params.to_browser_config(&profile.container_url)
+    } else {
+        BrowserConfig {
+            webdriver_url: profile.container_url.clone(),
+            browser: profile.browser,
+            headless: profile.headless,
+            mode: profile.mode,
+            user_agent: profile.user_agent.clone(),
+            proxy: profile.proxy.clone(),
+            locale: profile.locale.clone(),
+            auto_start_driver: false,
+            ..BrowserConfig::default()
+        }
     }
 }
 
 pub async fn apply_profile_overrides(sb: &mut BaseCase, profile: &Profile) -> Result<(), String> {
-    if let (Some(lat), Some(lon)) = (profile.latitude, profile.longitude) {
+    // Prefer Multilogin-style fingerprint values when present, falling back to
+    // the flat profile fields for backward compatibility.
+    let geo = profile
+        .multilogin_params
+        .as_ref()
+        .and_then(|p| p.parameters.fingerprint.geolocation.as_ref())
+        .map(|g| (g.latitude, g.longitude, g.accuracy));
+
+    let (lat, lon, accuracy) = match geo {
+        Some((lat, lon, acc)) => (Some(lat), Some(lon), Some(acc)),
+        None => (profile.latitude, profile.longitude, profile.accuracy),
+    };
+
+    if let (Some(lat), Some(lon)) = (lat, lon) {
         let params = json!({
             "latitude": lat,
             "longitude": lon,
-            "accuracy": profile.accuracy.unwrap_or(100.0),
+            "accuracy": accuracy.unwrap_or(100.0),
         });
         sb.execute_cdp_with_params("Emulation.setGeolocationOverride", params)
             .await
             .map_err(|e| format!("Failed to set geolocation: {e}"))?;
     }
+
+    if let Some(screen) = profile
+        .multilogin_params
+        .as_ref()
+        .and_then(|p| p.parameters.fingerprint.screen.as_ref())
+    {
+        sb.set_window_size(screen.width, screen.height)
+            .await
+            .map_err(|e| format!("Failed to set screen size: {e}"))?;
+    }
+
     Ok(())
 }
 

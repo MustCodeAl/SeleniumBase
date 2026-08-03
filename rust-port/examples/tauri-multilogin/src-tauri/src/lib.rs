@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use serde_json::json;
 use tauri::{command, generate_context, generate_handler, AppHandle, Manager, State};
+use tracing::info;
 
 mod api;
 mod models;
@@ -15,7 +16,9 @@ use store::{
 
 #[command]
 async fn list_profiles(state: State<'_, Arc<AppState>>) -> Result<Vec<Profile>, String> {
-    Ok(state.profiles.lock().await.clone())
+    let profiles = state.profiles.lock().await.clone();
+    info!(count = profiles.len(), "listed profiles");
+    Ok(profiles)
 }
 
 #[command]
@@ -44,6 +47,7 @@ async fn create_profile(
             new.folder_id
         },
         cookies: vec![],
+        multilogin_params: new.multilogin_params,
     };
     {
         let mut profiles = state.profiles.lock().await;
@@ -51,6 +55,7 @@ async fn create_profile(
     }
     let profiles = state.profiles.lock().await.clone();
     save_profiles(&app, &profiles).await?;
+    info!(profile_id = %profile.id, name = %profile.name, "created profile");
     Ok(profile)
 }
 
@@ -66,6 +71,7 @@ async fn delete_profile(
     }
     let profiles = state.profiles.lock().await.clone();
     save_profiles(&app, &profiles).await?;
+    info!(profile_id = %id, "deleted profile");
     Ok(())
 }
 
@@ -108,6 +114,7 @@ async fn launch_profile(
         .lock()
         .await
         .insert(session_id, info.clone());
+    info!(session_id = %info.session_id, profile_id = %info.profile_id, "launched profile");
     Ok(info)
 }
 
@@ -174,6 +181,7 @@ async fn close_session(state: State<'_, Arc<AppState>>, session_id: String) -> R
         .ok_or_else(|| "Session not found".to_string())?;
     sb.quit().await.map_err(|e| e.to_string())?;
     state.session_info.lock().await.remove(&session_id);
+    info!(session_id = %session_id, "closed session");
     Ok(())
 }
 
@@ -184,6 +192,10 @@ async fn get_api_base() -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -191,18 +203,14 @@ pub fn run() {
             let state = Arc::new(AppState::new());
             app.manage(state.clone());
 
-            tauri::async_runtime::spawn(async move {
-                load_all(&handle, &state).await;
-                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], next_api_port()));
-                match tokio::net::TcpListener::bind(addr).await {
-                    Ok(listener) => {
-                        let router = api::router(state.clone());
-                        if let Err(e) = axum::serve(listener, router).await {
-                            eprintln!("Multilogin API server error: {e}");
-                        }
+            std::thread::spawn(move || {
+                actix_web::rt::System::new().block_on(async move {
+                    load_all(&handle, &state).await;
+                    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], next_api_port()));
+                    if let Err(e) = api::start_server(state.clone(), addr).await {
+                        eprintln!("Multilogin API server error: {e}");
                     }
-                    Err(e) => eprintln!("Failed to bind Multilogin API server: {e}"),
-                }
+                });
             });
             Ok(())
         })

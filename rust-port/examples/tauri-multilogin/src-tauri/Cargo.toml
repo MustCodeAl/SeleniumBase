@@ -26,10 +26,11 @@ serde_json = "1"
 seleniumbase-rs = { path = "../../.." }
 tokio = { version = "1", features = ["rt-multi-thread", "fs", "net"] }
 uuid = { version = "1", features = ["v4"] }
-axum = "0.7"
-tower = "0.5"
-tower-http = { version = "0.5", features = ["cors"] }
+actix-web = "4"
+actix-cors = "0.7"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

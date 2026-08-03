@@ -5,6 +5,7 @@ use rand::RngExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use tracing::{debug, info, instrument};
 
 use crate::api::chart::{Chart, ChartSeries, ChartType};
 use crate::api::deferred::DeferredAsserts;
@@ -45,13 +46,16 @@ pub struct BaseCase {
 
 impl BaseCase {
     /// Creates a new test case and connects to the browser described by `config`.
+    #[instrument(skip(config))]
     pub async fn new(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        info!(browser = ?config.browser, headless = config.headless, "creating BaseCase");
         let session = BrowserSession::connect(config.clone()).await?;
         Ok(Self::with_session(config, session))
     }
 
     /// Creates a `BaseCase` from an existing browser session. Used internally for
     /// reconnecting and for test-only construction.
+    #[instrument(skip(config, session))]
     pub fn with_session(config: BrowserConfig, session: BrowserSession) -> Self {
         Self {
             session,
@@ -407,7 +411,9 @@ impl BaseCase {
         }
     }
 
+    #[instrument(skip(self))]
     pub async fn open(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        info!(%url, "opening url");
         self.record("open", Some(url), None);
         self.session.goto(url).await
     }
@@ -428,14 +434,18 @@ impl BaseCase {
     }
 
     /// Clicks the element selected by `css`.
+    #[instrument(skip(self))]
     pub async fn click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        debug!(%css, "clicking element");
         let by = Selector::Css(css).to_by()?;
         self.record("click", Some(css), None);
         self.session.click(by).await
     }
 
     /// Executes the `type_text` action.
+    #[instrument(skip(self, text))]
     pub async fn type_text(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        debug!(%css, text_len = text.len(), "typing text");
         let by = Selector::Css(css).to_by()?;
         self.record("type_text", Some(css), Some(text));
         self.session.type_text(by, text).await
@@ -1270,7 +1280,9 @@ impl BaseCase {
     }
 
     /// Closes the browser and ends the session.
+    #[instrument(skip(self))]
     pub async fn quit(self) -> Result<(), SeleniumBaseError> {
+        info!("quitting BaseCase");
         self.session.quit().await
     }
 

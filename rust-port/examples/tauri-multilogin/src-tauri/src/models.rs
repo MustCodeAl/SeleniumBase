@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use seleniumbase_rs::multilogin::ProfileParams;
 use seleniumbase_rs::{Browser, DriverMode};
 
 /// Common API status wrapper.
@@ -79,6 +80,9 @@ pub struct Profile {
     pub folder_id: String,
     #[serde(default)]
     pub cookies: Vec<BrowserCookie>,
+    /// Full Multilogin-style profile parameters, when supplied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub multilogin_params: Option<ProfileParams>,
 }
 
 /// Input payload for creating a profile.
@@ -102,6 +106,9 @@ pub struct NewProfile {
     pub tags: Vec<String>,
     #[serde(default)]
     pub folder_id: String,
+    /// Raw Multilogin-style parameters (flags, fingerprints, storage, proxy, ...).
+    #[serde(default, rename = "parameters")]
+    pub multilogin_params: Option<ProfileParams>,
 }
 
 /// Information returned after launching a profile.

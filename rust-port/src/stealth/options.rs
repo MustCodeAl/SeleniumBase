@@ -22,6 +22,8 @@ pub struct StealthOptions {
     pub uc: bool,
     /// Headers supplied to the CDP network reactor when intercepting requests.
     pub extra_headers: HashMap<String, String>,
+    /// Extra Chromium/Edge command-line arguments supplied by integrations.
+    pub extra_args: Vec<String>,
 }
 
 impl From<&BrowserConfig> for StealthOptions {
@@ -39,6 +41,7 @@ impl From<&BrowserConfig> for StealthOptions {
             ad_block: config.ad_block,
             uc: config.is_uc_enabled(),
             extra_headers: HashMap::new(),
+            extra_args: config.extra_args.clone(),
         }
     }
 }
@@ -99,6 +102,14 @@ impl StealthOptions {
 
         if self.uc {
             apply_undetected_args(caps)?;
+        }
+
+        for arg in &self.extra_args {
+            if arg.starts_with('-') {
+                caps.add_arg(arg)?;
+            } else {
+                caps.add_arg(&format!("--{arg}"))?;
+            }
         }
 
         Ok(())

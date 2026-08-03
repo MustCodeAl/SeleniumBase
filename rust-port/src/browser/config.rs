@@ -38,6 +38,10 @@ pub struct BrowserConfig {
     pub mobile: bool,
     pub threads: Option<usize>,
     pub auto_start_driver: bool,
+    /// Extra Chromium/Edge command-line arguments supplied by callers such as
+    /// the Multilogin integration.
+    #[serde(default)]
+    pub extra_args: Vec<String>,
 }
 
 impl Default for BrowserConfig {
@@ -59,6 +63,7 @@ impl Default for BrowserConfig {
             mobile: false,
             threads: None,
             auto_start_driver: true,
+            extra_args: Vec::new(),
         }
     }
 }
@@ -79,5 +84,15 @@ impl BrowserConfig {
 
     pub fn is_default_webdriver_url(&self) -> bool {
         self.webdriver_url == "http://localhost:4444" || self.webdriver_url.is_empty()
+    }
+
+    pub fn with_extra_args(mut self, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.extra_args = args.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn push_extra_arg(mut self, arg: impl Into<String>) -> Self {
+        self.extra_args.push(arg.into());
+        self
     }
 }

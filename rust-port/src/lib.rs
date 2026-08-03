@@ -31,6 +31,8 @@ pub mod config;
 pub mod core;
 pub mod error;
 pub mod js_code;
+pub mod macros;
+pub mod multilogin;
 pub mod plugins;
 pub mod resources;
 pub mod stealth;
@@ -49,3 +51,4 @@ pub use error::{Result, SeleniumBaseError};
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
 };
+pub use utils::selectors::Selector;

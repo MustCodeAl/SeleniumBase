@@ -15,17 +15,21 @@ async function refreshProfiles() {
     const geo = p.latitude != null && p.longitude != null
       ? `📍 ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
       : "";
+    const mlBadge = p.multilogin_params ? `<span class="tag multilogin">multilogin</span>` : "";
     li.innerHTML = `
       <div class="profile-row">
         <strong>${p.name}</strong>
         <span class="muted">${p.container_url}</span>
         <span class="tag">${p.mode || "webdriver"}</span>
+        ${mlBadge}
         <span class="muted">${geo}</span>
       </div>
       <div class="actions">
         <input type="text" class="start-url" placeholder="Start URL" />
         <button class="launch">Launch</button>
         <button class="delete">Delete</button>
+        <button class="clone">Clone</button>
+        <button class="export">Export</button>
       </div>
     `;
     li.querySelector(".launch").addEventListener("click", async () => {
@@ -42,6 +46,41 @@ async function refreshProfiles() {
     li.querySelector(".delete").addEventListener("click", async () => {
       await invoke("delete_profile", { id: p.id });
       refreshProfiles();
+    });
+    li.querySelector(".clone").addEventListener("click", async () => {
+      const base = await apiBase();
+      setStatus(`Cloning ${p.name}...`);
+      try {
+        const res = await fetch(`${base}/api/v1/profiles/${p.id}/clone`, { method: "POST" });
+        const body = await res.json();
+        const cloneId = body.data.id;
+        const newName = `${p.name} (clone)`;
+        await fetch(`${base}/api/v1/profiles/${cloneId}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: newName }),
+        });
+        setStatus(`Cloned as ${newName}`);
+        refreshProfiles();
+      } catch (e) {
+        setStatus(`Clone failed: ${e}`);
+      }
+    });
+    li.querySelector(".export").addEventListener("click", async () => {
+      const base = await apiBase();
+      try {
+        const res = await fetch(`${base}/api/v1/profiles/${p.id}/export`);
+        const body = await res.json();
+        const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${p.name}-profile.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        setStatus(`Exported ${p.name}`);
+      } catch (e) {
+        setStatus(`Export failed: ${e}`);
+      }
     });
     list.appendChild(li);
   }
@@ -154,7 +193,7 @@ async function refreshSessions() {
   }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   document.querySelector("#profile-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const parseNum = (id) => {
@@ -181,6 +220,177 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelector("#refresh-profiles").addEventListener("click", refreshProfiles);
   document.querySelector("#refresh-sessions").addEventListener("click", refreshSessions);
   document.querySelector("#refresh-tags").addEventListener("click", refreshTags);
+
+  document.querySelector("#clone-profile").addEventListener("click", async () => {
+    const sourceId = document.querySelector("#clone-source-id").value.trim();
+    const newName = document.querySelector("#clone-new-name").value.trim();
+    if (!sourceId || !newName) {
+      setStatus("Enter source profile ID and new name");
+      return;
+    }
+    const base = await apiBase();
+    setStatus(`Cloning ${sourceId}...`);
+    try {
+      const res = await fetch(`${base}/api/v1/profiles/${sourceId}/clone`, { method: "POST" });
+      const body = await res.json();
+      const cloneId = body.data.id;
+      await fetch(`${base}/api/v1/profiles/${cloneId}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      });
+      setStatus(`Cloned to ${newName}`);
+      document.querySelector("#clone-source-id").value = "";
+      document.querySelector("#clone-new-name").value = "";
+      refreshProfiles();
+    } catch (e) {
+      setStatus(`Clone failed: ${e}`);
+    }
+  });
+
+  document.querySelector("#export-profile").addEventListener("click", async () => {
+    const id = document.querySelector("#export-profile-id").value.trim();
+    if (!id) {
+      setStatus("Enter a profile ID to export");
+      return;
+    }
+    const base = await apiBase();
+    try {
+      const res = await fetch(`${base}/api/v1/profiles/${id}/export`);
+      const body = await res.json();
+      const blob = new Blob([JSON.stringify(body.data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `profile-${id}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus(`Exported profile ${id}`);
+    } catch (e) {
+      setStatus(`Export failed: ${e}`);
+    }
+  });
+
+  document.querySelector("#import-multilogin").addEventListener("click", async () => {
+    const raw = document.querySelector("#import-multilogin-json").value.trim();
+    if (!raw) {
+      setStatus("Paste a Multilogin profile JSON to import");
+      return;
+    }
+    const base = await apiBase();
+    try {
+      const res = await fetch(`${base}/api/v1/profiles/import`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: raw,
+      });
+      const body = await res.json();
+      setStatus(`Imported Multilogin profile ${body.data.name}`);
+      document.querySelector("#import-multilogin-json").value = "";
+      refreshProfiles();
+    } catch (e) {
+      setStatus(`Multilogin import failed: ${e}`);
+    }
+  });
+
+  document.querySelector("#import-profile").addEventListener("click", async () => {
+    const raw = document.querySelector("#import-profile-json").value.trim();
+    if (!raw) {
+      setStatus("Paste profile JSON to import");
+      return;
+    }
+    const base = await apiBase();
+    try {
+      const res = await fetch(`${base}/api/v1/profiles/import`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: raw,
+      });
+      const body = await res.json();
+      setStatus(`Imported profile ${body.data.name}`);
+      document.querySelector("#import-profile-json").value = "";
+      refreshProfiles();
+    } catch (e) {
+      setStatus(`Import failed: ${e}`);
+    }
+  });
+
+  document.querySelector("#validate-proxy").addEventListener("click", async () => {
+    const base = await apiBase();
+    const payload = {
+      type: document.querySelector("#proxy-type").value,
+      host: document.querySelector("#proxy-host").value.trim(),
+      port: Number(document.querySelector("#proxy-port").value),
+      username: document.querySelector("#proxy-username").value || undefined,
+      password: document.querySelector("#proxy-password").value || undefined,
+    };
+    if (!payload.host || Number.isNaN(payload.port)) {
+      setStatus("Enter proxy host and port");
+      return;
+    }
+    setStatus("Validating proxy...");
+    try {
+      const res = await fetch(`${base}/api/v1/proxy/validate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      document.querySelector("#proxy-result").textContent = JSON.stringify(body.data || body.status, null, 2);
+      setStatus("Proxy validation complete");
+    } catch (e) {
+      setStatus(`Proxy validation failed: ${e}`);
+    }
+  });
+
+  document.querySelector("#export-cookies").addEventListener("click", async () => {
+    const id = document.querySelector("#cookie-profile-id").value.trim();
+    if (!id) {
+      setStatus("Enter a profile ID to export cookies");
+      return;
+    }
+    const base = await apiBase();
+    try {
+      const res = await fetch(`${base}/api/v1/cookie_export`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ profile_id: id }),
+      });
+      const body = await res.json();
+      document.querySelector("#cookie-result").textContent = JSON.stringify(body.data || body.status, null, 2);
+      setStatus(`Exported cookies for ${id}`);
+    } catch (e) {
+      setStatus(`Cookie export failed: ${e}`);
+    }
+  });
+
+  document.querySelector("#import-cookies").addEventListener("click", async () => {
+    const id = document.querySelector("#cookie-profile-id").value.trim();
+    const raw = document.querySelector("#import-cookies-json").value.trim();
+    if (!id || !raw) {
+      setStatus("Enter profile ID and cookies JSON");
+      return;
+    }
+    let cookies;
+    try {
+      cookies = JSON.parse(raw);
+    } catch (e) {
+      setStatus(`Invalid cookies JSON: ${e}`);
+      return;
+    }
+    const base = await apiBase();
+    try {
+      const res = await fetch(`${base}/api/v1/cookie_import`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ profile_id: id, cookies }),
+      });
+      const body = await res.json();
+      setStatus(body.status?.message || "Cookies imported");
+      document.querySelector("#import-cookies-json").value = "";
+    } catch (e) {
+      setStatus(`Cookie import failed: ${e}`);
+    }
+  });
 
   document.querySelector("#add-tag").addEventListener("click", async () => {
     const name = document.querySelector("#new-tag").value;

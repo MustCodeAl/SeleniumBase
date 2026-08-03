@@ -8,6 +8,7 @@ use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 #[allow(deprecated)]
 use thirtyfour::extensions::cdp::NetworkConditions;
 use thirtyfour::prelude::{By, DesiredCapabilities, WebDriver, WebElement};
+use tracing::{info, instrument};
 
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_chromedriver, DriverProcess};
@@ -28,7 +29,9 @@ impl BrowserSession {
         self.driver.as_ref().unwrap()
     }
 
+    #[instrument(skip(config))]
     pub async fn connect(config: BrowserConfig) -> Result<Self, SeleniumBaseError> {
+        info!(browser = ?config.browser, headless = config.headless, "connecting browser session");
         validate_mode_support(&config)?;
         let (driver, driver_process) = connect_driver(&config).await?;
         let cdp = if config.is_cdp_enabled() {
@@ -43,6 +46,7 @@ impl BrowserSession {
             driver_process,
         };
         session.initialize_mode(&config).await?;
+        info!("browser session connected");
         Ok(session)
     }
 
@@ -704,7 +708,9 @@ impl BrowserSession {
     }
 
     /// Closes the browser session and any auto-started driver process.
+    #[instrument(skip(self))]
     pub async fn quit(self) -> Result<(), SeleniumBaseError> {
+        info!("quitting browser session");
         if let Some(driver) = self.driver {
             driver.quit().await?;
         }

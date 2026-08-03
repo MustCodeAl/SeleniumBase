@@ -21,5 +21,8 @@
 - [HTML Inspector](help/html_inspector.md)
 - [CLI Usage](tutorials/cli_usage.md)
 - [API Guide](tutorials/api_reference.md)
+- [Macros](tutorials/macros.md)
+- [Multilogin-Style Profiles](tutorials/multilogin_profiles.md)
+- [Tracing and Logging](tutorials/tracing.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
 

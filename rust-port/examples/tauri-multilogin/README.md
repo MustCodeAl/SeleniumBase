@@ -49,10 +49,11 @@ cargo tauri build
 - Tags and folders for organizing profiles.
 - A local Multilogin-compatible REST API (`http://127.0.0.1:45001/api/v1`) with CORS enabled.
 - Ready for stealth/CDP/UC mode via `DriverMode` in `BrowserConfig`.
+- UI tools for cloning, exporting/importing, proxy validation, and cookie management.
 
 ## Multilogin-compatible REST API
 
-The Tauri backend starts an Axum server on `http://127.0.0.1:45001`. The UI uses it for tags/folders, and external tools can call it directly.
+The Tauri backend starts an Actix-web server on `http://127.0.0.1:45001`. The UI uses it for tags/folders and profile tools, and external tools can call it directly.
 
 Real endpoints:
 

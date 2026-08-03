@@ -317,6 +317,10 @@ impl ServerHandler for SeleniumBaseMcp {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     let service = SeleniumBaseMcp::new();
     let transport = stdio();
     let running = serve_server(service, transport).await?;

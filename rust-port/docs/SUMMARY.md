@@ -29,4 +29,5 @@
 - [Tracing and Logging](tutorials/tracing.md)
 - [Developer Guide](DEVELOPER_GUIDE.md)
 - [ABI & API Stability](ABI_API.md)
+- [Contributing](../CONTRIBUTING.md)
 

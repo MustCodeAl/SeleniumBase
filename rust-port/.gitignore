@@ -3,3 +3,6 @@
 /target-tui
 /.copilot-target
 /book
+.DS_Store
+node_modules/
+downloaded_drivers/

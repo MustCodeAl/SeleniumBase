@@ -12,12 +12,19 @@ assert!(inspection.is_clean(), "{inspection:?}");
 ## Checks performed
 
 - Missing document language or title.
+- Missing viewport meta tag for responsive layout.
+- Missing skip link to main content.
 - Missing `alt` attributes on images.
 - Links and buttons without a static accessible name.
+- Generic link text such as "click here" or "read more".
+- Nested interactive elements (for example, a button inside a link).
 - Form controls without a label, `aria-label`, or valid
   `aria-labelledby` reference.
+- Radio button groups not grouped in a `fieldset` with a `legend`.
 - Duplicate element IDs.
-- Skipped heading levels after the first heading.
+- Invalid `aria-labelledby` or `aria-describedby` references.
+- Empty headings or skipped heading levels after the first heading.
+- Tables without header cells.
 - Missing `main` landmark.
 
 ## Access results

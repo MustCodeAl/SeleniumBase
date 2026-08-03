@@ -82,6 +82,14 @@ enum Action {
     AssertExactText(String, String),
     AssertTitle(String),
     AssertTitleContains(String),
+    AssertUrl(String),
+    AssertUrlContains(String),
+    GetText(String),
+    GetAttribute(String, String),
+    Check(String),
+    Uncheck(String),
+    DoubleClick(String),
+    RightClick(String),
     WaitVisible(String, u64),
     WaitPresent(String, u64),
     SelectText(String, String),
@@ -196,19 +204,27 @@ fn parse_seleniumbase(statement: &str, line: usize) -> ParseOutcome {
     let args = split_args(&args);
 
     match method.as_str() {
-        "open" | "visit" => one_string(&args, Action::Open),
+        "open" | "visit" | "get" => one_string(&args, Action::Open),
         "click" => one_string(&args, Action::Click),
         "click_link" | "click_link_text" => one_string(&args, Action::ClickLink),
         "click_partial_link_text" => one_string(&args, Action::ClickPartialLink),
+        "double_click" | "double_click_element" => one_string(&args, Action::DoubleClick),
+        "right_click" | "right_click_element" => one_string(&args, Action::RightClick),
         "type" | "type_text" | "update_text" | "send_keys" => two_strings(&args, Action::TypeText),
         "clear" => one_string(&args, Action::Clear),
         "submit" => one_string(&args, Action::Submit),
         "hover" | "hover_on_element" => one_string(&args, Action::Hover),
+        "check_if_unchecked" | "check" => one_string(&args, Action::Check),
+        "uncheck_if_checked" | "uncheck" => one_string(&args, Action::Uncheck),
         "assert_element" | "assert_element_visible" => one_string(&args, Action::AssertElement),
         "assert_text" => reverse_two_strings(&args, Action::AssertText),
         "assert_exact_text" => reverse_two_strings(&args, Action::AssertExactText),
         "assert_title" => one_string(&args, Action::AssertTitle),
         "assert_title_contains" => one_string(&args, Action::AssertTitleContains),
+        "assert_url" => one_string(&args, Action::AssertUrl),
+        "assert_url_contains" => one_string(&args, Action::AssertUrlContains),
+        "get_text" => one_string(&args, Action::GetText),
+        "get_attribute" => two_strings(&args, Action::GetAttribute),
         "wait_for_element_visible" => wait_action(&args, true),
         "wait_for_element_present" => wait_action(&args, false),
         "select_option_by_text" => two_strings(&args, Action::SelectText),
@@ -307,6 +323,31 @@ fn parse_selenium(
             ));
         };
         return selenium_element_action(Ok(locator), &captures["method"], &captures["args"]);
+    }
+
+    if let Some(captures) = regex(
+        r"^(?:[A-Za-z_]\w*\s*=\s*)?(?P<name>[A-Za-z_]\w*)\.(?P<method>text|get_attribute)\s*(?:\((?P<args>.*)\))?$",
+    )
+    .captures(statement)
+    {
+        let Some(locator) = elements.get(&captures["name"]).cloned() else {
+            return ParseOutcome::Unsupported(format!(
+                "element variable '{}' was not created by a supported find_element call",
+                &captures["name"]
+            ));
+        };
+        return match (locator, &captures["method"]) {
+            (Locator::Css(css), "text") => ParseOutcome::Action(Action::GetText(css)),
+            (Locator::Css(css), "get_attribute") => match python_string(&captures["args"]) {
+                Some(attr) => ParseOutcome::Action(Action::GetAttribute(css, attr)),
+                None => ParseOutcome::Invalid(
+                    "get_attribute() requires a string literal attribute name".to_owned(),
+                ),
+            },
+            _ => ParseOutcome::Unsupported(
+                "this read operation is only supported for CSS-based element variables".to_owned(),
+            ),
+        };
     }
 
     if statement.starts_with("driver.quit(")
@@ -616,6 +657,16 @@ fn render_action(action: &Action) -> String {
         Action::AssertTitleContains(title) => {
             format!("sb.assert_title_contains({title:?}).await?;")
         }
+        Action::AssertUrl(url) => format!("sb.assert_url({url:?}).await?;"),
+        Action::AssertUrlContains(url) => format!("sb.assert_url_contains({url:?}).await?;"),
+        Action::GetText(css) => format!("let _text = sb.get_text({css:?}).await?;"),
+        Action::GetAttribute(css, attr) => {
+            format!("let _value = sb.get_attribute({css:?}, {attr:?}).await?;")
+        }
+        Action::Check(css) => format!("sb.check_if_unchecked({css:?}).await?;"),
+        Action::Uncheck(css) => format!("sb.uncheck_if_checked({css:?}).await?;"),
+        Action::DoubleClick(css) => format!("sb.double_click({css:?}).await?;"),
+        Action::RightClick(css) => format!("sb.right_click({css:?}).await?;"),
         Action::WaitVisible(css, timeout) => {
             format!("sb.wait_for_element_visible({css:?}, {timeout}).await?;")
         }
@@ -744,5 +795,42 @@ driver.quit()
         );
         assert!(result.is_complete());
         assert!(result.rust.contains("sb.type_text(\"#name\", \"Ada\")"));
+    }
+
+    #[test]
+    fn imports_seleniumbase_extra_methods() {
+        let source = r##"
+self.open("https://example.test")
+self.assert_url_contains("example")
+self.check("#agree")
+self.double_click("#submit")
+"##;
+        let result = import_python(
+            source,
+            &ImportOptions {
+                source: PythonSource::SeleniumBase,
+                test_name: "extra".to_owned(),
+            },
+        );
+        assert!(result.is_complete());
+        assert!(result.rust.contains("sb.assert_url_contains(\"example\")"));
+        assert!(result.rust.contains("sb.check_if_unchecked(\"#agree\")"));
+        assert!(result.rust.contains("sb.double_click(\"#submit\")"));
+    }
+
+    #[test]
+    fn imports_selenium_element_reads() {
+        let source = r##"
+from selenium.webdriver.common.by import By
+header = driver.find_element(By.CSS_SELECTOR, "h1")
+_ = header.text
+_ = header.get_attribute("data-id")
+"##;
+        let result = import_python(source, &ImportOptions::default());
+        assert!(result.is_complete());
+        assert!(result.rust.contains("sb.get_text(\"h1\")"));
+        assert!(result
+            .rust
+            .contains("sb.get_attribute(\"h1\", \"data-id\")"));
     }
 }

@@ -119,7 +119,7 @@ fn default_profiles() -> Vec<Profile> {
             tags: vec![],
             folder_id: "default".into(),
             cookies: vec![],
-            multilogin_params: None,
+            external_profile: None,
         },
         Profile {
             id: "profile-b".into(),
@@ -137,13 +137,13 @@ fn default_profiles() -> Vec<Profile> {
             tags: vec![],
             folder_id: "default".into(),
             cookies: vec![],
-            multilogin_params: None,
+            external_profile: None,
         },
     ]
 }
 
 pub fn build_config(profile: &Profile) -> BrowserConfig {
-    if let Some(params) = profile.multilogin_params.as_ref() {
+    if let Some(params) = profile.external_profile.as_ref() {
         params.to_browser_config(&profile.container_url)
     } else {
         BrowserConfig {
@@ -161,10 +161,10 @@ pub fn build_config(profile: &Profile) -> BrowserConfig {
 }
 
 pub async fn apply_profile_overrides(sb: &mut BaseCase, profile: &Profile) -> Result<(), String> {
-    // Prefer Multilogin-style fingerprint values when present, falling back to
+    // Prefer External profile-style fingerprint values when present, falling back to
     // the flat profile fields for backward compatibility.
     let geo = profile
-        .multilogin_params
+        .external_profile
         .as_ref()
         .and_then(|p| p.parameters.fingerprint.geolocation.as_ref())
         .map(|g| (g.latitude, g.longitude, g.accuracy));
@@ -186,7 +186,7 @@ pub async fn apply_profile_overrides(sb: &mut BaseCase, profile: &Profile) -> Re
     }
 
     if let Some(screen) = profile
-        .multilogin_params
+        .external_profile
         .as_ref()
         .and_then(|p| p.parameters.fingerprint.screen.as_ref())
     {

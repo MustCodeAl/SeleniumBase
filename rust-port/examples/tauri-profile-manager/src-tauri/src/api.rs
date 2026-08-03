@@ -13,7 +13,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use seleniumbase_rs::BaseCase;
-use seleniumbase_rs::multilogin::ProfileParams;
+use seleniumbase_rs::profile_payloads::ProfileParams;
 
 use crate::models::*;
 use crate::store::{apply_profile_overrides, build_config, make_session_id, set_cookies, AppState};
@@ -104,7 +104,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 pub async fn start_server(state: Arc<AppState>, addr: std::net::SocketAddr) -> std::io::Result<()> {
-    info!(%addr, "starting multilogin api server");
+    info!(%addr, "starting external profile api server");
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(state.clone()))
@@ -174,7 +174,7 @@ async fn profile_create(
             payload.folder_id
         },
         cookies: vec![],
-        multilogin_params: payload.multilogin_params,
+        external_profile: payload.external_profile,
     };
     state.profiles.lock().await.push(profile.clone());
     info!(profile_id = %profile.id, name = %profile.name, "created profile via api");
@@ -237,10 +237,10 @@ async fn profile_update(
         profiles[idx].tags = v.iter().filter_map(|x| x.as_str().map(String::from)).collect();
     }
     if payload.get("parameters").is_some() {
-        match serde_json::from_value::<seleniumbase_rs::multilogin::ProfileParams>(
+        match serde_json::from_value::<seleniumbase_rs::profile_payloads::ProfileParams>(
             payload.get("parameters").cloned().unwrap_or_default(),
         ) {
-            Ok(params) => profiles[idx].multilogin_params = Some(params),
+            Ok(params) => profiles[idx].external_profile = Some(params),
             Err(e) => return err(400, format!("Invalid parameters: {e}")),
         }
     }
@@ -438,7 +438,7 @@ async fn profile_import(
                 params.folder_id.clone()
             },
             cookies: vec![],
-            multilogin_params: Some(params),
+            external_profile: Some(params),
         }
     } else {
         return err(400, "Unrecognized profile JSON: expected container_url or parameters");

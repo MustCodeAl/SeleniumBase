@@ -8,7 +8,7 @@ use crate::stealth::fingerprint::{
     ProxyMaskingMode, QuicMode, StartupBehavior, StealthFlags,
 };
 
-/// Top-level Multilogin profile payload.
+/// Top-level external browser profile payload.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ProfileParams {
     pub name: String,
@@ -378,7 +378,7 @@ fn parse_os(s: &str) -> OsType {
 }
 
 impl ProfileParams {
-    /// Converts the Multilogin payload into a [`StealthFingerprint`] that can
+    /// Converts the external profile payload into a [`StealthFingerprint`] that can
     /// be injected into a browser session.
     pub fn to_fingerprint(&self) -> StealthFingerprint {
         let mut builder = StealthFingerprint::builder()
@@ -407,6 +407,7 @@ impl ProfileParams {
                     .map(parse_canvas_noise)
                     .unwrap_or_default(),
                 startup_behavior: parse_startup(&self.parameters.flags.startup_behavior),
+                ..StealthFlags::balanced()
             })
             .local_storage(self.parameters.storage.is_local)
             .save_service_worker(self.parameters.storage.save_service_worker)
@@ -477,7 +478,7 @@ impl ProfileParams {
         builder.build()
     }
 
-    /// Translates the Multilogin payload into a `BrowserConfig` that
+    /// Translates the external profile payload into a `BrowserConfig` that
     /// `seleniumbase-rs` can launch.
     ///
     /// Not every anti-detect flag has a direct Selenium/Chrome capability
@@ -566,7 +567,7 @@ impl ProfileParams {
     /// Per-profile persistent data directory when `storage.is_local` is true.
     pub fn user_data_dir(&self) -> Option<String> {
         if self.parameters.storage.is_local {
-            Some(format!("./multilogin-data/{}", self.folder_id))
+            Some(format!("./profile-data/{}", self.folder_id))
         } else {
             None
         }
@@ -617,7 +618,7 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn parse_multilogin_payload() {
+    fn parse_profile_payload() {
         let raw = json!({
             "name": "Profile_name",
             "browser_type": "mimic",

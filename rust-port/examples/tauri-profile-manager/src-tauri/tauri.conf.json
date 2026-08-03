@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-multilogin",
+  "productName": "tauri-profile-manager",
   "version": "0.1.0",
-  "identifier": "com.notlaggy.tauri-multilogin",
+  "identifier": "com.notlaggy.tauri-profile-manager",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "tauri-multilogin",
+        "title": "tauri-profile-manager",
         "width": 800,
         "height": 600
       }

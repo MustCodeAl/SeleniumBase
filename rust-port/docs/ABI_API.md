@@ -1,0 +1,117 @@
+# ABI & API Stability
+
+This page describes the public API surface of `seleniumbase-rs`, the stability
+guarantees that apply, and how to integrate the crate with foreign code.
+
+## Public modules
+
+The crate root exposes the following modules:
+
+| Module | Purpose |
+|---|---|
+| `api` | `BaseCase`, capability traits, tours, charts, recorder, scenario runner, CDP page/driver helpers. |
+| `artifacts` | Screenshot, page source, and log artifact paths. |
+| `behave` | Gherkin/BDD parser, step registry, and runner. |
+| `browser` | `BrowserConfig`, `BrowserSession`, driver launching, and optional Playwright session. |
+| `cli` | `sbase` command-line script implementations. |
+| `common` | Decorators, obfuscation, and shared exception types. |
+| `config` | Settings, proxy lists, and ad-block lists. |
+| `core` | Logging, reporting, download, and session helpers. |
+| `error` | `SeleniumBaseError` and the `Result<T>` alias. |
+| `js_code` | JavaScript snippets injected by CDP and WebDriver. |
+| `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |
+| `profile_payloads` | External browser profile payload parsing and conversion. |
+| `plugins` | Cloud/logging plugin interfaces. |
+| `resources` | Static assets bundled with the crate. |
+| `stealth` | Undetected-chrome options, evasions, fingerprint profiles, binary patcher, and CDP reactor. |
+| `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
+| `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
+
+## Crate-root re-exports
+
+The most common types are re-exported from the crate root for convenience:
+
+* `BaseCase`
+* `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`
+* `Selector`
+* `Fingerprint`, `StealthFlags`
+* `ChromedriverPatcher`, `EnginePatch`, `engine_spoofing_args`
+* `Chart`, `ChartType`, `TourTheme`, `Gui`
+* `run_browser_test`, `BrowserTestFuture`
+* `AssertionApi`, `BrowserApi`, `ElementApi`, `ScreenshotApi`
+* `Result<T>`, `SeleniumBaseError`
+* `import_python`, `ImportDiagnostic`, `ImportOptions`, `ImportResult`, `ImportSeverity`, `PythonSource`
+
+`#[macro_export]` macros such as `selector!`, `sb_test!`, `sb_open!`, and
+`fingerprint!` are also imported from the crate root:
+
+```rust
+use seleniumbase_rs::{selector, sb_test, sb_open, fingerprint};
+```
+
+## Capability traits
+
+The public API is factored into capability traits in `api::traits`. They are
+implemented by `BaseCase`:
+
+| Trait | Responsibility |
+|---|---|
+| `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `get_title`, `get_url`. |
+| `ElementApi` | Finding and interacting with elements: `find_element`, `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. |
+| `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
+| `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
+
+Use these traits when writing helpers that should work with any type exposing
+the same capability, or as a blueprint for adding new cross-cutting concerns.
+
+## ABI note
+
+Rust does not have a stable application binary interface. Do not pass
+`seleniumbase-rs` types across a dynamic-library boundary or assume a fixed
+memory layout. If you need to drive the crate from another language, write a
+small `extern "C"` shim that accepts C-compatible arguments and internally
+builds a `BaseCase` or calls the Rust API:
+
+```rust,ignore
+#[no_mangle]
+pub extern "C" fn sb_open_url(url: *const c_char) {
+    let url = unsafe { CStr::from_ptr(url).to_string_lossy() };
+    // spawn runtime, create BaseCase, etc.
+}
+```
+
+The default toolchain, target, and compiler version can all change the layout
+of public structs. Treat the Rust API as source-compatible only.
+
+## Versioning policy
+
+`seleniumbase-rs` follows [Semantic Versioning](https://semver.org/):
+
+* Patch releases fix bugs without changing the public API.
+* Minor releases add functionality in a backward-compatible way.
+* Major releases may break the public API.
+
+Because the crate is pre-1.0, minor releases (`0.x`) may contain breaking
+changes. Pin to an exact version or a narrow range in production.
+
+## Feature flags
+
+The crate uses Cargo features to keep heavy dependencies off by default:
+
+| Feature | Effect |
+|---|---|
+| `playwright` | Enables the `rustwright`-backed Playwright-compatible driver. |
+| `s3` | Enables AWS S3 artifact uploads. |
+| `azure` | Enables Azure Blob Storage artifact uploads. |
+| `gcp` | Placeholder for Google Cloud integrations. |
+| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
+
+When adding feature-gated code, use `#[cfg(feature = "...")]` and declare the
+dependency as `optional = true` in `Cargo.toml`.
+
+## What is not covered
+
+Internal helper modules, `#[doc(hidden)]` items, and items under
+`api::base_case_impls` are implementation details. They may change without a
+major version bump. Rely only on the public modules and re-exports listed
+above.

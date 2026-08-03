@@ -47,7 +47,7 @@ async fn create_profile(
             new.folder_id
         },
         cookies: vec![],
-        multilogin_params: new.multilogin_params,
+        external_profile: new.external_profile,
     };
     {
         let mut profiles = state.profiles.lock().await;
@@ -208,7 +208,7 @@ pub fn run() {
                     load_all(&handle, &state).await;
                     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], next_api_port()));
                     if let Err(e) = api::start_server(state.clone(), addr).await {
-                        eprintln!("Multilogin API server error: {e}");
+                        eprintln!("External profile API server error: {e}");
                     }
                 });
             });

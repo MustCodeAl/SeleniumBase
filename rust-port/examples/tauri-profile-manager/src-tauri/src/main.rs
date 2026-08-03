@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tauri_multilogin_lib::run()
+    tauri_profile_manager_lib::run()
 }

@@ -15,7 +15,7 @@ async function refreshProfiles() {
     const geo = p.latitude != null && p.longitude != null
       ? `📍 ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
       : "";
-    const mlBadge = p.multilogin_params ? `<span class="tag multilogin">multilogin</span>` : "";
+    const mlBadge = p.external_profile ? `<span class="tag external">external</span>` : "";
     li.innerHTML = `
       <div class="profile-row">
         <strong>${p.name}</strong>
@@ -270,10 +270,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  document.querySelector("#import-multilogin").addEventListener("click", async () => {
-    const raw = document.querySelector("#import-multilogin-json").value.trim();
+  document.querySelector("#import-profile").addEventListener("click", async () => {
+    const raw = document.querySelector("#import-profile-json").value.trim();
     if (!raw) {
-      setStatus("Paste a Multilogin profile JSON to import");
+      setStatus("Paste an external profile JSON to import");
       return;
     }
     const base = await apiBase();
@@ -284,11 +284,11 @@ window.addEventListener("DOMContentLoaded", async () => {
         body: raw,
       });
       const body = await res.json();
-      setStatus(`Imported Multilogin profile ${body.data.name}`);
-      document.querySelector("#import-multilogin-json").value = "";
+      setStatus(`Imported external profile ${body.data.name}`);
+      document.querySelector("#import-profile-json").value = "";
       refreshProfiles();
     } catch (e) {
-      setStatus(`Multilogin import failed: ${e}`);
+      setStatus(`External profile import failed: ${e}`);
     }
   });
 

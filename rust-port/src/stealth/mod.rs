@@ -13,3 +13,4 @@ pub mod reactor;
 pub mod uc;
 
 pub use fingerprint::{Fingerprint, StealthFlags};
+pub use patcher::{engine_spoofing_args, ChromedriverPatcher, EnginePatch};

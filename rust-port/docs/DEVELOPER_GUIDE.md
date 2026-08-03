@@ -172,13 +172,55 @@ Chrome DevTools Protocol client.
 
 Stealth logic lives under `src/stealth/`:
 
-- `StealthOptions` builds launch arguments and preferences for Chromium.
-- `dprocess` discovers and launches detached chromedriver/browser processes.
-- `reactor` runs a background CDP `Fetch` interceptor for header and response
+- `options.rs` - `StealthOptions` builds launch arguments and preferences for Chromium.
+- `patcher.rs` - `ChromedriverPatcher` edits the driver binary to remove `cdc_`
+  and `__webdriver` markers.
+- `fingerprint.rs` - `Fingerprint` and `StealthFlags` define anti-detection
+  profiles.
+- `evasions.rs` - JavaScript payloads injected via CDP or `Page.evaluate`.
+- `dprocess.rs` - discovers and launches detached chromedriver/browser processes.
+- `reactor.rs` - runs a background CDP `Fetch` interceptor for header and response
   overrides.
 
 Use these through `BaseCase::activate_cdp_mode(url)` or by setting
 `DriverMode::Uc` in `BrowserConfig`.
+
+### Adding new spoofing code
+
+1. If the change is a new JavaScript evasion, add it to `src/stealth/evasions.rs`
+   and call it from `bootstrap_script` or `launch_args` as appropriate.
+2. If it changes launch arguments, update `StealthOptions::apply_to` in
+   `src/stealth/options.rs` or add a helper such as `engine_spoofing_args()` in
+   `src/stealth/patcher.rs`.
+3. If it patches the binary, add a field to `EnginePatch` and implement the
+   patch in `src/stealth/patcher.rs`.
+4. Re-export new public types from `src/stealth/mod.rs` and `src/lib.rs`.
+5. Add a unit test that exercises the new logic without requiring a live browser.
+
+## Adding a macro
+
+Macros are defined in `src/macros.rs` and re-exported at the crate root via
+`#[macro_export]`:
+
+1. Add the macro definition in `src/macros.rs` using `$crate::` for any path.
+2. Include a short doc comment with an `ignore` example.
+3. Add a unit test in the `#[cfg(test)]` module if the macro builds a value that
+   can be asserted without a browser.
+4. Update `docs/tutorials/macros.md` with the macro name, signature, and example.
+5. Update the `list_macros` MCP tool catalog in `src/bin/mcp_server.rs`.
+
+## Adding an MCP tool
+
+The `seleniumbase-mcp` binary is built when the `mcp-server` feature is enabled:
+
+1. Add a `Tool` entry to `tools()` in `src/bin/mcp_server.rs` with a JSON schema.
+2. Handle the tool name in `call_tool` and validate required arguments.
+3. Use `self.case().await?` to obtain the lazily-created `BaseCase` for any
+   browser action.
+4. Return `CallToolResult::success(...)` or `CallToolResult::error(...)`.
+5. Add a unit test in the binary's `#[cfg(test)]` module that asserts the tool
+   appears in `tools()`.
+6. Update `README.md` and `DOCS.md` with the new tool.
 
 ## Testing guidelines
 

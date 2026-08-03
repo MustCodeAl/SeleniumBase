@@ -1,20 +1,24 @@
 # Macros
 
-`seleniumbase-rs` ships a small `macros` module that reduces boilerplate for
-the most common testing tasks.
+`seleniumbase-rs` exports a set of convenience macros from the crate root. They
+reduce boilerplate for selectors, test setup, common interactions, and
+assertions. Because the action macros expand `.await` internally, use them
+inside an `async` function or closure.
 
 ```rust
-use seleniumbase_rs::macros::{selector, sb_test, assert_visible};
+use seleniumbase_rs::{
+    assert_visible, fingerprint, sb_assert_text, sb_assert_title, sb_assert_url,
+    sb_click, sb_hover, sb_js, sb_open, sb_quit, sb_scroll_to, sb_select,
+    sb_screenshot, sb_test, sb_type, sb_wait_for, selector, uc_config,
+};
 ```
 
 ## `selector!`
 
-Builds a `Selector` at compile time. It is easier to read than nested
-constructors and works well in tables of test data.
+Builds a [`Selector`](crate::Selector) variant at compile time.
 
 ```rust
-use seleniumbase_rs::macros::selector;
-use seleniumbase_rs::Selector;
+use seleniumbase_rs::{selector, Selector};
 
 let s = selector!(css, "#submit");
 assert_eq!(s, Selector::Css("#submit"));
@@ -27,60 +31,92 @@ let s = selector!(partial_link, "Terms");
 
 ## `sb_test!`
 
-Generates a `#[tokio::test]` async function that creates a `BaseCase`, runs your
-body, and always calls `quit()` before returning. This avoids leaked browser
-processes when an assertion fails.
+Generates a `#[tokio::test]` async function that creates a [`BaseCase`](crate::BaseCase),
+runs the supplied closure, and always calls `quit()` before returning. The test
+fails if the closure returns an `Err`.
 
-```rust
-use seleniumbase_rs::macros::sb_test;
+```rust,ignore
+use seleniumbase_rs::sb_test;
 
-sb_test!(visit_example, {
+sb_test!(visit_example, seleniumbase_rs::BrowserConfig::default(), |sb| {
     sb.open("https://example.com").await?;
     sb.assert_title("Example Domain").await?;
+    Ok(())
 });
 ```
 
-The macro expands to:
+The closure receives `&mut BaseCase` and must return `Result<(), E>` where `E`
+converts into `SeleniumBaseError` (for example, via `?` on crate methods).
+
+## `uc_config!`
+
+Returns a [`BrowserConfig`](crate::BrowserConfig) with UC mode enabled.
 
 ```rust
-#[tokio::test]
-async fn visit_example() -> Result<(), Box<dyn std::error::Error>> {
-    let mut sb = seleniumbase_rs::BaseCase::new(
-        seleniumbase_rs::BrowserConfig::default()
-    ).await?;
-    let result = async {
-        sb.open("https://example.com").await?;
-        sb.assert_title("Example Domain").await?;
-        Ok::<(), Box<dyn std::error::Error>>(())
-    }.await;
-    let _ = sb.quit().await;
-    result
-}
+use seleniumbase_rs::uc_config;
+
+let config = uc_config!();
 ```
 
-You can supply a custom config by ending the first argument with a trailing
-expression:
+## `fingerprint!`
+
+Returns a built-in [`Fingerprint`](crate::Fingerprint) preset.
 
 ```rust
-sb_test!(stealth_example, seleniumbase_rs::BrowserConfig::default()
-    .with_mode(seleniumbase_rs::DriverMode::Uc), {
-    sb.open("https://example.com").await?;
+use seleniumbase_rs::fingerprint;
+
+let fp = fingerprint!(windows);
+let fp = fingerprint!(macos);
+let fp = fingerprint!(android);
+```
+
+## Action macros
+
+These macros call the corresponding [`BaseCase`](crate::BaseCase) method and
+await it. An optional trailing message is passed to `.expect(...)`.
+
+| Macro | Calls |
+|---|---|
+| `sb_open!(sb, url)` | `sb.open(url).await` |
+| `sb_click!(sb, selector)` | `sb.click(selector).await` |
+| `sb_type!(sb, selector, text)` | `sb.type_text(selector, text).await` |
+| `sb_hover!(sb, selector)` | `sb.hover(selector).await` |
+| `sb_scroll_to!(sb, selector)` | `sb.scroll_to(selector).await` |
+| `sb_wait_for!(sb, selector)` | `sb.wait_for_element_visible(selector).await` |
+| `sb_select!(sb, selector, text)` | `sb.select_option_by_text(selector, text).await` |
+| `sb_assert_text!(sb, selector, expected)` | `sb.assert_text(selector, expected).await` |
+| `sb_assert_title!(sb, expected)` | `sb.assert_title_contains(expected).await` |
+| `sb_assert_url!(sb, expected)` | `sb.assert_url_contains(expected).await` |
+| `sb_screenshot!(sb, path)` | `sb.save_screenshot_to_path(path).await` |
+| `sb_js!(sb, script)` | `sb.execute_script(script).await` |
+| `sb_quit!(sb)` | `sb.quit().await` |
+| `assert_visible!(sb, selector)` | `sb.assert_element_visible(selector).await` |
+
+```rust,ignore
+use seleniumbase_rs::{
+    assert_visible, sb_click, sb_open, sb_quit, sb_screenshot, sb_test,
+    sb_type, selector,
+};
+
+sb_test!(login_with_macros, seleniumbase_rs::BrowserConfig::default(), |sb| {
+    sb_open!(sb, "https://example.com/login");
+    sb_type!(sb, "#username", "alice");
+    sb_type!(sb, "#password", "secret");
+    sb_click!(sb, "#submit");
+    assert_visible!(sb, "#dashboard");
+    sb_screenshot!(sb, "dashboard.png");
+    sb_quit!(sb);
+    Ok(())
 });
 ```
 
-## `assert_visible!`
+## When to use macros
 
-Asserts that an element is present and visible, with a clearer panic message
-than a manual chain.
+Use macros for:
 
-```rust
-use seleniumbase_rs::macros::assert_visible;
+* Quick, linear test scripts where the shorter syntax improves readability.
+* Compile-time selectors that never change.
+* One-liner actions that would otherwise be dominated by `.await?` noise.
 
-sb_test!(homepage_has_cta, {
-    sb.open("https://example.com").await?;
-    assert_visible!(sb, selector!(css, ".cta-button"));
-});
-```
-
-The macro delegates to `BaseCase::assert_element_visible`, so it respects the
-same wait and retry semantics as the rest of the API.
+Prefer the explicit method API when you need fine-grained error handling,
+custom timeouts, or non-trivial control flow.

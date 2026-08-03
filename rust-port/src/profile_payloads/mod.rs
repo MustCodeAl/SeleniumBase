@@ -1,6 +1,6 @@
-//! Multilogin-style profile parameters for anti-detect browser automation.
+//! External browser profile profile parameters for anti-detect browser automation.
 //!
-//! This module models the JSON payload used by the Multilogin
+//! This module models the JSON payload used by external anti-detect browser profile
 //! `POST /profile/create` endpoint and provides helpers to translate those
 //! parameters into [`BrowserConfig`] and runtime [`BaseCase`] actions supported
 //! by `seleniumbase-rs`.
@@ -8,7 +8,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use seleniumbase_rs::multilogin::ProfileParams;
+//! use seleniumbase_rs::profile_payloads::ProfileParams;
 //! use serde_json::json;
 //!
 //! let params: ProfileParams = serde_json::from_value(json!({

@@ -1,12 +1,12 @@
-# Multilogin-Style Profiles
+# Browser Profiles
 
-`seleniumbase-rs` can consume the same profile-creation payload used by the
-Multilogin anti-detect platform. This is exposed through the
-`seleniumbase_rs::multilogin` module and the Tauri multi-profile example.
+`seleniumbase-rs` can import external browser profile payloads in a common
+anti-detect JSON format. The format is exposed through the
+`seleniumbase_rs::profile_payloads` module and the Tauri multi-profile example.
 
 ## Supported fields
 
-The `ProfileParams` type mirrors the Multilogin `POST /profile/create` body:
+The `ProfileParams` type mirrors a typical `POST /profile/create` body:
 
 - `name`, `browser_type` (`mimic` or `stealthfox`), `os_type`
 - `folder_id`, `tags`, `notes`, `times`
@@ -27,7 +27,7 @@ The `ProfileParams` type mirrors the Multilogin `POST /profile/create` body:
 Not every anti-detect flag has a direct WebDriver/Chrome capability. The Rust
 port applies what it can and preserves the rest as metadata:
 
-| Multilogin field | Applied via |
+| Profile field | Applied via |
 |---|---|
 | `browser_type` | `Browser::Chrome` or `Browser::Firefox` |
 | `os_type == android` | mobile emulation |
@@ -46,7 +46,7 @@ or future anti-detect injection features.
 ## Programmatic usage
 
 ```rust
-use seleniumbase_rs::multilogin::ProfileParams;
+use seleniumbase_rs::profile_payloads::ProfileParams;
 use serde_json::json;
 
 let raw = json!({
@@ -78,13 +78,11 @@ params.apply_runtime_overrides(&mut sb).await.unwrap();
 
 ## Tauri multi-profile app
 
-The `examples/tauri-multilogin` app accepts a Multilogin JSON payload in the
-**Import Multilogin profile JSON** section. It converts the payload into a local
-profile and launches it with the converted `BrowserConfig`. Profiles imported
-this way show a `multilogin` badge in the profile list.
+The `examples/tauri-profile-manager` app accepts a profile JSON payload in the
+**Import profile JSON** section. It converts the payload into a local profile
+and launches it with the converted `BrowserConfig`. Profiles imported this way
+show an `external` badge in the profile list.
 
 ## Further reading
 
-- [Multilogin fingerprint masking glossary](https://multilogin.com/glossary/fingerprint-masking/)
-- [Multilogin device spoofing glossary](https://multilogin.com/glossary/device-spoofing/)
 - [BrowserLeaks](https://browserleaks.com/)

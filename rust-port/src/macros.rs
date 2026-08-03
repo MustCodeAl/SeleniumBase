@@ -1,8 +1,9 @@
 //! Convenience macros for writing SeleniumBase Rust tests.
 //!
 //! These macros reduce boilerplate for common patterns such as constructing a
-//! selector or declaring an async browser test that creates and tears down a
-//! [`BaseCase`].
+//! selector, driving a [`BaseCase`], or building a [`Fingerprint`]. They are
+//! intended to be used inside `async` test functions (for example those created
+//! with [`sb_test!`]).
 
 /// Builds a [`Selector`](crate::Selector) variant at compile time.
 ///
@@ -57,9 +58,6 @@ macro_rules! selector {
 ///     Ok(())
 /// });
 /// ```
-///
-/// The body must return `Result<(), seleniumbase_rs::SeleniumBaseError>` so that
-/// the `?` operator works and the final result can be checked before quitting.
 #[macro_export]
 macro_rules! sb_test {
     ($name:ident, $config:expr, |$sb:ident| $body:expr) => {
@@ -75,19 +73,165 @@ macro_rules! sb_test {
     };
 }
 
-/// A short-hand macro for asserting that an element is visible.
-///
-/// # Examples
+/// Opens a URL inside an async test.
 ///
 /// ```ignore
-/// use seleniumbase_rs::assert_visible;
-///
-/// assert_visible!(sb, "#success", "success message should be visible");
+/// sb_open!(sb, "https://example.com");
 /// ```
+#[macro_export]
+macro_rules! sb_open {
+    ($sb:expr, $url:expr $(, $msg:expr)?) => {
+        $sb.open($url).await $(.expect($msg))?
+    };
+}
+
+/// Clicks an element inside an async test.
+///
+/// ```ignore
+/// sb_click!(sb, "#submit");
+/// ```
+#[macro_export]
+macro_rules! sb_click {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.click($selector).await $(.expect($msg))?
+    };
+}
+
+/// Types text into an element inside an async test.
+///
+/// ```ignore
+/// sb_type!(sb, "#username", "alice");
+/// ```
+#[macro_export]
+macro_rules! sb_type {
+    ($sb:expr, $selector:expr, $text:expr $(, $msg:expr)?) => {
+        $sb.type_text($selector, $text).await $(.expect($msg))?
+    };
+}
+
+/// Hovers over an element inside an async test.
+#[macro_export]
+macro_rules! sb_hover {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.hover($selector).await $(.expect($msg))?
+    };
+}
+
+/// Scrolls to an element inside an async test.
+#[macro_export]
+macro_rules! sb_scroll_to {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.scroll_to($selector).await $(.expect($msg))?
+    };
+}
+
+/// Waits for an element to be visible.
+#[macro_export]
+macro_rules! sb_wait_for {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {
+        $sb.wait_for_element_visible($selector).await $(.expect($msg))?
+    };
+}
+
+/// Selects an `<option>` by visible text.
+#[macro_export]
+macro_rules! sb_select {
+    ($sb:expr, $selector:expr, $text:expr $(, $msg:expr)?) => {
+        $sb.select_option_by_text($selector, $text).await $(.expect($msg))?
+    };
+}
+
+/// Asserts that an element contains the expected text.
+#[macro_export]
+macro_rules! sb_assert_text {
+    ($sb:expr, $selector:expr, $expected:expr $(, $msg:expr)?) => {
+        $sb.assert_text($selector, $expected).await $(.expect($msg))?
+    };
+}
+
+/// Asserts that the page title contains the expected text.
+#[macro_export]
+macro_rules! sb_assert_title {
+    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+        $sb.assert_title_contains($expected).await $(.expect($msg))?
+    };
+}
+
+/// Asserts that the current URL contains the expected substring.
+#[macro_export]
+macro_rules! sb_assert_url {
+    ($sb:expr, $expected:expr $(, $msg:expr)?) => {
+        $sb.assert_url_contains($expected).await $(.expect($msg))?
+    };
+}
+
+/// Takes a screenshot and saves it to the supplied path.
+#[macro_export]
+macro_rules! sb_screenshot {
+    ($sb:expr, $path:expr $(, $msg:expr)?) => {
+        $sb.save_screenshot_to_path($path).await $(.expect($msg))?
+    };
+}
+
+/// Executes JavaScript and returns the result.
+#[macro_export]
+macro_rules! sb_js {
+    ($sb:expr, $script:expr $(, $msg:expr)?) => {
+        $sb.execute_script($script).await $(.expect($msg))?
+    };
+}
+
+/// Quits the browser session.
+#[macro_export]
+macro_rules! sb_quit {
+    ($sb:expr $(, $msg:expr)?) => {
+        $sb.quit().await $(.expect($msg))?
+    };
+}
+
+/// A short-hand macro for asserting that an element is visible.
 #[macro_export]
 macro_rules! assert_visible {
     ($sb:expr, $selector:expr $(, $msg:expr)?) => {
         $sb.assert_element_visible($selector).await $(.expect($msg))?
+    };
+}
+
+/// Builds a [`Fingerprint`](crate::Fingerprint) preset.
+///
+/// # Examples
+///
+/// ```ignore
+/// use seleniumbase_rs::fingerprint;
+///
+/// let fp = fingerprint!(windows);
+/// let fp = fingerprint!(macos);
+/// let fp = fingerprint!(android);
+/// ```
+#[macro_export]
+macro_rules! fingerprint {
+    (windows) => {
+        $crate::Fingerprint::windows_desktop()
+    };
+    (macos) => {
+        $crate::Fingerprint::macos_desktop()
+    };
+    (android) => {
+        $crate::Fingerprint::android_mobile()
+    };
+}
+
+/// Builds a [`BrowserConfig`](crate::BrowserConfig) with UC mode enabled.
+///
+/// ```ignore
+/// use seleniumbase_rs::uc_config;
+///
+/// let config = uc_config!();
+/// ```
+#[macro_export]
+macro_rules! uc_config {
+    () => {
+        $crate::BrowserConfig::default().with_mode($crate::DriverMode::Uc)
     };
 }
 
@@ -124,5 +268,12 @@ mod tests {
     #[test]
     fn selector_macro_id() {
         assert_eq!(selector!(id, "user"), Selector::Id("user"));
+    }
+
+    #[test]
+    fn fingerprint_preset_macro() {
+        let fp = fingerprint!(windows);
+        assert_eq!(fp.os_type, crate::stealth::fingerprint::OsType::Windows);
+        assert!(fp.user_agent.as_ref().unwrap().contains("Windows"));
     }
 }

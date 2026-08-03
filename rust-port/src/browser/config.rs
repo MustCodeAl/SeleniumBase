@@ -41,7 +41,7 @@ pub struct BrowserConfig {
     pub threads: Option<usize>,
     pub auto_start_driver: bool,
     /// Extra Chromium/Edge command-line arguments supplied by callers such as
-    /// the Multilogin integration.
+    /// external profile payload integrations.
     #[serde(default)]
     pub extra_args: Vec<String>,
     /// Optional anti-detection fingerprint profile.

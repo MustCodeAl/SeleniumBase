@@ -849,7 +849,7 @@ impl BaseCase {
     }
 
     /// Captures a screenshot and writes it to `path`.
-    async fn save_screenshot_to_path<P: AsRef<Path>>(
+    pub async fn save_screenshot_to_path<P: AsRef<Path>>(
         &self,
         path: P,
     ) -> Result<(), SeleniumBaseError> {

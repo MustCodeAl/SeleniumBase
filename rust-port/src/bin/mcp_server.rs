@@ -19,7 +19,7 @@ use rmcp::model::{
 use rmcp::serve_server;
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::transport::io::stdio;
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{BaseCase, BrowserConfig, ChromedriverPatcher, EnginePatch, Fingerprint};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
@@ -54,6 +54,15 @@ impl SeleniumBaseMcp {
 fn make_tool(name: &str, description: &str, schema: Value) -> Tool {
     let schema = schema.as_object().cloned().unwrap_or_default();
     Tool::new(name.to_string(), description.to_string(), schema)
+}
+
+fn preset_fingerprint(preset: &str) -> Option<Fingerprint> {
+    match preset {
+        "windows" => Some(Fingerprint::windows_desktop()),
+        "macos" => Some(Fingerprint::macos_desktop()),
+        "android" => Some(Fingerprint::android_mobile()),
+        _ => None,
+    }
 }
 
 fn tools() -> Vec<Tool> {
@@ -131,6 +140,67 @@ fn tools() -> Vec<Tool> {
         make_tool(
             "quit",
             "Close the browser session",
+            json!({"type": "object"}),
+        ),
+        make_tool(
+            "screenshot",
+            "Save a screenshot of the current page",
+            json!({
+                "type": "object",
+                "properties": { "path": { "type": "string" } },
+                "required": ["path"]
+            }),
+        ),
+        make_tool(
+            "patch_chromedriver",
+            "Patch a chromedriver binary to remove automation markers",
+            json!({
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string" },
+                    "backup": { "type": "boolean" }
+                },
+                "required": ["path"]
+            }),
+        ),
+        make_tool(
+            "list_engine_spoofing_args",
+            "Return Chromium flags that reduce engine-level automation fingerprints",
+            json!({"type": "object"}),
+        ),
+        make_tool(
+            "list_fingerprint_presets",
+            "Return the names of built-in fingerprint presets",
+            json!({"type": "object"}),
+        ),
+        make_tool(
+            "build_fingerprint",
+            "Build a Fingerprint profile from a named preset",
+            json!({
+                "type": "object",
+                "properties": {
+                    "preset": { "type": "string", "enum": ["windows", "macos", "android"] },
+                    "user_agent": { "type": "string" },
+                    "screen_width": { "type": "integer" },
+                    "screen_height": { "type": "integer" }
+                },
+                "required": ["preset"]
+            }),
+        ),
+        make_tool(
+            "get_stealth_bootstrap_script",
+            "Return the JavaScript evasion bootstrap for a fingerprint preset",
+            json!({
+                "type": "object",
+                "properties": {
+                    "preset": { "type": "string", "enum": ["windows", "macos", "android"] }
+                },
+                "required": ["preset"]
+            }),
+        ),
+        make_tool(
+            "list_macros",
+            "Return the names of convenience macros exported by seleniumbase_rs",
             json!({"type": "object"}),
         ),
     ]
@@ -302,6 +372,75 @@ impl ServerHandler for SeleniumBaseMcp {
                     }
                     text("Browser session closed")
                 }
+                "screenshot" => {
+                    let path = args.get("path").and_then(|v| v.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("missing 'path' argument", None)
+                    })?;
+                    let mut guard = self.case().await?;
+                    let case = guard.as_mut().ok_or_else(|| {
+                        ErrorData::internal_error("browser session not available", None)
+                    })?;
+                    case.save_screenshot(path)
+                        .await
+                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                    text(&format!("Screenshot saved to {}", path))
+                }
+                "patch_chromedriver" => {
+                    let path = args.get("path").and_then(|v| v.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("missing 'path' argument", None)
+                    })?;
+                    let backup = args.get("backup").and_then(|v| v.as_bool()).unwrap_or(true);
+                    let mut spec = EnginePatch::all();
+                    spec.backup = backup;
+                    ChromedriverPatcher::new(path)
+                        .patch(spec)
+                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                    text(&format!("Patched chromedriver at {}", path))
+                }
+                "list_engine_spoofing_args" => {
+                    let args = seleniumbase_rs::engine_spoofing_args();
+                    text(
+                        &serde_json::to_string_pretty(&args)
+                            .map_err(|e| ErrorData::internal_error(e.to_string(), None))?,
+                    )
+                }
+                "list_fingerprint_presets" => text("windows, macos, android"),
+                "build_fingerprint" => {
+                    let preset = args.get("preset").and_then(|v| v.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("missing 'preset' argument", None)
+                    })?;
+                    let mut fp = preset_fingerprint(preset).ok_or_else(|| {
+                        ErrorData::invalid_params("preset must be windows, macos, or android", None)
+                    })?;
+                    if let Some(ua) = args.get("user_agent").and_then(|v| v.as_str()) {
+                        fp.user_agent = Some(ua.to_owned());
+                    }
+                    if let Some(w) = args.get("screen_width").and_then(|v| v.as_u64()) {
+                        fp.screen_width = Some(w as u32);
+                    }
+                    if let Some(h) = args.get("screen_height").and_then(|v| v.as_u64()) {
+                        fp.screen_height = Some(h as u32);
+                    }
+                    let value = serde_json::to_string_pretty(&fp)
+                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                    text(&value)
+                }
+                "get_stealth_bootstrap_script" => {
+                    let preset = args.get("preset").and_then(|v| v.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("missing 'preset' argument", None)
+                    })?;
+                    let fp = preset_fingerprint(preset).ok_or_else(|| {
+                        ErrorData::invalid_params("preset must be windows, macos, or android", None)
+                    })?;
+                    let script = seleniumbase_rs::stealth::evasions::bootstrap_script(&fp);
+                    text(&script)
+                }
+                "list_macros" => text(
+                    "selector!, sb_test!, sb_open!, sb_click!, sb_type!, sb_hover!, \
+                         sb_scroll_to!, sb_wait_for!, sb_select!, sb_assert_text!, \
+                         sb_assert_title!, sb_assert_url!, sb_screenshot!, sb_js!, sb_quit!, \
+                         assert_visible!, fingerprint!, uc_config!",
+                ),
                 _ => {
                     return Err(ErrorData::invalid_params(
                         format!("unknown tool: {}", request.name),

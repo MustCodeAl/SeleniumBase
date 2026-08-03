@@ -1,7 +1,7 @@
 services:
   browser-a:
     image: selenium/standalone-chrome:latest
-    container_name: multilogin-browser-a
+    container_name: profile-browser-a
     ports:
       - "4444:4444"
       - "7900:7900"
@@ -15,7 +15,7 @@ services:
 
   browser-b:
     image: selenium/standalone-chrome:latest
-    container_name: multilogin-browser-b
+    container_name: profile-browser-b
     ports:
       - "4445:4444"
       - "7901:7900"
@@ -29,7 +29,7 @@ services:
 
   browser-c:
     image: selenium/standalone-chrome:latest
-    container_name: multilogin-browser-c
+    container_name: profile-browser-c
     ports:
       - "4446:4444"
       - "7902:7900"

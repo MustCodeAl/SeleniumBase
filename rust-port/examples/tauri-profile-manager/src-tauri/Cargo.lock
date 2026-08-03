@@ -5542,25 +5542,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tauri-multilogin"
-version = "0.1.0"
-dependencies = [
- "actix-cors",
- "actix-web",
- "reqwest 0.12.28",
- "seleniumbase-rs",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-opener",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "tauri-plugin"
 version = "2.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5596,6 +5577,25 @@ dependencies = [
  "url",
  "windows 0.61.3",
  "zbus",
+]
+
+[[package]]
+name = "tauri-profile-manager"
+version = "0.1.0"
+dependencies = [
+ "actix-cors",
+ "actix-web",
+ "reqwest 0.12.28",
+ "seleniumbase-rs",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

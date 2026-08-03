@@ -52,6 +52,10 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - **Test Artifacts**: `save_screenshot_to_logs()`, `save_page_source_to_logs()`.
 - **Low-Code Runner**: JSON scenario execution with an HTML dashboard.
 - **Action Recorder**: Captures browser interactions and compiles them into a JSON scenario or a standalone Rust script.
+- **Macros**: Crate-root macros such as `sb_test!`, `sb_open!`, `sb_click!`,
+  `selector!`, `fingerprint!`, and `uc_config!` reduce test boilerplate.
+- **Binary Patching**: `ChromedriverPatcher` strips `cdc_` and `__webdriver`
+  markers from the driver binary before launch.
 - **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal with `--headless`, `--mobile`, `--proxy`, `--proxy-pac-url`, `--user-data-dir`, `--extension-dir`, `--reuse-session`, and `-n` threads.
 
 ## Documentation
@@ -72,7 +76,7 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
 - [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
-- [Multilogin-Style Profiles](./docs/tutorials/multilogin_profiles.md)
+- [Browser Profiles](./docs/tutorials/browser_profiles.md)
 - [Recorder Mode](./docs/tutorials/recorder_mode.md)
 - [GUI Automation](./docs/tutorials/gui_automation.md)
 - [MasterQA](./docs/tutorials/masterqa.md)
@@ -83,11 +87,13 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - [Test Translations](./docs/tutorials/translations.md)
 - [CLI Usage](./docs/tutorials/cli_usage.md)
 - [API Reference](./docs/tutorials/api_reference.md)
+- [Macros](./docs/tutorials/macros.md)
 - [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
 - [Settings and Configuration](./docs/tutorials/settings_and_config.md)
 - [Behave / Gherkin Support](./docs/tutorials/behave.md)
 - [Selenium IDE Migration](./docs/tutorials/selenium_ide.md)
 - [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
+- [Binary Patching](./docs/tutorials/binary_patching.md)
 
 ### Help pages
 
@@ -98,6 +104,8 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - [Playwright Mode](./docs/help/playwright_mode.md)
 - [Docker Guide](./docs/help/docker.md)
 - [HTML Inspector](./docs/help/html_inspector.md)
+- [Common Problems](./docs/help/common_problems.md)
+- [ABI & API Stability](./docs/ABI_API.md)
 
 ## Quick start
 
@@ -111,12 +119,15 @@ cargo run --bin sbase -- --uc open https://seleniumbase.io
 | Example | Command |
 |---------|---------|
 | Basic test | `cargo run --example basic_test` |
+| Basic snippets | `cargo run --example basic_snippets` |
 | Selectors | `cargo run --example selectors` |
 | Waits & assertions | `cargo run --example waits_assertions` |
 | UC stealth | `cargo run --example uc_stealth` |
 | CDP mode | `cargo run --example cdp_mode` |
 | Shadow DOM | `cargo run --example shadow_dom` |
 | Stealth options | `cargo run --example stealth_options` |
+| Engine patching | `cargo run --example engine_patching` |
+| Macros demo | `cargo run --example macros_demo` |
 | Recorder | `cargo run --bin sbase -- recorder --output my_test.rs` |
 | Screenshots & source | `cargo run --example screenshots` |
 | PDF parsing | `cargo run --example pdf_example` |
@@ -137,7 +148,7 @@ cargo run --bin sbase -- --uc open https://seleniumbase.io
 | Selenium IDE parsing | `cargo run --example selenium_ide` |
 | Browser test lifecycle | `cargo run --example browser_test_runner` |
 
-See also [`examples/tauri-multilogin`](./examples/tauri-multilogin) for a desktop multi-profile browser manager with a Multilogin-compatible REST API.
+See also [`examples/tauri-profile-manager`](./examples/tauri-profile-manager) for a desktop multi-profile browser manager with a profile-compatible REST API.
 
 The command expects a running WebDriver endpoint at `http://localhost:4444`.
 Override it with `--webdriver` when needed.
@@ -355,6 +366,13 @@ WebDriver endpoint at `http://localhost:4444`.
 | `get_text` | Read visible element text |
 | `assert_text` | Check element text |
 | `execute_script` | Execute JavaScript in the page |
+| `screenshot` | Save a screenshot of the current page |
+| `patch_chromedriver` | Patch a chromedriver binary to remove automation markers |
+| `list_engine_spoofing_args` | Return Chromium flags that reduce engine-level fingerprints |
+| `list_fingerprint_presets` | Return the names of built-in fingerprint presets |
+| `build_fingerprint` | Build a `Fingerprint` from a named preset |
+| `get_stealth_bootstrap_script` | Return the JavaScript evasion bootstrap for a preset |
+| `list_macros` | Return the names of convenience macros exported by the crate |
 | `quit` | Close the browser session |
 
 Only connect trusted MCP clients. The server can control the browser and

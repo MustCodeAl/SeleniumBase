@@ -32,8 +32,8 @@ pub mod core;
 pub mod error;
 pub mod js_code;
 pub mod macros;
-pub mod multilogin;
 pub mod plugins;
+pub mod profile_payloads;
 pub mod resources;
 pub mod stealth;
 pub mod utilities;
@@ -52,6 +52,7 @@ pub use stealth::fingerprint::{
     BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
     ProxyConfig, ProxyMaskingMode, QuicMode, StartupBehavior, StealthFlags, WebRtcPolicy,
 };
+pub use stealth::{engine_spoofing_args, ChromedriverPatcher, EnginePatch};
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
 };

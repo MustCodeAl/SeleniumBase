@@ -1,6 +1,6 @@
-# Tauri MultiLogin Clone
+# Tauri Profile Manager
 
-A desktop multi-profile browser manager built with [Tauri](https://tauri.app) and `seleniumbase-rs`. Each profile connects to a dedicated Docker browser container so sessions stay isolated, just like [Multilogin](https://multilogin.com/).
+A desktop multi-profile browser manager built with [Tauri](https://tauri.app) and `seleniumbase-rs`. Each profile connects to a dedicated Docker browser container so sessions stay isolated.
 
 ## Architecture
 
@@ -47,11 +47,11 @@ cargo tauri build
 - Per-profile fingerprint hints: user agent, locale, proxy, headless.
 - Per-profile geolocation override via CDP `Emulation.setGeolocationOverride`.
 - Tags and folders for organizing profiles.
-- A local Multilogin-compatible REST API (`http://127.0.0.1:45001/api/v1`) with CORS enabled.
+- A local profile-compatible REST API (`http://127.0.0.1:45001/api/v1`) with CORS enabled.
 - Ready for stealth/CDP/UC mode via `DriverMode` in `BrowserConfig`.
 - UI tools for cloning, exporting/importing, proxy validation, and cookie management.
 
-## Multilogin-compatible REST API
+## Profile-compatible REST API
 
 The Tauri backend starts an Actix-web server on `http://127.0.0.1:45001`. The UI uses it for tags/folders and profile tools, and external tools can call it directly.
 
@@ -99,7 +99,7 @@ curl -X POST http://127.0.0.1:45001/api/v1/profiles \
 
 ## Adding anti-detect hardening
 
-To move closer to Multilogin-grade anti-detection:
+To move closer to commercial-grade anti-detection:
 
 1. Replace `selenium/standalone-chrome` with a custom Dockerfile that patches
    `cdc_` markers and injects anti-fingerprint extensions.

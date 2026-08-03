@@ -5,10 +5,10 @@ services inspect: `navigator.webdriver`, user agent, platform, screen size,
 hardware concurrency, WebGL vendor/renderer, canvas/audio noise, time zone,
 geolocation, media devices, fonts, and more.
 
-The feature set is inspired by Multilogin, `chromiumoxide_stealth`,
-`undetected-chromedriver`, `eoka`, and `chaser-oxide`. It works in both
-WebDriver + CDP mode and in the native `rustwright` Playwright-compatible
-mode.
+The feature set is inspired by external anti-detect profile tooling,
+`chromiumoxide_stealth`, `undetected-chromedriver`, `eoka`, and `chaser-oxide`.
+It works in both WebDriver + CDP mode and in the native `rustwright`
+Playwright-compatible mode.
 
 ## Quick start
 
@@ -89,12 +89,12 @@ let session = PlaywrightSession::launch_with_fingerprint(&fp).await?;
 session.goto("https://example.com").await?;
 ```
 
-## Multilogin payloads
+## External profile payloads
 
-The `multilogin::ProfileParams` type already maps to a `Fingerprint` via
-`ProfileParams::to_fingerprint()`. `ProfileParams::to_browser_config()` now
-attaches the fingerprint to the returned `BrowserConfig`, so the spoofed
-values are applied automatically at launch.
+The `profile_payloads::ProfileParams` type maps to a `Fingerprint` via
+`ProfileParams::to_fingerprint()`. `ProfileParams::to_browser_config()` attaches
+the fingerprint to the returned `BrowserConfig`, so the spoofed values are
+applied automatically at launch.
 
 ## What is spoofed
 
@@ -113,10 +113,22 @@ values are applied automatically at launch.
 * CDP marker scrubbing (`cdc_`, `__webdriver`, `__selenium`, etc.)
 * Launch args such as `--disable-blink-features=AutomationControlled`
 
+## Complementary defenses
+
+Runtime fingerprints work best when the browser also hides engine-level
+automation markers:
+
+* Patch the `chromedriver` binary with [`ChromedriverPatcher`](crate::ChromedriverPatcher)
+  to remove injected `cdc_` and `__webdriver` signatures. See the
+  [Binary Patching tutorial](./binary_patching.md).
+* Pass extra Chromium flags returned by [`engine_spoofing_args()`](crate::engine_spoofing_args)
+  through `BrowserConfig::with_extra_args` or `StealthOptions::extra_args`.
+* Combine a `Fingerprint`, UC mode, binary patching, and engine args for the
+  strongest anti-detection profile.
+
 ## Limitations
 
 * TLS / JA3 / JA4 fingerprint spoofing is not implemented. For pure HTTP
   requests that need browser-faithful TLS, consider `wreq` + `wreq-util`.
 * The spoofed values are applied at the CDP / JavaScript layer; no Chromium
-  source or binary patching is performed except for the existing chromedriver
-  `cdc_` patcher.
+  source patching is performed.

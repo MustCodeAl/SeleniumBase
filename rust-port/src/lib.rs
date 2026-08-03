@@ -48,6 +48,10 @@ pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::session::BrowserSession;
 pub use error::{Result, SeleniumBaseError};
+pub use stealth::fingerprint::{
+    BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
+    ProxyConfig, ProxyMaskingMode, QuicMode, StartupBehavior, StealthFlags, WebRtcPolicy,
+};
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
 };

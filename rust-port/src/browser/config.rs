@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::stealth::fingerprint::Fingerprint;
+
 /// Supported browser types.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Browser {
@@ -20,7 +22,7 @@ pub enum DriverMode {
 }
 
 /// Configuration for a browser session.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BrowserConfig {
     pub webdriver_url: String,
     pub browser: Browser,
@@ -42,6 +44,9 @@ pub struct BrowserConfig {
     /// the Multilogin integration.
     #[serde(default)]
     pub extra_args: Vec<String>,
+    /// Optional anti-detection fingerprint profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<Fingerprint>,
 }
 
 impl Default for BrowserConfig {
@@ -64,6 +69,7 @@ impl Default for BrowserConfig {
             threads: None,
             auto_start_driver: true,
             extra_args: Vec::new(),
+            fingerprint: None,
         }
     }
 }

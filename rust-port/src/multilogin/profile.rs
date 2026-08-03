@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::error::SeleniumBaseError;
+use crate::stealth::fingerprint as stealth_fp;
+use crate::stealth::fingerprint::{
+    CanvasNoiseMode, Fingerprint as StealthFingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
+    ProxyMaskingMode, QuicMode, StartupBehavior, StealthFlags,
+};
 
 /// Top-level Multilogin profile payload.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -310,7 +315,168 @@ fn default_save_service_worker() -> bool {
     true
 }
 
+fn parse_masking(s: &str) -> MaskingMode {
+    match s.to_lowercase().as_str() {
+        "natural" => MaskingMode::Natural,
+        "custom" => MaskingMode::Custom,
+        "disabled" => MaskingMode::Disabled,
+        _ => MaskingMode::Mask,
+    }
+}
+
+fn parse_noise(s: &str) -> NoiseMode {
+    match s.to_lowercase().as_str() {
+        "natural" => NoiseMode::Natural,
+        _ => NoiseMode::Mask,
+    }
+}
+
+fn parse_canvas_noise(s: &str) -> CanvasNoiseMode {
+    match s.to_lowercase().as_str() {
+        "natural" => CanvasNoiseMode::Natural,
+        "disabled" => CanvasNoiseMode::Disabled,
+        _ => CanvasNoiseMode::Mask,
+    }
+}
+
+fn parse_popup(s: &str) -> PopupMode {
+    match s.to_lowercase().as_str() {
+        "allow" => PopupMode::Allow,
+        "block" => PopupMode::Block,
+        _ => PopupMode::Prompt,
+    }
+}
+
+fn parse_proxy_masking(s: &str) -> ProxyMaskingMode {
+    match s.to_lowercase().as_str() {
+        "custom" => ProxyMaskingMode::Custom,
+        _ => ProxyMaskingMode::Disabled,
+    }
+}
+
+fn parse_quic(s: &str) -> QuicMode {
+    match s.to_lowercase().as_str() {
+        "natural" => QuicMode::Natural,
+        _ => QuicMode::Disabled,
+    }
+}
+
+fn parse_startup(s: &str) -> StartupBehavior {
+    match s.to_lowercase().as_str() {
+        "custom" => StartupBehavior::Custom,
+        _ => StartupBehavior::Recover,
+    }
+}
+
+fn parse_os(s: &str) -> OsType {
+    match s.to_lowercase().as_str() {
+        "macos" => OsType::Macos,
+        "linux" => OsType::Linux,
+        "android" => OsType::Android,
+        _ => OsType::Windows,
+    }
+}
+
 impl ProfileParams {
+    /// Converts the Multilogin payload into a [`StealthFingerprint`] that can
+    /// be injected into a browser session.
+    pub fn to_fingerprint(&self) -> StealthFingerprint {
+        let mut builder = StealthFingerprint::builder()
+            .os_type(parse_os(&self.os_type))
+            .flags(StealthFlags {
+                webrtc_masking: parse_masking(&self.parameters.flags.webrtc_masking),
+                audio_masking: parse_masking(&self.parameters.flags.audio_masking),
+                graphics_noise: parse_noise(&self.parameters.flags.graphics_noise),
+                geolocation_popup: parse_popup(&self.parameters.flags.geolocation_popup),
+                navigator_masking: parse_masking(&self.parameters.flags.navigator_masking),
+                localization_masking: parse_masking(&self.parameters.flags.localization_masking),
+                timezone_masking: parse_masking(&self.parameters.flags.timezone_masking),
+                graphics_masking: parse_masking(&self.parameters.flags.graphics_masking),
+                fonts_masking: parse_masking(&self.parameters.flags.fonts_masking),
+                media_devices_masking: parse_masking(&self.parameters.flags.media_devices_masking),
+                screen_masking: parse_masking(&self.parameters.flags.screen_masking),
+                geolocation_masking: parse_masking(&self.parameters.flags.geolocation_masking),
+                ports_masking: parse_noise(&self.parameters.flags.ports_masking),
+                proxy_masking: parse_proxy_masking(&self.parameters.flags.proxy_masking),
+                quic_mode: parse_quic(&self.parameters.flags.quic_mode),
+                canvas_noise: self
+                    .parameters
+                    .flags
+                    .canvas_noise
+                    .as_deref()
+                    .map(parse_canvas_noise)
+                    .unwrap_or_default(),
+                startup_behavior: parse_startup(&self.parameters.flags.startup_behavior),
+            })
+            .local_storage(self.parameters.storage.is_local)
+            .save_service_worker(self.parameters.storage.save_service_worker)
+            .custom_start_urls(self.parameters.custom_start_urls.clone())
+            .fonts(self.parameters.fingerprint.fonts.clone());
+
+        if let Some(nav) = self.parameters.fingerprint.navigator.as_ref() {
+            builder = builder
+                .user_agent(nav.user_agent.clone())
+                .platform(nav.platform.clone())
+                .hardware_concurrency(nav.hardware_concurrency.unwrap_or(8));
+            if !nav.os_cpu.is_empty() {
+                // Kept for completeness; os_cpu is rarely exposed to page JS.
+                let _ = &nav.os_cpu;
+            }
+        }
+
+        if let Some(loc) = self.parameters.fingerprint.localization.as_ref() {
+            builder = builder
+                .locale(loc.locale.clone())
+                .languages(loc.languages.clone())
+                .accept_languages(loc.accept_languages.clone());
+        }
+
+        if let Some(tz) = self.parameters.fingerprint.timezone.as_ref() {
+            builder = builder.timezone(tz.zone.clone());
+        }
+
+        if let Some(gpu) = self.parameters.fingerprint.graphic.as_ref() {
+            builder = builder.webgl(gpu.vendor.clone(), gpu.renderer.clone());
+        }
+
+        if let Some(media) = self.parameters.fingerprint.media_devices.as_ref() {
+            builder =
+                builder.media_devices(media.audio_inputs, media.audio_outputs, media.video_inputs);
+        }
+
+        if let Some(screen) = self.parameters.fingerprint.screen.as_ref() {
+            builder = builder
+                .screen(screen.width, screen.height)
+                .pixel_ratio(screen.pixel_ratio);
+        }
+
+        if let Some(geo) = self.parameters.fingerprint.geolocation.as_ref() {
+            builder = builder
+                .geolocation(geo.latitude, geo.longitude)
+                .altitude(geo.altitude)
+                .accuracy(geo.accuracy);
+        }
+
+        if let Some(proxy) = self.parameters.proxy.as_ref() {
+            builder = builder.proxy(stealth_fp::ProxyConfig {
+                r#type: proxy.proxy_type.clone(),
+                host: proxy.host.clone(),
+                port: proxy.port,
+                username: Some(proxy.username.clone()).filter(|s| !s.is_empty()),
+                password: Some(proxy.password.clone()).filter(|s| !s.is_empty()),
+                save_traffic: proxy.save_traffic,
+            });
+        }
+
+        let mut cmd_params = std::collections::HashMap::new();
+        for p in self.parameters.fingerprint.cmd_params.params.iter() {
+            cmd_params.insert(p.flag.clone(), p.value.clone());
+        }
+        builder = builder.cmd_params(cmd_params);
+
+        builder.build()
+    }
+
     /// Translates the Multilogin payload into a `BrowserConfig` that
     /// `seleniumbase-rs` can launch.
     ///
@@ -345,6 +511,7 @@ impl ProfileParams {
                 .unwrap_or(false),
             auto_start_driver: true,
             extra_args: Vec::new(),
+            fingerprint: Some(self.to_fingerprint()),
         };
 
         for extra in self.extra_args() {

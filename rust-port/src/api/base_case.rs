@@ -79,12 +79,13 @@ impl BaseCase {
         Self::with_session(config, BrowserSession::disconnected())
     }
 
-    /// Activates the optional Playwright-backed stealth browser mode.
+    /// Activates the optional Playwright-compatible stealth browser mode.
     ///
-    /// This creates a fresh Chromium session through the [`playwright`] crate
-    /// and stores it in the test case. When this mode is active you can use
-    /// [`playwright_session`](BaseCase::playwright_session) or the helpers in
-    /// [`crate::api::playwright`] to interact with pages.
+    /// This creates a fresh Chromium session through
+    /// [`rustwright`](https://github.com/Skyvern-AI/rustwright) native Rust CDP
+    /// engine and stores it in the test case. When this mode is active you can
+    /// use [`playwright_session`](BaseCase::playwright_session) or the helpers
+    /// in [`crate::api::playwright`] to interact with pages.
     ///
     /// This method is only available when the `playwright` feature is enabled.
     #[cfg(feature = "playwright")]

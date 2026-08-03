@@ -71,6 +71,8 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - [Shadow DOM](./docs/tutorials/shadow_dom.md)
 - [CDP Mode](./docs/tutorials/cdp_mode.md)
 - [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
+- [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
+- [Multilogin-Style Profiles](./docs/tutorials/multilogin_profiles.md)
 - [Recorder Mode](./docs/tutorials/recorder_mode.md)
 - [GUI Automation](./docs/tutorials/gui_automation.md)
 - [MasterQA](./docs/tutorials/masterqa.md)
@@ -306,18 +308,17 @@ See [`examples/cloud_upload.rs`](./examples/cloud_upload.rs) for the full snippe
 
 ### Playwright mode (optional feature)
 
-Playwright-backed stealth mode is available behind the `playwright` feature. It
-uses the [`playwright-rs`](https://github.com/padamson/playwright-rust) crate,
-which downloads the Playwright driver during its build script. Make sure the
-build host can reach the Playwright CDN, or pre-install the driver with
-`npx playwright install`. The feature is disabled by default so the main build
-does not require the driver:
+Playwright-compatible stealth mode is available behind the `playwright` feature.
+It uses [`rustwright`](https://github.com/Skyvern-AI/rustwright)
+native Rust CDP engine, so it does **not** require a Node Playwright driver.
+`rustwright` discovers or downloads a Chromium build on first launch. The
+feature is disabled by default so the main build does not pull the engine:
 
 ```bash
 cargo run --example playwright_mode --features playwright
 ```
 
-If the driver download fails, use the default CDP or UC modes instead.
+If Chromium download fails, use the default CDP or UC modes instead.
 
 ### MCP server (optional feature)
 

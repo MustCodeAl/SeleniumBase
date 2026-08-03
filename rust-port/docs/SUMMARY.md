@@ -14,6 +14,7 @@
 - [Stealth and Browser Modes](tutorials/uc_mode.md)
   - [CDP Mode](tutorials/cdp_mode.md)
   - [Playwright Mode](help/playwright_mode.md)
+  - [Fingerprint & Stealth Profiles](tutorials/fingerprint_stealth.md)
 - [Shadow DOM](tutorials/shadow_dom.md)
 - [Recorder Mode](tutorials/recorder_mode.md)
 - [Selenium IDE Migration](tutorials/selenium_ide.md)

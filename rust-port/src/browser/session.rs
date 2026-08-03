@@ -671,6 +671,7 @@ impl BrowserSession {
                 }
             }
         }
+        self.apply_fingerprint(config).await?;
         // Also patch the current document for pages already loaded.
         let _ = self
             .driver()
@@ -679,6 +680,30 @@ impl BrowserSession {
                 Vec::new(),
             )
             .await?;
+        Ok(())
+    }
+
+    /// Applies an optional [`Fingerprint`] to the active session.
+    ///
+    /// When CDP is available the bootstrap script is registered via
+    /// `Page.addScriptToEvaluateOnNewDocument` and CDP overrides (screen size,
+    /// geolocation, timezone, UA) are issued. Otherwise the script is executed
+    /// directly in the current page as a fallback.
+    pub async fn apply_fingerprint(&self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
+        let Some(fp) = config.fingerprint.as_ref() else {
+            return Ok(());
+        };
+
+        let script = crate::stealth::evasions::bootstrap_script(fp);
+
+        if let Ok(cdp) = self.cdp_client() {
+            cdp.add_init_script(&script).await?;
+            for (method, params) in crate::stealth::evasions::cdp_overrides(fp) {
+                cdp.execute_with_params(&method, params).await.ok();
+            }
+        } else {
+            let _ = self.driver().execute(&script, Vec::new()).await?;
+        }
         Ok(())
     }
 
@@ -726,6 +751,9 @@ impl BrowserSession {
         }
         if config.is_uc_enabled() {
             self.enable_uc_mode(config).await?;
+        } else if config.is_cdp_enabled() {
+            // CDP-only mode still benefits from fingerprint spoofing.
+            self.apply_fingerprint(config).await?;
         }
         Ok(())
     }

@@ -49,13 +49,14 @@ pdf-extract = "0.8"
 scraper = "0.23"
 rfd = "0.15"
 toml = "0.8"
-tempfile = "3.27.0"
+tempfile = "3.8"
 which = "7.0"
 async-trait = "0.1"
-# Optional Playwright integration via the actively-maintained `playwright-rs`
-# bindings. Disabled by default because it downloads the Playwright driver
-# during the build; enable only when the driver can be fetched/installed.
-playwright-rs = { version = "0.14.1", optional = true }
+# Optional native Rust CDP engine via rustwright. This replaces the previous
+# `playwright-rs` Node-driver integration with a pure-Rust Playwright-compatible
+# CDP implementation fetched from GitHub. Disabled by default because it pulls a
+# large Chromium automation core and pins a Chromium download.
+rustwright = { git = "https://github.com/Skyvern-AI/rustwright", optional = true }
 rust-s3 = { version = "0.37", features = ["tokio-native-tls"], optional = true }
 azure_storage_blob = { version = "1.0", optional = true }
 azure_core = { version = "1.0", optional = true }
@@ -63,7 +64,8 @@ rmcp = { version = "2.2", default-features = false, features = ["server", "trans
 
 [features]
 default = []
-playwright = ["dep:playwright-rs"]
+# Playwright-compatible automation mode powered by rustwright.
+playwright = ["dep:rustwright"]
 s3 = ["dep:rust-s3"]
 azure = ["dep:azure_storage_blob", "dep:azure_core"]
 gcp = []

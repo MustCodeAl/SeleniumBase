@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use crate::browser::config::BrowserConfig;
 use crate::error::SeleniumBaseError;
+use crate::stealth::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 
 /// Collection of browser launch options that reduce automation fingerprints.
@@ -20,6 +21,8 @@ pub struct StealthOptions {
     pub mobile: bool,
     pub ad_block: bool,
     pub uc: bool,
+    /// Optional anti-detection fingerprint profile.
+    pub fingerprint: Option<Fingerprint>,
     /// Headers supplied to the CDP network reactor when intercepting requests.
     pub extra_headers: HashMap<String, String>,
     /// Extra Chromium/Edge command-line arguments supplied by integrations.
@@ -40,6 +43,7 @@ impl From<&BrowserConfig> for StealthOptions {
             mobile: config.mobile,
             ad_block: config.ad_block,
             uc: config.is_uc_enabled(),
+            fingerprint: config.fingerprint.clone(),
             extra_headers: HashMap::new(),
             extra_args: config.extra_args.clone(),
         }
@@ -102,6 +106,12 @@ impl StealthOptions {
 
         if self.uc {
             apply_undetected_args(caps)?;
+        }
+
+        if let Some(fp) = self.fingerprint.as_ref() {
+            for arg in crate::stealth::evasions::launch_args(fp) {
+                caps.add_arg(&arg)?;
+            }
         }
 
         for arg in &self.extra_args {

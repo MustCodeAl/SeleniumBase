@@ -1,8 +1,10 @@
-//! High-level helpers for the optional Playwright-backed automation mode.
+//! High-level helpers for the optional Playwright-compatible automation mode.
 //!
 //! These helpers are thin wrappers around [`crate::browser::playwright::PlaywrightSession`]
 //! and are intended to be called from [`crate::BaseCase`] when
-//! `activate_playwright_mode` has been used.
+//! `activate_playwright_mode` has been used. The session is powered by the
+//! [`rustwright`](https://github.com/Skyvern-AI/rustwright) native Rust
+//! CDP engine rather than the Node Playwright driver.
 
 use std::path::Path;
 

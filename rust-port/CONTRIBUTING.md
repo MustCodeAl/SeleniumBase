@@ -48,10 +48,14 @@ rust-port/
 │   │   └── ...
 │   ├── browser/               # BrowserConfig, session startup, capabilities
 │   ├── stealth/               # Anti-detection layer
-│   │   ├── fingerprint.rs     # Fingerprint / StealthFlags structs
+│   │   ├── fingerprint.rs     # Fingerprint / StealthFlags structs + coherence validation
+│   │   ├── humanize.rs        # Bézier mouse paths + keystroke timing
 │   │   ├── patcher.rs         # Chromedriver binary patching
-│   │   ├── providers/         # Evasion providers (NEW — extensible)
+│   │   ├── providers/         # Evasion provider plugin architecture
+│   │   │   ├── mod.rs         # EvasionProvider trait + EvasionRegistry
+│   │   │   └── builtin.rs     # 25 built-in anti-detection providers
 │   │   └── ...
+│   ├── profile_payloads/      # External anti-detect profile JSON parsing
 │   ├── macros.rs              # Public macros
 │   ├── bin/mcp_server.rs      # SeleniumBase MCP server
 │   ├── cli/                   # sbase command-line tool
@@ -72,54 +76,66 @@ rust-port/
 - Use `tracing` for logs instead of `println!` in library code.
 - Avoid unsafe code unless absolutely necessary and clearly documented.
 - Keep functions small and focused. If a `BaseCase` helper grows beyond ~50 lines, consider adding it to the appropriate `base_case_impls` module.
+- Do not reference third-party anti-detect product names. Use generic terms like "anti-detect profile" or "external profile payload".
 
 ## Adding a Stealth Evasion Provider
 
-The stealth layer is built around a provider registry so new evasions can be added without touching the core `Fingerprint` generator.
+The stealth layer is built around a provider registry so new evasions can be added without touching the core `Fingerprint` generator. `evasions::bootstrap_script(fp)` is a thin wrapper over the registry.
 
-1. Create a new module under `src/stealth/providers/`, e.g. `my_evasion.rs`.
-2. Implement the `EvasionProvider` trait:
+1. Open `src/stealth/providers/builtin.rs` and implement the `EvasionProvider` trait:
 
 ```rust
 use seleniumbase_rs::stealth::providers::{EvasionContext, EvasionProvider};
+use seleniumbase_rs::stealth::fingerprint::masked;
 
-pub struct MyEvasion;
+pub struct MyEvasionProvider;
 
-impl EvasionProvider for MyEvasion {
-    fn name(&self) -> &'static str {
-        "my-evasion"
+impl EvasionProvider for MyEvasionProvider {
+    fn name(&self) -> &str {
+        "my_evasion" // stable, unique, snake_case
     }
 
     fn priority(&self) -> i32 {
+        // Lower runs earlier. native_toString is 5; navigator props ~30;
+        // late/self-defense providers are 110+.
         100
     }
 
-    fn applies(&self, ctx: &EvasionContext) -> bool {
-        ctx.fingerprint.flags.my_evasion_enabled
+    fn applies(&self, fp: &crate::stealth::fingerprint::Fingerprint) -> bool {
+        // Gate on a StealthFlags field so users can opt out.
+        masked(fp.flags.navigator_masking)
     }
 
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
-        Some(format!(
-            r#"Object.defineProperty(navigator, 'myProp', {{ get: () => {} }});"#,
-            ctx.fingerprint.my_prop
-        ))
+        // Build a self-contained snippet. Escape user-controlled strings
+        // with EvasionContext::escape before interpolation.
+        let value = EvasionContext::escape(
+            ctx.fingerprint.vendor.as_deref().unwrap_or("Example"),
+        );
+        Some(format!("(function() {{ /* use '{value}' */ }})();"))
     }
 }
 ```
 
-3. Register it in the default registry. If the registry lives in `src/stealth/providers/registry.rs`:
+2. Register it in `all()` at the bottom of `builtin.rs` (keep the list sorted by priority for readability).
 
-```rust
-pub fn default_providers() -> Vec<Box<dyn EvasionProvider>> {
-    vec![
-        // ... existing providers ...
-        Box::new(my_evasion::MyEvasion),
-    ]
-}
+3. Wrap replaced natives so `Function.prototype.toString` still reports `[native code]`:
+
+```js
+obj.method = (window.__sbNative || function(f){return f;})(patched, 'method');
 ```
 
-4. Add a unit test in your new module verifying the generated script contains the expected snippet.
-5. Update `docs/tutorials/fingerprint_stealth.md` to document the new provider.
+The `native_to_string` provider (priority 5) installs `window.__sbNative` before any other provider runs.
+
+4. Use `ctx.seed` for anything that must be deterministic per session (e.g. canvas/audio noise). `ctx.seed` comes from `Fingerprint::seed_value()`.
+
+5. Add a unit test in the `builtin` test module asserting the snippet contains the expected markers and that `applies` is correctly gated.
+
+6. Update `docs/tutorials/fingerprint_stealth.md` to document the new provider.
+
+### Adding a new masking flag
+
+If your provider needs its own toggle, add a field to `StealthFlags` in `fingerprint.rs`. Annotate it `#[serde(default)]`, set it in `balanced()` and `all_custom()`, and document it in the stealth tutorial's flag table.
 
 ## Adding a Macro
 

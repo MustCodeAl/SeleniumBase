@@ -674,9 +674,9 @@ impl Fingerprint {
 
         // Timezone present but no geolocation (soft).
         if self.timezone.is_some() && self.latitude.is_none() {
-            report.warnings.push(
-                "timezone set without geolocation; consider matching coordinates".to_owned(),
-            );
+            report
+                .warnings
+                .push("timezone set without geolocation; consider matching coordinates".to_owned());
         }
 
         // Screen sanity.
@@ -1006,5 +1006,51 @@ mod tests {
             save_traffic: false,
         };
         assert_eq!(proxy.to_url(), "http://u:p@proxy.example.com:8080");
+    }
+
+    #[test]
+    fn presets_are_coherent() {
+        for fp in [
+            Fingerprint::windows_desktop(),
+            Fingerprint::macos_desktop(),
+            Fingerprint::android_mobile(),
+        ] {
+            let report = fp.validate();
+            assert!(report.is_coherent(), "preset errors: {:?}", report.errors);
+        }
+    }
+
+    #[test]
+    fn mismatched_platform_and_ua_is_incoherent() {
+        // macOS user-agent with a Windows platform string is a classic tell.
+        let fp = Fingerprint::builder()
+            .os_type(OsType::Macos)
+            .user_agent(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
+                 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            )
+            .platform("Win32")
+            .build();
+        let report = fp.validate();
+        assert!(!report.is_coherent());
+        assert!(report.errors.iter().any(|e| e.contains("platform")));
+    }
+
+    #[test]
+    fn seed_is_deterministic_from_user_agent() {
+        let fp = Fingerprint::windows_desktop();
+        assert_eq!(fp.seed_value(), fp.seed_value());
+        let explicit = Fingerprint::builder().seed(1234).build();
+        assert_eq!(explicit.seed_value(), 1234);
+    }
+
+    #[test]
+    fn tracker_hosts_fall_back_to_defaults() {
+        let fp = Fingerprint::windows_desktop();
+        assert!(!fp.tracker_hosts().is_empty());
+        let custom = Fingerprint::builder()
+            .blocked_trackers(vec!["example-metrics.test".to_owned()])
+            .build();
+        assert_eq!(custom.tracker_hosts(), vec!["example-metrics.test"]);
     }
 }

@@ -23,7 +23,7 @@ The crate root exposes the following modules:
 | `profile_payloads` | External browser profile payload parsing and conversion. |
 | `plugins` | Cloud/logging plugin interfaces. |
 | `resources` | Static assets bundled with the crate. |
-| `stealth` | Undetected-chrome options, evasions, fingerprint profiles, binary patcher, and CDP reactor. |
+| `stealth` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
 
@@ -35,6 +35,8 @@ The most common types are re-exported from the crate root for convenience:
 * `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`
 * `Selector`
 * `Fingerprint`, `StealthFlags`
+* `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport`
+* `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry`
 * `ChromedriverPatcher`, `EnginePatch`, `engine_spoofing_args`
 * `Chart`, `ChartType`, `TourTheme`, `Gui`
 * `run_browser_test`, `BrowserTestFuture`

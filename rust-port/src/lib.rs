@@ -49,8 +49,13 @@ pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::session::BrowserSession;
 pub use error::{Result, SeleniumBaseError};
 pub use stealth::fingerprint::{
-    BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
-    ProxyConfig, ProxyMaskingMode, QuicMode, StartupBehavior, StealthFlags, WebRtcPolicy,
+    BatteryProfile, BrandVersion, BrowserType, CanvasNoiseMode, ClientHints, CoherenceReport,
+    ConnectionProfile, Fingerprint, HumanizeConfig, MaskingMode, NoiseMode, OsType, PopupMode,
+    ProxyConfig, ProxyMaskingMode, QuicMode, SpeechVoice, StartupBehavior, StealthFlags,
+    WebRtcPolicy,
+};
+pub use stealth::providers::{
+    default_registry, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
 };
 pub use stealth::{engine_spoofing_args, ChromedriverPatcher, EnginePatch};
 pub use utilities::python_importer::{

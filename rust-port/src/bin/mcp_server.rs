@@ -199,6 +199,35 @@ fn tools() -> Vec<Tool> {
             }),
         ),
         make_tool(
+            "list_evasion_providers",
+            "List the built-in stealth evasion providers in application order",
+            json!({"type": "object"}),
+        ),
+        make_tool(
+            "build_stealth_bootstrap",
+            "Assemble the combined stealth bootstrap script for a fingerprint preset \
+             using the evasion provider registry",
+            json!({
+                "type": "object",
+                "properties": {
+                    "preset": { "type": "string", "enum": ["windows", "macos", "android"] }
+                },
+                "required": ["preset"]
+            }),
+        ),
+        make_tool(
+            "validate_fingerprint",
+            "Run profile coherence validation on a fingerprint preset and report \
+             errors and warnings",
+            json!({
+                "type": "object",
+                "properties": {
+                    "preset": { "type": "string", "enum": ["windows", "macos", "android"] }
+                },
+                "required": ["preset"]
+            }),
+        ),
+        make_tool(
             "list_macros",
             "Return the names of convenience macros exported by seleniumbase_rs",
             json!({"type": "object"}),
@@ -435,6 +464,42 @@ impl ServerHandler for SeleniumBaseMcp {
                     let script = seleniumbase_rs::stealth::evasions::bootstrap_script(&fp);
                     text(&script)
                 }
+                "list_evasion_providers" => {
+                    let names = seleniumbase_rs::default_registry().provider_names();
+                    text(
+                        &serde_json::to_string_pretty(&names)
+                            .map_err(|e| ErrorData::internal_error(e.to_string(), None))?,
+                    )
+                }
+                "build_stealth_bootstrap" => {
+                    let preset = args.get("preset").and_then(|v| v.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("missing 'preset' argument", None)
+                    })?;
+                    let fp = preset_fingerprint(preset).ok_or_else(|| {
+                        ErrorData::invalid_params("preset must be windows, macos, or android", None)
+                    })?;
+                    let ctx = seleniumbase_rs::EvasionContext::new(&fp);
+                    let script = seleniumbase_rs::default_registry().bootstrap(&ctx);
+                    text(&script)
+                }
+                "validate_fingerprint" => {
+                    let preset = args.get("preset").and_then(|v| v.as_str()).ok_or_else(|| {
+                        ErrorData::invalid_params("missing 'preset' argument", None)
+                    })?;
+                    let fp = preset_fingerprint(preset).ok_or_else(|| {
+                        ErrorData::invalid_params("preset must be windows, macos, or android", None)
+                    })?;
+                    let report = fp.validate();
+                    let value = json!({
+                        "coherent": report.is_coherent(),
+                        "errors": report.errors,
+                        "warnings": report.warnings,
+                    });
+                    text(
+                        &serde_json::to_string_pretty(&value)
+                            .map_err(|e| ErrorData::internal_error(e.to_string(), None))?,
+                    )
+                }
                 "list_macros" => text(
                     "selector!, sb_test!, sb_open!, sb_click!, sb_type!, sb_hover!, \
                          sb_scroll_to!, sb_wait_for!, sb_select!, sb_assert_text!, \
@@ -474,5 +539,18 @@ mod tests {
     #[test]
     fn tool_catalog_includes_open_url() {
         assert!(tools().iter().any(|tool| tool.name == "open_url"));
+    }
+
+    #[test]
+    fn tool_catalog_includes_stealth_tools() {
+        let catalog = tools();
+        let names: Vec<&str> = catalog.iter().map(|t| t.name.as_ref()).collect();
+        for expected in [
+            "list_evasion_providers",
+            "build_stealth_bootstrap",
+            "validate_fingerprint",
+        ] {
+            assert!(names.contains(&expected), "missing tool {expected}");
+        }
     }
 }

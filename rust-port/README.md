@@ -135,6 +135,7 @@ cargo run --bin sbase -- --uc open https://seleniumbase.io
 | Selenium IDE parsing | `cargo run --example selenium_ide` |
 | Browser test lifecycle | `cargo run --example browser_test_runner` |
 
+See also [`examples/tauri-multilogin`](./examples/tauri-multilogin) for a desktop multi-profile browser manager with a Multilogin-compatible REST API.
 
 The command expects a running WebDriver endpoint at `http://localhost:4444`.
 Override it with `--webdriver` when needed.

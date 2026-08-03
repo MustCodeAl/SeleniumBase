@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MultiLogin Clone</title>
+    <script type="module" src="/main.js" defer></script>
+  </head>
+
+  <body>
+    <main class="container">
+      <h1>🧤 MultiLogin Clone</h1>
+      <p>Isolated browser profiles backed by Docker + seleniumbase-rs.</p>
+      <p id="api-base" class="muted"></p>
+
+      <section class="card">
+        <h2>Create profile</h2>
+        <form id="profile-form" class="stack">
+          <input id="profile-name" placeholder="Profile name" required />
+          <input id="container-url" placeholder="WebDriver URL (e.g. http://localhost:4444)" required />
+          <input id="user-agent" placeholder="User agent (optional)" />
+          <input id="proxy" placeholder="Proxy (optional)" />
+          <input id="locale" placeholder="Locale (optional, e.g. en-US)" />
+          <div class="row-inputs">
+            <input id="latitude" type="number" step="any" placeholder="Latitude (optional)" />
+            <input id="longitude" type="number" step="any" placeholder="Longitude (optional)" />
+            <input id="accuracy" type="number" step="any" placeholder="Accuracy m (optional)" />
+          </div>
+          <label><input id="headless" type="checkbox" /> Headless</label>
+          <button type="submit">Create profile</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Profiles</h2>
+        <ul id="profile-list"></ul>
+        <button id="refresh-profiles">Refresh</button>
+      </section>
+
+      <section class="card">
+        <h2>Active sessions</h2>
+        <ul id="session-list"></ul>
+        <button id="refresh-sessions">Refresh</button>
+      </section>
+
+      <section class="card">
+        <h2>Tags & Folders</h2>
+        <div class="row-inputs">
+          <input id="new-tag" placeholder="New tag name" />
+          <input id="new-folder" placeholder="New folder name" />
+        </div>
+        <div class="actions">
+          <button id="add-tag">Add tag</button>
+          <button id="add-folder">Add folder</button>
+          <button id="refresh-tags">Refresh</button>
+        </div>
+        <h3>Tags</h3>
+        <ul id="tag-list"></ul>
+        <h3>Folders</h3>
+        <ul id="folder-list"></ul>
+      </section>
+
+      <p id="status"></p>
+    </main>
+  </body>
+</html>

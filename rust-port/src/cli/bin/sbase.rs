@@ -45,43 +45,67 @@ impl From<BrowserArg> for Browser {
 #[derive(Debug, Parser)]
 #[command(name = "sbase", version, about = "SeleniumBase Rust CLI")]
 struct Cli {
-    #[arg(long, default_value = "http://localhost:4444")]
+    #[arg(
+        long,
+        default_value = "http://localhost:4444",
+        help = "WebDriver server URL (e.g. http://localhost:4444)"
+    )]
     webdriver: String,
-    #[arg(long, value_enum, default_value_t = BrowserArg::Chrome)]
+    #[arg(long, value_enum, default_value_t = BrowserArg::Chrome, help = "Browser engine to launch")]
     browser: BrowserArg,
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = false, help = "Run the browser in headed mode")]
     headed: bool,
-    #[arg(long, default_value_t = false)]
+    #[arg(
+        long,
+        default_value_t = false,
+        help = "Run the browser in headless mode"
+    )]
     headless: bool,
-    #[arg(long, default_value_t = false)]
+    #[arg(
+        long,
+        default_value_t = false,
+        help = "Enable Chrome DevTools Protocol mode"
+    )]
     cdp: bool,
-    #[arg(long, default_value_t = false)]
+    #[arg(
+        long,
+        default_value_t = false,
+        help = "Enable undetected-chromedriver style evasions"
+    )]
     uc: bool,
-    #[arg(long)]
+    #[arg(long, help = "Override the default user agent string")]
     user_agent: Option<String>,
-    #[arg(short = 'a', long)]
+    #[arg(short = 'a', long, help = "Alias for --user-agent")]
     agent: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Locale string for the browser context")]
     locale: Option<String>,
-    #[arg(long, default_value_t = false)]
+    #[arg(
+        long,
+        default_value_t = false,
+        help = "Enable the built-in ad-block extension"
+    )]
     ad_block: bool,
-    #[arg(long)]
+    #[arg(long, help = "Proxy URL (scheme://host:port)")]
     proxy: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "URL to a proxy auto-config (PAC) file")]
     proxy_pac_url: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Path to a persistent browser user-data directory")]
     user_data_dir: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Path to an unpacked extension directory")]
     extension_dir: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Reuse an existing browser session when possible")]
     reuse_session: bool,
-    #[arg(long)]
+    #[arg(long, help = "Record the session actions")]
     rs: bool,
-    #[arg(long, default_value_t = false)]
+    #[arg(
+        long,
+        default_value_t = false,
+        help = "Use a mobile device emulation profile"
+    )]
     mobile: bool,
-    #[arg(short = 'n', long)]
+    #[arg(short = 'n', long, help = "Number of parallel threads for test runs")]
     threads: Option<usize>,
-    #[arg(short = 'c', long)]
+    #[arg(short = 'c', long, help = "Path to a TOML/JSON settings file")]
     config: Option<String>,
     #[command(subcommand)]
     command: Commands,
@@ -90,18 +114,22 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Commands {
     /// Open a URL in the browser.
-    Open { url: String },
+    Open {
+        /// URL to open in the browser.
+        url: String,
+    },
     /// Run a smoke test against a URL.
     Smoke {
+        #[arg(help = "URL to open or smoke-test")]
         url: String,
-        #[arg(long)]
+        #[arg(long, help = "Expected substring in the page title")]
         title_contains: Option<String>,
     },
     /// Execute a Chrome DevTools Protocol command.
     Cdp {
-        #[arg(long)]
+        #[arg(long, help = "CDP method name (e.g. Runtime.evaluate)")]
         cmd: String,
-        #[arg(long)]
+        #[arg(long, help = "JSON object of CDP parameters")]
         params: Option<String>,
     },
     /// Clear the browser cache via CDP.
@@ -110,64 +138,64 @@ enum Commands {
     Throttle3g,
     /// Capture a screenshot of the current page.
     Screenshot {
-        #[arg(long)]
+        #[arg(long, help = "Output file or binary path")]
         path: Option<String>,
     },
     /// Save the current page source to a file.
     SaveSource {
-        #[arg(long)]
+        #[arg(long, help = "Output file or binary path")]
         path: Option<String>,
     },
     /// Assert that an element exists.
     AssertElement {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait until an element contains the expected text.
     WaitForText {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Hover over an element.
     Hover {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Hover over one element, then click another.
     HoverAndClick {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector to hover over")]
         hover_css: String,
-        #[arg(long)]
+        #[arg(long, help = "CSS selector to click")]
         click_css: String,
     },
     /// Select an option from a dropdown.
     SelectOption {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: Option<String>,
-        #[arg(long)]
+        #[arg(long, help = "Option value or expected attribute value")]
         value: Option<String>,
     },
     /// Drag one element onto another.
     DragAndDrop {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector of the element to drag")]
         source_css: String,
-        #[arg(long)]
+        #[arg(long, help = "CSS selector of the drop target")]
         target_css: String,
     },
     /// Click an element using CDP.
     CdpClickElement {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Type text using CDP input injection.
     CdpTypeText {
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
 
@@ -180,21 +208,21 @@ enum Commands {
 
     /// Print the visible text of an element.
     GetText {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print an element attribute value.
     GetAttribute {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Attribute name to read or assert")]
         attribute: String,
     },
     /// Print an element property value.
     GetProperty {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Property name to read")]
         property: String,
     },
 
@@ -214,36 +242,36 @@ enum Commands {
     GetAlertText,
     /// Type text into the active alert prompt.
     TypeAlertText {
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Clear the page local storage.
     ClearLocalStorage,
     /// Print a local storage value by key.
     GetLocalStorageItem {
-        #[arg(long)]
+        #[arg(long, help = "Storage key")]
         key: String,
     },
     /// Set a local storage key/value pair.
     SetLocalStorageItem {
-        #[arg(long)]
+        #[arg(long, help = "Storage key")]
         key: String,
-        #[arg(long)]
+        #[arg(long, help = "Option value or expected attribute value")]
         value: String,
     },
     /// Remove a local storage entry by key.
     RemoveLocalStorageItem {
-        #[arg(long)]
+        #[arg(long, help = "Storage key")]
         key: String,
     },
     /// Switch focus to a window by handle.
     SwitchToWindow {
-        #[arg(long)]
+        #[arg(long, help = "Window handle to switch to")]
         handle: String,
     },
     /// Switch focus to an iframe.
     SwitchToFrame {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Switch focus back to the main document.
@@ -255,45 +283,45 @@ enum Commands {
     ExportRecording,
     /// Patch a chromedriver binary to reduce detection surface.
     PatchChromedriver {
-        #[arg(long)]
+        #[arg(long, help = "Output file or binary path")]
         path: String,
     },
     /// Patch a Chrome/Chromium binary for native-level spoofing.
     PatchChrome {
-        #[arg(long)]
+        #[arg(long, help = "Output file or binary path")]
         path: String,
         /// Directory where the patched copy is cached.
-        #[arg(long)]
+        #[arg(long, help = "Directory where patched binaries are cached")]
         cache_dir: Option<String>,
     },
     /// Run a diagnostic check on the environment and configuration.
     Doctor,
     /// Assert that an element contains the expected text.
     AssertTextVisible {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Assert that an element does not contain the given text.
     AssertTextNotVisible {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Assert an element attribute equals an expected value.
     AssertAttribute {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Attribute name to read or assert")]
         attribute: String,
-        #[arg(long)]
+        #[arg(long, help = "Option value or expected attribute value")]
         value: String,
     },
     /// Assert the page title contains the expected text.
     AssertTitle {
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Wait until the document readyState is complete.
@@ -302,9 +330,9 @@ enum Commands {
     GetWindowPosition,
     /// Set the browser window position.
     SetWindowPosition {
-        #[arg(long)]
+        #[arg(long, help = "Window X coordinate in pixels")]
         x: u32,
-        #[arg(long)]
+        #[arg(long, help = "Window Y coordinate in pixels")]
         y: u32,
     },
     /// Close the current browser window.
@@ -313,51 +341,53 @@ enum Commands {
     SwitchToParentFrame,
     /// Print whether an element is visible.
     IsElementVisible {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether the expected text is visible in an element.
     IsTextVisible {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Wait until an element is no longer visible.
     WaitForElementNotVisible {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Save browser cookies to a JSON file.
     SaveCookies {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
     },
     /// Load browser cookies from a JSON file.
     LoadCookies {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
     },
     /// Highlight an element, then click it.
     HighlightClick {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Print whether a checkbox is checked.
     IsChecked {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Check a checkbox only if it is unchecked.
     CheckIfUnchecked {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Uncheck a checkbox only if it is checked.
     UncheckIfChecked {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Open a new browser window.
@@ -372,104 +402,105 @@ enum Commands {
     GetActiveElementCss,
     /// Wait until an element is present in the DOM.
     WaitForElementPresent {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Append text to an input or textarea.
     AddText {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Send keystrokes to an element.
     SendKeys {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Print the value of a form element.
     GetValue {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Click all visible elements matching a selector.
     ClickVisibleElements {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Wait for an alert, then accept it.
     WaitForAndAcceptAlert {
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Wait for an alert, then dismiss it.
     WaitForAndDismissAlert {
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
         timeout: u64,
     },
     /// Print whether a link with the given text is visible.
     IsLinkTextVisible {
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Print whether a link containing the given text is visible.
     IsPartialLinkTextVisible {
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Assert a link with the given text is visible.
     AssertLinkText {
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Click a link containing the given text.
     ClickPartialLinkText {
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Type text with human-like timing and noise.
     HumanType {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Click an element with human-like timing and noise.
     HumanClick {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Smoothly scroll an element into view.
     SmoothScrollTo {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform a UC-mode click on an element.
     UcClick {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
     },
     /// Perform UC-mode typing into an element.
     UcType {
-        #[arg(long)]
+        #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long)]
+        #[arg(long, help = "Text to type, assert, or match")]
         text: String,
     },
     /// Install required dependencies and artifacts.
     Install,
     /// Create a directory.
     Mkdir {
-        #[arg(long)]
+        #[arg(long, help = "Directory to create")]
         dir: String,
     },
     /// Create a file.
     Mkfile {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
     },
     /// Launch the interactive commander GUI.
@@ -480,36 +511,41 @@ enum Commands {
     BehaveGui,
     /// Print a file.
     Print {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
     },
     /// Objectify a test recording.
     Objectify,
     /// Create an HTML presentation.
     Mkpres {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
     },
     /// Create an HTML chart.
     Mkchart {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
     },
     /// Create a test recording scaffold.
     Mkrec {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
     },
     /// Run a scenario file and write an optional dashboard.
     RunScenario {
-        #[arg(long)]
+        #[arg(long, help = "Input or output file path")]
+        #[arg(help = "Input or output file path")]
         file: String,
-        #[arg(long)]
+        #[arg(long, help = "Optional path to write a scenario dashboard")]
         dashboard: Option<String>,
     },
     /// Generate a completion script for a supported shell.
     Completions {
-        #[arg(value_enum)]
+        #[arg(value_enum, help = "Shell to generate a completion script for")]
         shell: Shell,
     },
     /// Convert common SeleniumBase or Selenium Python code into a Rust test.
@@ -517,13 +553,13 @@ enum Commands {
         /// Python source file to convert.
         file: String,
         /// Write generated Rust to this path instead of stdout.
-        #[arg(short, long)]
+        #[arg(short, long, help = "Output file for the generated Rust test")]
         output: Option<String>,
         /// Override source API detection.
-        #[arg(long, value_enum, default_value_t = ImportSourceArg::Auto)]
+        #[arg(long, value_enum, default_value_t = ImportSourceArg::Auto, help = "Source API to assume when converting Python code")]
         source: ImportSourceArg,
         /// Generated Rust test function name.
-        #[arg(long)]
+        #[arg(long, help = "Name of the generated test function")]
         test_name: Option<String>,
     },
 }

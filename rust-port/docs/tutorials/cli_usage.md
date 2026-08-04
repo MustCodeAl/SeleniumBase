@@ -13,7 +13,11 @@ cargo build --bin sbase
 
 ```bash
 ./target/debug/sbase --help
+./target/debug/sbase <COMMAND> --help
 ```
+
+Every top-level option and subcommand argument includes a description, so
+`--help` shows what each flag does.
 
 ## Open a page
 

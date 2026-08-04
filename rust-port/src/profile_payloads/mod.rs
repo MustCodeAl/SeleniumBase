@@ -12,8 +12,8 @@
 //! use serde_json::json;
 //!
 //! let params: ProfileParams = serde_json::from_value(json!({
-//!     "name": "Windows Mimic",
-//!     "browser_type": "mimic",
+//!     "name": "Windows Chromium",
+//!     "browser_type": "chromium",
 //!     "os_type": "windows",
 //!     "parameters": {
 //!         "fingerprint": {

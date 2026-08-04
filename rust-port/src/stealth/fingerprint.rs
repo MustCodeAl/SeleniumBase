@@ -28,11 +28,13 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum BrowserType {
-    /// Chromium-based mimic persona (default).
+    /// Chromium-based persona (default).
     #[default]
-    Mimic,
+    #[serde(rename = "chromium")]
+    Chromium,
     /// Firefox-oriented persona (conceptual; WebDriver mode uses Chromium).
-    Stealthfox,
+    #[serde(rename = "firefox")]
+    Firefox,
 }
 
 /// Operating-system persona.

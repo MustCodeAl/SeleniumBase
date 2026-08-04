@@ -61,7 +61,15 @@ let fp = Fingerprint::builder()
 
 ## Masking flags
 
-`StealthFlags` controls which dimensions are spoofed:
+`StealthFlags` controls which dimensions are spoofed. Every flag is one of the
+following modes:
+
+| Mode | Meaning | When to use |
+|---|---|---|
+| `Natural` | Use the browser's real value. | Trust the host for audio, media devices, or fonts. |
+| `Mask` | Apply a generic, deterministic spoofed value. | Hide the real WebRTC IP policy, screen size, or timezone. |
+| `Custom` | Use the explicit value supplied in the `Fingerprint`. | Set a specific `user_agent`, `screen` resolution, `proxy`, or `geolocation`. |
+| `Disabled` | Turn the feature off entirely. | Disable WebRTC, block QUIC, or leave proxy unconfigured. |
 
 | Flag | Modes | Default |
 |---|---|---|
@@ -87,6 +95,70 @@ let fp = Fingerprint::builder()
 
 Use `StealthFlags::balanced()` for sensible defaults or `StealthFlags::all_custom()`
 when every value is supplied explicitly.
+
+### Concrete mask-mode examples
+
+#### Custom navigator (`navigator_masking: Custom`)
+
+```rust
+use seleniumbase_rs::{Fingerprint, StealthFlags};
+
+let mut fp = Fingerprint::builder()
+    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+    .platform("Win32")
+    .hardware_concurrency(8)
+    .device_memory(8.0)
+    .build();
+fp.flags.navigator_masking = seleniumbase_rs::MaskingMode::Custom;
+```
+
+When the bootstrap runs, it overrides `navigator.userAgent`, `navigator.platform`,
+`hardwareConcurrency`, and `deviceMemory` with the values you supplied.
+
+#### Custom screen + geolocation (`screen_masking` / `geolocation_masking: Custom`)
+
+```rust
+use seleniumbase_rs::{Fingerprint, StealthFlags};
+
+let mut fp = Fingerprint::builder()
+    .screen(1920, 1080)
+    .geolocation(52.52, 13.405)
+    .timezone("Europe/Berlin")
+    .build();
+fp.flags.screen_masking = seleniumbase_rs::MaskingMode::Custom;
+fp.flags.geolocation_masking = seleniumbase_rs::MaskingMode::Custom;
+fp.flags.timezone_masking = seleniumbase_rs::MaskingMode::Mask;
+```
+
+The launcher resizes the browser window to 1920×1080, overrides the geolocation
+via CDP, and the bootstrap spoofs `Intl.DateTimeFormat` to Berlin time.
+
+#### Custom proxy (`proxy_masking: Custom`)
+
+```rust
+use seleniumbase_rs::{Fingerprint, ProxyMaskingMode};
+
+let mut fp = Fingerprint::default();
+fp.proxy = Some("http://alice:secret@proxy.example.com:8080".parse().unwrap());
+fp.flags.proxy_masking = ProxyMaskingMode::Custom;
+```
+
+`ProxyMaskingMode::Custom` emits `--proxy-server=http://alice:secret@proxy.example.com:8080`.
+Use `ProxyMaskingMode::Disabled` to leave proxy configuration empty.
+
+#### WebRTC masked
+
+```rust
+use seleniumbase_rs::{Fingerprint, MaskingMode, WebRtcPolicy};
+
+let mut fp = Fingerprint::default();
+fp.flags.webrtc_masking = MaskingMode::Mask;
+fp.webrtc_policy = WebRtcPolicy::DisableNonProxiedUdp;
+```
+
+This adds `--force-webrtc-ip-handling-policy=disable_non_proxied_udp` so WebRTC
+cannot leak the local IP address. Set `webrtc_masking: Disabled` to omit the
+flag and let the browser use its default policy.
 
 ## rustwright / Playwright mode
 

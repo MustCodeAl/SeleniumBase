@@ -146,19 +146,120 @@ JSON, invalid configuration, assertions, CDP driver failures, GUI input, and
 Playwright errors. Use `?` to propagate errors and add context in user-facing
 messages.
 
+### Error taxonomy
+
+| Category | Example variants | Typical cause |
+|---|---|---|
+| Element | `ElementNotFound`, `ElementNotVisible`, `ElementNotInteractable` | Selector did not match or element is hidden. |
+| Driver | `DriverNotReady`, `DriverCrashed`, `SessionNotCreated` | chromedriver is missing, incompatible, or crashed. |
+| Config | `InvalidConfig`, `UnsupportedBrowser`, `InvalidUrl` | Bad `BrowserConfig` or profile payload. |
+| I/O | `IoError`, `DownloadFailed`, `FileNotFound` | Filesystem or network transfer failure. |
+| Assert | `AssertionFailed`, `DeferredAssertFailed`, `Skipped` | Test assertion mismatch or explicit skip. |
+| CDP | `CdpError`, `CdpMethodFailed` | Chrome DevTools Protocol call failed. |
+| GUI | `GuiInputError`, `OcrError` | Desktop automation or image parsing failure. |
+| Playwright | `PlaywrightError` | Playwright runtime error. |
+
+### Helper constructors
+
+Prefer constructors over manual formatting:
+
+```rust
+use seleniumbase_rs::SeleniumBaseError;
+
+SeleniumBaseError::element_not_found("#submit")
+SeleniumBaseError::invalid_config("proxy_masking is Custom but proxy is None")
+SeleniumBaseError::driver_not_ready("chromedriver")
+```
+
+### Runtime diagnostics
+
+Errors can emit `tracing::error!` events:
+
+```rust
+use seleniumbase_rs::{ResultExt, SeleniumBaseError};
+
+// Adds context and logs on failure
+some_op().sb_context("while patching chromedriver")?;
+
+// Logs without returning
+SeleniumBaseError::download_failed(url).log();
+```
+
+When `error-backtrace` is enabled, `SeleniumBaseError::backtrace()` captures a
+full backtrace at construction time.
+
 ## Feature flags
 
 The crate uses Cargo features to keep heavy or optional dependencies off by
 default:
 
-- `playwright` - Enables `padamson/playwright-rust` integration.
-- `s3` - Enables AWS S3 artifact uploads.
-- `azure` - Enables Azure Blob Storage artifact uploads.
-- `gcp` - Placeholder for Google Cloud integrations.
-- `mcp-server` - Builds the `seleniumbase-mcp` binary using `rmcp`.
+| Feature | Purpose |
+|---|---|
+| `playwright` | Enables `padamson/playwright-rust` integration. |
+| `s3` | Enables AWS S3 artifact uploads. |
+| `azure` | Enables Azure Blob Storage artifact uploads. |
+| `gcp` | Placeholder for Google Cloud integrations. |
+| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
+| `full-tracing` | Verbose `tracing` span events for debugging. |
+| `json-logs` | Structured JSON log output. |
+| `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
 
 When adding a feature-gated API, use `#[cfg(feature = "...")]` and declare the
-dependency as `optional = true` in `Cargo.toml`.
+dependency as `optional = true` in `Cargo.toml`. Prefer `#[cfg(feature = "...")]`
+over `#[cfg(not(feature = "..."))]` so the default build is the simpler path.
+
+## Module deep dive
+
+### `src/api/`
+
+The public test API. `base_case.rs` defines the struct and core constructors;
+`base_case_impls/*.rs` split hundreds of helpers by domain. New helpers should
+land in the smallest domain file first, then be surfaced through `BaseCase` or a
+capability trait.
+
+### `src/browser/`
+
+Launch and session plumbing:
+
+- `config.rs` — serializable `BrowserConfig`, `Browser` enum, `DriverMode`.
+- `session.rs` — `BrowserSession`, the WebDriver wrapper and CDP session cache.
+- `launcher.rs` — chromedriver discovery, startup, and `StealthOptions` application.
+- `playwright.rs` — optional Playwright-backed session adapter.
+
+### `src/stealth/`
+
+Anti-detection layer:
+
+- `fingerprint.rs` — `Fingerprint`, `StealthFlags`, `MaskingMode`, presets,
+  coherence validation, and `BrowserType`.
+- `evasions.rs` / `providers/` — JavaScript evasion registry and 25 built-in
+  providers.
+- `patcher.rs` — `ChromedriverPatcher` and `EnginePatch` definitions.
+- `options.rs` — `StealthOptions` builder for launch args and prefs.
+- `reactor.rs` — background CDP `Fetch` interceptor.
+- `dprocess.rs` — detached chromedriver/browser process helpers.
+- `humanize.rs` — Bézier mouse paths and keystroke timing.
+
+### `src/profile_payloads/`
+
+Parses external anti-detect profile JSON into `BrowserConfig` + `Fingerprint`.
+The mapping is explicit: every JSON field is declared in `ProfileParams`, then
+converted in `ProfileParams::to_browser_config()` and `browser()`.
+
+### `src/cli/`
+
+- `bin/sbase.rs` — the `sbase` CLI command tree.
+- submodules handle per-command logic.
+
+### `src/bin/mcp_server.rs`
+
+The Model Context Protocol server. Tools are defined in `tools()` and dispatched
+in `call_tool()`.
+
+### `src/utilities/`
+
+Migration and IDE tooling: Python importer, Selenium IDE parser, Selenium Grid
+helpers.
 
 ## Browser session model
 
@@ -168,32 +269,112 @@ methods such as `wait_for_element`, `text`, `click`, and `execute_script`. Most
 activating a stealth driver), `CdpDriver` and `CdpPage` provide a lightweight
 Chrome DevTools Protocol client.
 
-## Stealth and undetected automation
+## Stealth architecture
 
-Stealth logic lives under `src/stealth/`:
+The stealth system has three independent axes:
 
-- `options.rs` - `StealthOptions` builds launch arguments and preferences for Chromium.
-- `patcher.rs` - `ChromedriverPatcher` edits the driver binary to remove `cdc_`
-  and `__webdriver` markers.
-- `fingerprint.rs` - `Fingerprint` and `StealthFlags` define anti-detection
-  profiles.
-- `evasions.rs` - JavaScript payloads injected via CDP or `Page.evaluate`.
-- `dprocess.rs` - discovers and launches detached chromedriver/browser processes.
-- `reactor.rs` - runs a background CDP `Fetch` interceptor for header and response
-  overrides.
+1. **Launch configuration** — `StealthOptions` emits Chromium args and prefs.
+2. **Runtime JavaScript** — `EvasionProvider`s generate a bootstrap script.
+3. **Network interception** — `StealthReactor` uses CDP `Fetch` to override
+   headers and responses.
+4. **Binary patching** — `ChromedriverPatcher` edits driver markers.
+
+```text
+                 BrowserConfig
+                      │
+        ┌─────────────┼─────────────┐
+        ▼             ▼             ▼
+  StealthOptions   Fingerprint   ChromedriverPatcher
+        │             │                │
+        ▼             ▼                ▼
+   launch args   bootstrap script   patched binary
+        │             │                │
+        └─────────────┴────────────────┘
+                      │
+               BrowserSession
+                      │
+               StealthReactor (CDP Fetch)
+```
 
 Use these through `BaseCase::activate_cdp_mode(url)` or by setting
 `DriverMode::Uc` in `BrowserConfig`.
 
+### Fingerprint and masking modes
+
+`Fingerprint` is a value type describing the desired browser surface. It is
+composed of:
+
+- `browser_type` — `Chromium` or `Firefox` (generic names; legacy aliases
+  `mimic` / `stealthfox` are still accepted for JSON parsing).
+- `os`, `vendor`, `renderer` — reported by the navigator provider.
+- `screen`, `viewport` — screen spoofing.
+- `geolocation`, `timezone`, `locale` — location spoofing.
+- `webrtc_policy`, `flags` — policy and toggle switches.
+- `proxy` — optional proxy URL.
+
+`MaskingMode` controls how a flag is applied:
+
+- `Natural` — use the real browser value.
+- `Mask` — apply a deterministic generic value.
+- `Custom` — use the explicit value from `Fingerprint` if available.
+- `Disabled` — do not apply the evasion.
+
+`Fingerprint::validate()` enforces coherence: if `webrtc_masking` is `Custom`,
+then `webrtc_policy` must be set; if `proxy_masking` is `Custom`, then `proxy`
+must be `Some`. Add similar rules when introducing inter-dependent fields.
+
+### Provider execution order
+
+Providers are sorted by priority and run only when `applies(fp)` returns true.
+Current priority bands:
+
+- 5 — infrastructure (`native_to_string`).
+- 20–50 — navigator, screen, WebGL, plugins, codecs, permissions.
+- 60–90 — WebDriver/headless cleanup, runtime, iframe, chrome object fixes.
+- 100–130 — self-defense, notification, memory, battery, connection, WebRTC.
+
+Lower numbers run first. When a provider depends on `window.__sbNative`, keep
+its priority above 5.
+
+### CDP reactor
+
+`StealthReactor` starts a background task that attaches to a CDP target and
+listens for `Fetch.requestPaused` events. It can:
+
+- Override request headers (`User-Agent`, `Accept-Language`, etc.).
+- Block or mock responses.
+- Intercept JS/CSS resources to inject the stealth bootstrap.
+
+Add new interceptor rules in `reactor.rs` by matching on request URL patterns
+and emitting `Fetch.continueRequest` / `FulfillRequest` calls.
+
+### Binary patching
+
+`ChromedriverPatcher` applies byte-level search/replace patches to a driver
+binary. Each patch is an `EnginePatch`:
+
+```rust
+EnginePatch {
+    id: "cdc_marker",
+    description: "Replace cdc_... markers",
+    search: b"$cdc_",
+    replace: b"$sbc_",
+}
+```
+
+Patches run after the driver is downloaded or located. Backups are written with
+`.sb-backup` extension and restored on mismatch. Add marker-detection tests
+whenever a patch targets a new driver version.
+
 ### Adding new spoofing code
 
-1. If the change is a new JavaScript evasion, add it to `src/stealth/evasions.rs`
-   and call it from `bootstrap_script` or `launch_args` as appropriate.
+1. If the change is a new JavaScript evasion, add a provider in
+   `src/stealth/providers/builtin.rs` and register it in `all()`.
 2. If it changes launch arguments, update `StealthOptions::apply_to` in
    `src/stealth/options.rs` or add a helper such as `engine_spoofing_args()` in
    `src/stealth/patcher.rs`.
-3. If it patches the binary, add a field to `EnginePatch` and implement the
-   patch in `src/stealth/patcher.rs`.
+3. If it patches the binary, add an `EnginePatch` in
+   `src/stealth/patcher.rs`.
 4. Re-export new public types from `src/stealth/mod.rs` and `src/lib.rs`.
 5. Add a unit test that exercises the new logic without requiring a live browser.
 
@@ -248,6 +429,133 @@ cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server -- -D w
 cargo publish --dry-run
 ```
 
+## Tracing internals
+
+The crate uses `tracing` with structured fields. Spans are created around major
+operations (launch, open, click, patch). Events include:
+
+- `seleniumbase.driver.launch` — browser/driver launch.
+- `seleniumbase.stealth.patch` — binary patch applied.
+- `seleniumbase.error` — structured error event with `error.category`,
+  `error.transient`, and `error.hint`.
+
+To add tracing to a new component:
+
+```rust
+use tracing::{info, instrument};
+
+#[instrument(skip_all, fields(component = "my_component"))]
+pub async fn do_work(&self) -> crate::Result<()> {
+    info!("starting work");
+    // ...
+}
+```
+
+Enable JSON output with the `json-logs` feature for ingestion by log analytics.
+
+## Profile payload mapping
+
+External profile payloads are normalized in `src/profile_payloads/profile.rs`.
+The flow is:
+
+```text
+JSON file ──► ProfileParams ──► to_browser_config() ──► BrowserConfig
+                         └──► browser() ──────────────► Fingerprint
+```
+
+When adding a new JSON field:
+
+1. Add it to the corresponding `ProfileParams` struct with `#[serde(default)]`.
+2. Convert it in `to_browser_config()` for launch-time settings.
+3. Convert it in `browser()` for fingerprint/masking settings.
+4. Add a parser test and a round-trip coherence test.
+
+Keep parser logic defensive: unknown fields should not fail; invalid values
+should produce `SeleniumBaseError::InvalidConfig` with the field name.
+
+## Test patterns
+
+### Pure-logic tests
+
+```rust
+#[test]
+fn selector_parses_link_text() {
+    let s = Selector::LinkText("Dashboard".into());
+    assert_eq!(s.to_by(), By::LinkText("Dashboard".to_string()));
+}
+```
+
+### Async tests without browser
+
+```rust
+#[tokio::test]
+async fn fingerprint_validates_custom_proxy() {
+    let fp = Fingerprint::builder().build();
+    fp.flags.proxy_masking = ProxyMaskingMode::Custom;
+    assert!(fp.validate().is_err());
+}
+```
+
+### Browser lifecycle tests
+
+Use `run_browser_test` from `src/api/runner.rs`:
+
+```rust
+use seleniumbase_rs::{run_browser_test, BrowserConfig};
+
+#[tokio::test]
+async fn example_test() -> seleniumbase_rs::Result<()> {
+    run_browser_test(BrowserConfig::default(), |sb| async move {
+        sb.open("https://example.com").await?;
+        sb.assert_title_contains("Example").await?;
+        Ok(())
+    }).await
+}
+```
+
+`run_browser_test` guarantees cleanup runs after either success or failure.
+`Drop` cannot await async cleanup, so never construct and drop a browser in a
+synchronous test.
+
+### Marking slow/flaky tests
+
+Place browser-backed tests in `examples/` or under `tests/` and gate them with a
+feature flag. Do not add retries to unit tests unless the operation is measured
+to be transient and idempotent.
+
+## Performance considerations
+
+- Avoid allocating large strings in hot paths. `EvasionProvider::script` runs
+  once per session, so moderate allocation is fine, but do not read files inside
+  the provider loop.
+- Use `tokio::spawn` for independent background work (e.g. the CDP reactor).
+- Cache CDP sessions and WebDriver clients rather than reconnecting.
+- For chart/tour generation, build the DOM with `std::fmt::Write` instead of
+  repeated string concatenation.
+- Run `cargo build --release` when benchmarking; debug builds are 10–100× slower.
+
+## Security considerations
+
+- Never hardcode secrets. `BrowserConfig` proxy passwords and cloud credentials
+  must come from environment variables or a secrets manager.
+- Validate all user-provided URLs before navigation to prevent SSRF.
+- Do not deserialize untrusted data with `pickle`-equivalent formats. Profile
+  payloads use `serde_json` with explicit structs.
+- The MCP server runs browser automation on behalf of clients. It should only be
+  exposed to trusted local clients; see `docs/help/mcp_server.md` for the trust
+  boundary.
+- Binary patches operate on local files. Always create backups and verify
+  checksums before writing.
+
+## Debugging tips
+
+- Set `RUST_LOG=seleniumbase_rs=debug` to see driver launch args and CDP traffic.
+- Use `RUST_BACKTRACE=1` with the `error-backtrace` feature for full traces.
+- Run `sbase doctor` (if implemented) to print environment diagnostics.
+- Inspect generated bootstrap with `sbase stealth-bootstrap --fingerprint ...`.
+- For CI-only failures, reproduce with `--features s3,azure,gcp,playwright,mcp-server`
+  because feature gates change code paths.
+
 ## Python importer architecture
 
 `utilities::python_importer` is a conservative static converter for common
@@ -279,9 +587,22 @@ dependencies must come from crates.io (no git-only dependencies). Run
 
 ## Contributing
 
+See `CONTRIBUTING.md` for the full contributor guide. In short:
+
 1. Keep the public API backward-compatible when possible.
 2. Follow the existing module organization.
 3. Write doc comments for public items.
 4. Update `README.md`, `DOCS.md`, and `docs/tutorials/` when adding user-facing
    features.
 5. Run `cargo fmt` before committing.
+
+### AI agent conventions
+
+This repository is designed to be agent-friendly:
+
+- Public APIs are typed explicitly; use types as hints.
+- Each module has a focused responsibility; do not add unrelated logic.
+- When extending stealth, providers are the preferred plugin point.
+- When adding docs, mirror the existing structure in `docs/SUMMARY.md`.
+- Run the verification matrix after any non-trivial change.
+- `COPILOT.md` contains additional guidance for autonomous work.

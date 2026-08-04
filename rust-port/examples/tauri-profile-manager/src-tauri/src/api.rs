@@ -419,7 +419,7 @@ async fn profile_import(
             name: params.name.clone(),
             container_url: "http://localhost:4444".into(),
             browser: params.browser(),
-            mode: if params.browser_type == "stealthfox" {
+            mode: if matches!(params.browser_type.as_str(), "firefox" | "stealthfox") {
                 seleniumbase_rs::DriverMode::WebDriver
             } else {
                 seleniumbase_rs::DriverMode::Uc

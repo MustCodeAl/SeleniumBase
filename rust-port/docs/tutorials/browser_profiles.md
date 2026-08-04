@@ -1,26 +1,139 @@
 # Browser Profiles
 
-`seleniumbase-rs` can import external browser profile payloads in a common
+`seleniumbase-rs` can import external browser profile payloads in a generic
 anti-detect JSON format. The format is exposed through the
-`seleniumbase_rs::profile_payloads` module and the Tauri multi-profile example.
+`seleniumbase_rs::profile_payloads` module and the Tauri profile-manager example.
+
+This is **not** tied to any third-party product. The payload describes a browser
+persona, a set of masking modes, and optional runtime overrides. `seleniumbase-rs`
+translates the parts it can apply directly into `BrowserConfig`, command-line
+flags, CDP calls, and window settings.
 
 ## Supported fields
 
-The `ProfileParams` type mirrors a typical `POST /profile/create` body:
+The `ProfileParams` type mirrors a common `POST /profile/create` body:
 
-- `name`, `browser_type` (`mimic` or `stealthfox`), `os_type`
+- `name`, `browser_type` (`chromium` or `firefox`), `os_type`
 - `folder_id`, `tags`, `notes`, `times`
 - `core_version`, `core_minor_version`, `auto_update_core`
 - `parameters.flags` — masking mode for WebRTC, audio, fonts, geolocation,
   graphics, navigator, ports, proxy, screen, timezone, canvas noise, QUIC, and
   startup behavior.
-- `parameters.fingerprint` — custom values for navigator, localization,
+- `parameters.fingerprint` — explicit values for navigator, localization,
   timezone, graphics, WebRTC, media devices, screen, geolocation, ports, fonts,
   and extra command-line parameters.
 - `parameters.storage` — local vs cloud storage options.
 - `parameters.proxy` — HTTP/HTTPS/SOCKS proxy with optional credentials and
   traffic saving.
 - `parameters.custom_start_urls` — up to 5 URLs to open on launch.
+
+> **Backward compatibility:** The parser still accepts the legacy strings
+> `mimic` and `stealthfox`, but they are treated as aliases for `chromium` and
+> `firefox`. New profiles should use the generic names.
+
+## Masking modes
+
+Flags control how a fingerprint dimension is handled. Each mode has a concrete
+meaning and a matching JSON string value:
+
+| Mode | String | What it does | Example use case |
+|---|---|---|---|
+| `Natural` | `"natural"` | Use the browser's real value. | Trust the host for audio, media devices, or fonts. |
+| `Mask` | `"mask"` | Apply a generic, deterministic spoofed value. | Hide the real WebRTC IP policy, screen size, or timezone. |
+| `Custom` | `"custom"` | Use the explicit value supplied in `fingerprint.*`. | Set a specific `user_agent`, `screen` resolution, `proxy`, or `geolocation`. |
+| `Disabled` | `"disabled"` | Turn the feature off entirely. | Disable WebRTC, block QUIC, or leave proxy unconfigured. |
+
+### Concrete mask-mode examples
+
+#### Custom user agent + platform (`navigator_masking: custom`)
+
+```json
+{
+  "name": "custom-ua-profile",
+  "browser_type": "chromium",
+  "os_type": "windows",
+  "parameters": {
+    "flags": { "navigator_masking": "custom" },
+    "fingerprint": {
+      "navigator": {
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "platform": "Win32",
+        "hardware_concurrency": 8,
+        "device_memory": 8
+      }
+    }
+  }
+}
+```
+
+When `navigator_masking` is `"custom"`, the launcher passes the supplied
+`user_agent` to `--user-agent` and the `platform` value into the evasion
+bootstrap.
+
+#### Custom screen + geolocation (`screen_masking` / `geolocation_masking`)
+
+```json
+{
+  "name": "berlin-desktop",
+  "browser_type": "chromium",
+  "os_type": "windows",
+  "parameters": {
+    "flags": {
+      "screen_masking": "custom",
+      "geolocation_masking": "custom",
+      "timezone_masking": "mask"
+    },
+    "fingerprint": {
+      "screen": { "width": 1920, "height": 1080, "pixel_ratio": 1 },
+      "geolocation": { "latitude": 52.52, "longitude": 13.405, "accuracy": 100 },
+      "timezone": { "id": "Europe/Berlin" }
+    }
+  }
+}
+```
+
+`screen_masking: custom` applies the exact resolution. `geolocation_masking:
+custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
+`timezone_masking: mask` picks a timezone that matches the geolocation.
+
+#### Custom proxy (`proxy_masking: custom`)
+
+```json
+{
+  "name": "proxy-profile",
+  "browser_type": "chromium",
+  "parameters": {
+    "flags": { "proxy_masking": "custom" },
+    "proxy": {
+      "type": "http",
+      "host": "proxy.example.com",
+      "port": 8080,
+      "username": "alice",
+      "password": "secret",
+      "save_traffic": false
+    }
+  }
+}
+```
+
+`proxy_masking: custom` turns the `parameters.proxy` block into
+`--proxy-server=http://alice:secret@proxy.example.com:8080`. Use
+`proxy_masking: disabled` to leave proxy configuration empty.
+
+#### WebRTC disabled / masked
+
+```json
+{
+  "parameters": {
+    "flags": { "webrtc_masking": "mask" },
+    "fingerprint": { "webrtc": { "mode": "default_public_interface_only" } }
+  }
+}
+```
+
+`webrtc_masking: mask` translates the `webrtc.mode` field into Chromium's
+`--force-webrtc-ip-handling-policy` flag. `webrtc_masking: disabled` omits the
+flag and lets the browser use its default.
 
 ## Mapping to SeleniumBase concepts
 
@@ -40,8 +153,8 @@ port applies what it can and preserves the rest as metadata:
 | `parameters.custom_start_urls` | first URL is used as `start_page`; extras are opened at runtime |
 
 Flags such as canvas noise, font masking, WebRTC masking, and idle-time behavior
-masking are stored in the profile and exposed to custom CDP scripts, extensions,
-or future anti-detect injection features.
+are stored in the profile and exposed to the stealth bootstrap, custom CDP
+scripts, extensions, or future anti-detect injection features.
 
 ## Programmatic usage
 
@@ -51,19 +164,21 @@ use serde_json::json;
 
 let raw = json!({
     "name": "custom-profile",
-    "browser_type": "mimic",
+    "browser_type": "chromium",
     "os_type": "windows",
     "parameters": {
         "flags": {
-            "webrtc_masking": "custom",
-            "navigator_masking": "custom"
+            "webrtc_masking": "mask",
+            "navigator_masking": "custom",
+            "screen_masking": "custom"
         },
         "fingerprint": {
             "navigator": {
                 "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...",
                 "platform": "Win32",
                 "hardware_concurrency": 8
-            }
+            },
+            "screen": { "width": 1920, "height": 1080, "pixel_ratio": 1 }
         },
         "storage": { "is_local": true }
     }
@@ -76,7 +191,7 @@ let mut sb = seleniumbase_rs::BaseCase::new(config).await.unwrap();
 params.apply_runtime_overrides(&mut sb).await.unwrap();
 ```
 
-## Tauri multi-profile app
+## Tauri profile-manager app
 
 The `examples/tauri-profile-manager` app accepts a profile JSON payload in the
 **Import profile JSON** section. It converts the payload into a local profile

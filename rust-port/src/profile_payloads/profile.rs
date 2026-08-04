@@ -244,7 +244,7 @@ pub struct ProxyConfig {
 }
 
 fn default_browser_type() -> String {
-    "mimic".into()
+    "chromium".into()
 }
 fn default_folder_id() -> String {
     "default".into()
@@ -489,7 +489,7 @@ impl ProfileParams {
             webdriver_url: container_url.into(),
             browser: self.browser(),
             headless: false,
-            mode: if self.browser_type == "stealthfox" {
+            mode: if matches!(self.browser_type.as_str(), "firefox" | "stealthfox") {
                 DriverMode::WebDriver
             } else {
                 DriverMode::Uc
@@ -525,7 +525,7 @@ impl ProfileParams {
     /// Returns the `Browser` variant inferred from `browser_type`.
     pub fn browser(&self) -> Browser {
         match self.browser_type.as_str() {
-            "stealthfox" => Browser::Firefox,
+            "firefox" | "stealthfox" => Browser::Firefox,
             _ => Browser::Chrome,
         }
     }
@@ -621,7 +621,7 @@ mod tests {
     fn parse_profile_payload() {
         let raw = json!({
             "name": "Profile_name",
-            "browser_type": "mimic",
+            "browser_type": "chromium",
             "folder_id": "4500dd84-d8c5-4450-b2df-1c64daed8bad",
             "core_version": 124,
             "auto_update_core": false,
@@ -659,7 +659,7 @@ mod tests {
         });
         let params: ProfileParams = serde_json::from_value(raw).unwrap();
         assert_eq!(params.name, "Profile_name");
-        assert_eq!(params.browser_type, "mimic");
+        assert_eq!(params.browser_type, "chromium");
         assert_eq!(params.core_version, Some(124));
         assert!(!params.auto_update_core);
         assert_eq!(
@@ -680,10 +680,29 @@ mod tests {
             "parameters": {}
         }))
         .unwrap();
-        assert_eq!(params.browser_type, "mimic");
+        assert_eq!(params.browser_type, "chromium");
         assert_eq!(params.os_type, "windows");
         assert_eq!(params.parameters.flags.webrtc_masking, "mask");
         assert!(params.parameters.storage.is_local);
         assert_eq!(params.times, 1);
+    }
+
+    #[test]
+    fn legacy_browser_type_strings_are_accepted() {
+        let chromium: ProfileParams = serde_json::from_value(json!({
+            "name": "Legacy Chromium",
+            "browser_type": "mimic",
+            "parameters": {}
+        }))
+        .unwrap();
+        assert_eq!(chromium.browser(), Browser::Chrome);
+
+        let firefox: ProfileParams = serde_json::from_value(json!({
+            "name": "Legacy Firefox",
+            "browser_type": "stealthfox",
+            "parameters": {}
+        }))
+        .unwrap();
+        assert_eq!(firefox.browser(), Browser::Firefox);
     }
 }

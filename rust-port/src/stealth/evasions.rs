@@ -410,4 +410,41 @@ mod tests {
         // Hardware properties still need JS patching.
         assert!(script.contains("hardwareConcurrency"));
     }
+
+    #[test]
+    fn ios_mobile_safari_emits_cdp_mobile_overrides() {
+        let mut fp = Fingerprint::ios_mobile_safari();
+        fp.flags.native_spoofing = true;
+        let map = cdp_overrides(&fp);
+
+        let metrics = map
+            .get("Emulation.setDeviceMetricsOverride")
+            .expect("device metrics override");
+        assert_eq!(metrics.get("width").and_then(|v| v.as_u64()), Some(390));
+        assert_eq!(metrics.get("height").and_then(|v| v.as_u64()), Some(844));
+        assert_eq!(metrics.get("mobile").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(
+            metrics.get("deviceScaleFactor").and_then(|v| v.as_f64()),
+            Some(3.0)
+        );
+
+        let ua = map
+            .get("Network.setUserAgentOverride")
+            .expect("UA override");
+        let meta = ua.get("userAgentMetadata").expect("userAgentMetadata");
+        assert_eq!(
+            meta.get("platform").and_then(|v| v.as_str()),
+            Some("iPhone")
+        );
+        assert_eq!(
+            meta.get("platformVersion").and_then(|v| v.as_str()),
+            Some("17.4.1")
+        );
+        assert_eq!(
+            meta.get("architecture").and_then(|v| v.as_str()),
+            Some("arm")
+        );
+        assert_eq!(meta.get("model").and_then(|v| v.as_str()), Some("iPhone"));
+        assert_eq!(meta.get("mobile").and_then(|v| v.as_bool()), Some(true));
+    }
 }

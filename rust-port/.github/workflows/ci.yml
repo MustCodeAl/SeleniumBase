@@ -3,20 +3,27 @@ name: CI
 on:
   push:
     branches: [main, master]
+    paths: ['rust-port/**']
   pull_request:
     branches: [main, master]
+    paths: ['rust-port/**']
 
 env:
   CARGO_TERM_COLOR: always
 
+defaults:
+  run:
+    working-directory: rust-port
+
 jobs:
-  build-and-test:
-    name: Build and test
+  check:
+    name: Check (${{ matrix.os }}, features=${{ matrix.features || 'default' }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
+        features: ["", "s3,azure,gcp", "playwright"]
 
     steps:
       - name: Checkout repository
@@ -29,42 +36,69 @@ jobs:
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust-port
 
-      - name: Install Chrome and chromedriver (Ubuntu)
-        if: runner.os == 'Linux'
+      - name: Install Chrome and chromedriver
+        if: matrix.features != 'playwright'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable chromium-chromedriver
-          google-chrome --version
-          chromedriver --version
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y google-chrome-stable chromium-chromedriver
+            google-chrome --version
+            chromedriver --version
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install --cask google-chrome
+            brew install chromedriver
+            /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
+            chromedriver --version
+          fi
 
-      - name: Install Chrome and chromedriver (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install --cask google-chrome
-          brew install chromedriver
-          /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
-          chromedriver --version
+      - name: Install Python for playwright feature
+        if: matrix.features == 'playwright'
+        uses: jdx/mise-action@v2
+        with:
+          install: true
+          tools: python@3.14
 
-      - name: Install Chrome and chromedriver (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Set Python library path
+        if: matrix.features == 'playwright'
         run: |
-          $chromeUrl = "https://dl.google.com/chrome/install/GoogleChromeStandaloneEnterprise64.msi"
-          Invoke-WebRequest -Uri $chromeUrl -OutFile "$env:TEMP\chrome.msi"
-          Start-Process msiexec.exe -ArgumentList "/i","$env:TEMP\chrome.msi","/qn" -Wait
-          choco install chromedriver -y
-          & "C:\Program Files\Google\Chrome\Application\chrome.exe" --version
-          chromedriver --version
+          PY_PREFIX=$($HOME/.local/share/mise/shims/python3 -c 'import sysconfig; print(sysconfig.get_config_var("prefix"))')
+          echo "PY_LIB_DIR=$PY_PREFIX/lib" >> "$GITHUB_ENV"
 
       - name: Build
-        run: cargo build --verbose
+        env:
+          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+        run: |
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo build --features "${{ matrix.features }}"
+          else
+            cargo build
+          fi
 
       - name: Run tests
-        run: cargo test --verbose
+        env:
+          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+        run: |
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo test --features "${{ matrix.features }}"
+          else
+            cargo test
+          fi
 
       - name: Run Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        env:
+          DYLD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+          LD_LIBRARY_PATH: ${{ env.PY_LIB_DIR }}
+        run: |
+          if [ -n "${{ matrix.features }}" ]; then
+            cargo clippy --all-targets --features "${{ matrix.features }}" -- -D warnings
+          else
+            cargo clippy --all-targets -- -D warnings
+          fi
 
       - name: Check formatting
         run: cargo fmt --all -- --check

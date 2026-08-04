@@ -9,9 +9,11 @@ use seleniumbase_rs::cli::scripts::*;
 // use seleniumbase_rs::dashboard::write_dashboard_html;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
 use seleniumbase_rs::config::settings::Settings;
+use seleniumbase_rs::stealth::patcher::find_system_chrome;
 use seleniumbase_rs::{
-    import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher, DriverMode,
-    EnginePatch, ImportOptions, ImportSeverity, PythonSource, RuntimeConfig,
+    import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
+    ChromedriverPatcher, DriverMode, EnginePatch, ImportOptions, ImportSeverity, PythonSource,
+    RuntimeConfig,
 };
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
@@ -138,12 +140,12 @@ enum Commands {
     Throttle3g,
     /// Capture a screenshot of the current page.
     Screenshot {
-        #[arg(long, help = "Output file or binary path")]
+        #[arg(long, help = "Output image file path")]
         path: Option<String>,
     },
     /// Save the current page source to a file.
     SaveSource {
-        #[arg(long, help = "Output file or binary path")]
+        #[arg(long, help = "Output HTML file path")]
         path: Option<String>,
     },
     /// Assert that an element exists.
@@ -155,7 +157,7 @@ enum Commands {
     WaitForText {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Expected text substring to wait for")]
         text: String,
         #[arg(long, default_value_t = 10, help = "Maximum wait time in seconds")]
         timeout: u64,
@@ -176,9 +178,9 @@ enum Commands {
     SelectOption {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Visible text of the option to select")]
         text: Option<String>,
-        #[arg(long, help = "Option value or expected attribute value")]
+        #[arg(long, help = "Option value attribute")]
         value: Option<String>,
     },
     /// Drag one element onto another.
@@ -195,7 +197,7 @@ enum Commands {
     },
     /// Type text using CDP input injection.
     CdpTypeText {
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Text to inject via CDP")]
         text: String,
     },
 
@@ -242,7 +244,7 @@ enum Commands {
     GetAlertText,
     /// Type text into the active alert prompt.
     TypeAlertText {
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Text to type into the alert prompt")]
         text: String,
     },
     /// Clear the page local storage.
@@ -256,7 +258,7 @@ enum Commands {
     SetLocalStorageItem {
         #[arg(long, help = "Storage key")]
         key: String,
-        #[arg(long, help = "Option value or expected attribute value")]
+        #[arg(long, help = "Value to store in local storage")]
         value: String,
     },
     /// Remove a local storage entry by key.
@@ -283,12 +285,12 @@ enum Commands {
     ExportRecording,
     /// Patch a chromedriver binary to reduce detection surface.
     PatchChromedriver {
-        #[arg(long, help = "Output file or binary path")]
+        #[arg(long, help = "Path to the chromedriver binary")]
         path: String,
     },
     /// Patch a Chrome/Chromium binary for native-level spoofing.
     PatchChrome {
-        #[arg(long, help = "Output file or binary path")]
+        #[arg(long, help = "Path to the Chrome/Chromium binary")]
         path: String,
         /// Directory where the patched copy is cached.
         #[arg(long, help = "Directory where patched binaries are cached")]
@@ -300,14 +302,14 @@ enum Commands {
     AssertTextVisible {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Expected visible text")]
         text: String,
     },
     /// Assert that an element does not contain the given text.
     AssertTextNotVisible {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Text that should not be visible")]
         text: String,
     },
     /// Assert an element attribute equals an expected value.
@@ -316,12 +318,12 @@ enum Commands {
         css: String,
         #[arg(long, help = "Attribute name to read or assert")]
         attribute: String,
-        #[arg(long, help = "Option value or expected attribute value")]
+        #[arg(long, help = "Expected attribute value")]
         value: String,
     },
     /// Assert the page title contains the expected text.
     AssertTitle {
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Expected page title substring")]
         text: String,
     },
     /// Wait until the document readyState is complete.
@@ -348,7 +350,7 @@ enum Commands {
     IsTextVisible {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Expected text to check")]
         text: String,
     },
     /// Wait until an element is no longer visible.
@@ -360,14 +362,12 @@ enum Commands {
     },
     /// Save browser cookies to a JSON file.
     SaveCookies {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "JSON file to save cookies to")]
         file: String,
     },
     /// Load browser cookies from a JSON file.
     LoadCookies {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "JSON file to load cookies from")]
         file: String,
     },
     /// Highlight an element, then click it.
@@ -411,14 +411,14 @@ enum Commands {
     AddText {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Text to append to the element")]
         text: String,
     },
     /// Send keystrokes to an element.
     SendKeys {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Keys to send to the element")]
         text: String,
     },
     /// Print the value of a form element.
@@ -443,29 +443,29 @@ enum Commands {
     },
     /// Print whether a link with the given text is visible.
     IsLinkTextVisible {
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Exact link text to check")]
         text: String,
     },
     /// Print whether a link containing the given text is visible.
     IsPartialLinkTextVisible {
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Link text substring to check")]
         text: String,
     },
     /// Assert a link with the given text is visible.
     AssertLinkText {
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Exact link text to assert")]
         text: String,
     },
     /// Click a link containing the given text.
     ClickPartialLinkText {
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Link text substring to click")]
         text: String,
     },
     /// Type text with human-like timing and noise.
     HumanType {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Text to type with humanized timing")]
         text: String,
     },
     /// Click an element with human-like timing and noise.
@@ -487,7 +487,7 @@ enum Commands {
     UcType {
         #[arg(long, help = "CSS selector for the target element")]
         css: String,
-        #[arg(long, help = "Text to type, assert, or match")]
+        #[arg(long, help = "Text to type in UC mode")]
         text: String,
     },
     /// Install required dependencies and artifacts.
@@ -499,8 +499,7 @@ enum Commands {
     },
     /// Create a file.
     Mkfile {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "File path to create")]
         file: String,
     },
     /// Launch the interactive commander GUI.
@@ -511,34 +510,29 @@ enum Commands {
     BehaveGui,
     /// Print a file.
     Print {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "File path to print")]
         file: String,
     },
     /// Objectify a test recording.
     Objectify,
     /// Create an HTML presentation.
     Mkpres {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "Output HTML presentation path")]
         file: String,
     },
     /// Create an HTML chart.
     Mkchart {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "Output HTML chart path")]
         file: String,
     },
     /// Create a test recording scaffold.
     Mkrec {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "Output recording scaffold path")]
         file: String,
     },
     /// Run a scenario file and write an optional dashboard.
     RunScenario {
-        #[arg(long, help = "Input or output file path")]
-        #[arg(help = "Input or output file path")]
+        #[arg(long, help = "Scenario file to run")]
         file: String,
         #[arg(long, help = "Optional path to write a scenario dashboard")]
         dashboard: Option<String>,
@@ -565,7 +559,7 @@ enum Commands {
 }
 
 async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
-    use seleniumbase_rs::stealth::patcher::find_system_chrome;
+    use std::path::PathBuf;
 
     println!("seleniumbase-rs environment diagnostics");
     println!("========================================");
@@ -595,15 +589,27 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
         runtime.shutdown_timeout.as_secs()
     );
 
-    match find_system_chrome() {
-        Some(path) => println!("System Chrome: {}", path.display()),
-        None => println!("System Chrome: not found"),
+    println!();
+    println!("Browser binary");
+    let chrome_bin = runtime.chrome_bin.clone().or_else(find_system_chrome);
+    match &chrome_bin {
+        Some(path) if path.exists() => {
+            println!("  Found: {}", path.display());
+        }
+        Some(path) => {
+            println!("  Configured path missing: {}", path.display());
+            println!("  Hint: set SB_CHROME_BIN to a valid Chrome/Chromium executable");
+        }
+        None => {
+            println!("  Not found");
+            println!("  Hint: install Google Chrome/Chromium or set SB_CHROME_BIN");
+        }
     }
 
-    let chrome_bin = runtime.chrome_bin.clone().or_else(find_system_chrome);
-    if let Some(path) = chrome_bin {
-        println!("Chrome binary candidate: {}", path.display());
-        let patcher = ChromeBinaryPatcher::new(&path).with_cache_dir(
+    println!();
+    println!("Patch cache");
+    if let Some(path) = &chrome_bin {
+        let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(
             runtime.patch_cache_dir.clone().unwrap_or_else(|| {
                 dirs::cache_dir()
                     .unwrap_or_default()
@@ -611,8 +617,56 @@ async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
             }),
         );
         match patcher.patched_path() {
-            Ok(p) => println!("Patched binary cache path: {}", p.display()),
-            Err(e) => println!("Patched binary cache path unavailable: {e}"),
+            Ok(p) => {
+                if p.exists() {
+                    println!("  Cached patched binary: {}", p.display());
+                } else {
+                    println!("  Cache path: {}", p.display());
+                    println!(
+                        "  Hint: run `sbase patch-chrome --path <chrome>` to populate the cache"
+                    );
+                }
+            }
+            Err(e) => {
+                println!("  Unable to compute cache path: {e}");
+                println!("  Hint: verify the Chrome path and cache directory are writable");
+            }
+        }
+    } else {
+        println!("  Skipped (no Chrome binary found)");
+    }
+
+    println!();
+    println!("Chromedriver");
+    let chromedriver: Option<PathBuf> = which::which("chromedriver")
+        .ok()
+        .or_else(|| std::env::var("CHROMEDRIVER_PATH").ok().map(PathBuf::from));
+    match chromedriver {
+        Some(path) if path.exists() => {
+            println!("  Found: {}", path.display());
+            match ChromedriverPatcher::new(&path).needs_patch() {
+                Ok(true) => {
+                    println!("  Status: contains automation markers");
+                    println!(
+                        "  Hint: run `sbase patch-chromedriver --path {}`",
+                        path.display()
+                    );
+                }
+                Ok(false) => {
+                    println!("  Status: no obvious automation markers");
+                }
+                Err(e) => {
+                    println!("  Status: unable to inspect binary ({e})");
+                }
+            }
+        }
+        Some(path) => {
+            println!("  Configured path missing: {}", path.display());
+            println!("  Hint: install chromedriver or set CHROMEDRIVER_PATH");
+        }
+        None => {
+            println!("  Not found in PATH");
+            println!("  Hint: install chromedriver or set CHROMEDRIVER_PATH");
         }
     }
 

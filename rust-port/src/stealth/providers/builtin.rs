@@ -32,6 +32,7 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(BatteryProvider),
         Box::new(ConnectionProvider),
         Box::new(MediaDevicesProvider),
+        Box::new(FontsProvider),
         Box::new(SpeechProvider),
         Box::new(BluetoothProvider),
         Box::new(HeadlessProvider),
@@ -568,29 +569,75 @@ impl EvasionProvider for WebRtcProvider {
     fn applies(&self, fp: &Fingerprint) -> bool {
         masked(fp.flags.webrtc_masking)
     }
-    fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
-            r#"(function() {
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let public_ip = ctx.fingerprint.webrtc_public_ip.clone().unwrap_or_default();
+        let local_ip = ctx.fingerprint.webrtc_local_ip.clone().unwrap_or_default();
+        let has_custom_ips = !public_ip.is_empty() || !local_ip.is_empty();
+        Some(format!(
+            r#"(function() {{
   const RTC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
   if (!RTC) return;
-  function filterConfig(config) {
-    if (config && Array.isArray(config.iceServers)) {
-      config.iceServers = config.iceServers.filter(function(s) {
+  function filterConfig(config) {{
+    if (config && Array.isArray(config.iceServers)) {{
+      config.iceServers = config.iceServers.filter(function(s) {{
         const urls = [].concat(s.urls || s.url || []);
-        return urls.every(function(u) { return typeof u === 'string' && !/^stun:|^turn:/i.test(u) ? true : true; });
-      });
-    }
+        return urls.every(function(u) {{ return typeof u === 'string' && !/^stun:|^turn:/i.test(u); }});
+      }});
+    }}
     return config;
-  }
-  const Patched = function(config, constraints) {
-    return new RTC(filterConfig(config), constraints);
-  };
+  }}
+  function replaceIps(sdp) {{
+    if (typeof sdp !== 'string') return sdp;
+    return sdp.split(/\r?\n/).map(function(line) {{
+      if ({has_public} && line.indexOf('a=candidate:') === 0) {{
+        const parts = line.split(' ');
+        if (parts.length >= 5) parts[4] = '{public_ip}';
+        return parts.join(' ');
+      }}
+      if ({has_local} && line.indexOf('c=IN IP') === 0) {{
+        const parts = line.split(' ');
+        if (parts.length >= 3) parts[2] = '{local_ip}';
+        return parts.join(' ');
+      }}
+      return line;
+    }}).join('\r\n');
+  }}
+  const Patched = function(config, constraints) {{
+    const pc = new RTC(filterConfig(config), constraints);
+    if ({has_custom_ips}) {{
+      const origCreateOffer = pc.createOffer.bind(pc);
+      pc.createOffer = function(opts) {{ return origCreateOffer(opts).then(function(o) {{ if (o && o.sdp) o.sdp = replaceIps(o.sdp); return o; }}); }};
+      const origSetLocal = pc.setLocalDescription.bind(pc);
+      pc.setLocalDescription = function(desc) {{ if (desc && desc.sdp) desc.sdp = replaceIps(desc.sdp); return origSetLocal(desc); }};
+    }}
+    return pc;
+  }};
   Patched.prototype = RTC.prototype;
-  window.RTCPeerConnection = (window.__sbNative || function(f){return f;})(Patched, 'RTCPeerConnection');
+  window.RTCPeerConnection = (window.__sbNative || function(f){{return f;}})(Patched, 'RTCPeerConnection');
   window.webkitRTCPeerConnection = window.RTCPeerConnection;
-})();"#
-                .to_owned(),
-        )
+  if ({has_custom_ips} && window.RTCIceCandidate) {{
+    const OrigCandidate = window.RTCIceCandidate;
+    window.RTCIceCandidate = function(candidateInit) {{
+      let c = candidateInit;
+      if (typeof c === 'string') c = {{ candidate: c, sdpMid: '', sdpMLineIndex: 0 }};
+      if (c && typeof c.candidate === 'string') {{
+        if ({has_public}) {{
+          const parts = c.candidate.split(' ');
+          if (parts.length >= 5) parts[4] = '{public_ip}';
+          c.candidate = parts.join(' ');
+        }}
+      }}
+      return new OrigCandidate(c);
+    }};
+    window.RTCIceCandidate.prototype = OrigCandidate.prototype;
+  }}
+}})();"#,
+            has_public = !public_ip.is_empty(),
+            has_local = !local_ip.is_empty(),
+            has_custom_ips = has_custom_ips,
+            public_ip = EvasionContext::escape(&public_ip),
+            local_ip = EvasionContext::escape(&local_ip),
+        ))
     }
 }
 
@@ -681,6 +728,30 @@ impl EvasionProvider for MediaDevicesProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
+        if !fp.media_devices.is_empty() {
+            let entries = fp
+                .media_devices
+                .iter()
+                .map(|d| {
+                    format!(
+                        "{{ deviceId: '{}', groupId: '{}', kind: '{}', label: '{}', toJSON: function() {{ return this; }} }}",
+                        EvasionContext::escape(&d.device_id),
+                        EvasionContext::escape(&d.group_id),
+                        EvasionContext::escape(&d.kind),
+                        EvasionContext::escape(&d.label),
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Some(format!(
+                r#"(function() {{
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  const devices = [{entries}];
+  const patched = function() {{ return Promise.resolve(devices.map(function(d) {{ return Object.assign({{}}, d, {{ toJSON: function() {{ return this; }} }}); }})); }};
+  navigator.mediaDevices.enumerateDevices = (window.__sbNative || function(f){{return f;}})(patched, 'enumerateDevices');
+}})();"#
+            ));
+        }
         let audio_in = fp.audio_inputs.unwrap_or(1);
         let audio_out = fp.audio_outputs.unwrap_or(1);
         let video_in = fp.video_inputs.unwrap_or(1);
@@ -697,6 +768,63 @@ impl EvasionProvider for MediaDevicesProvider {
   }};
   navigator.mediaDevices.enumerateDevices = (window.__sbNative || function(f){{return f;}})(patched, 'enumerateDevices');
 }})();"#
+        ))
+    }
+}
+
+/// Restricts font enumeration and loading to the configured font list.
+pub struct FontsProvider;
+
+impl EvasionProvider for FontsProvider {
+    fn name(&self) -> &str {
+        "fonts"
+    }
+    fn priority(&self) -> i32 {
+        76
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        masked(fp.flags.fonts_masking) && !fp.fonts.is_empty()
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let fonts = ctx.fingerprint.fonts.clone();
+        let families: Vec<String> = fonts
+            .iter()
+            .map(|f| format!("'{}'", EvasionContext::escape(f)))
+            .collect();
+        let set = families.join(", ");
+        Some(format!(
+            r#"(function() {{
+  const allowed = new Set([{set}]);
+  function makeFace(family) {{
+    return {{ family: family, status: 'loaded', load: function() {{ return Promise.resolve(this); }}, }}
+  }}
+  function parseFamily(spec) {{
+    if (typeof spec !== 'string') return '';
+    return spec.replace(/['"]/g, '').split(',')[0].trim();
+  }}
+  if (document.fonts) {{
+    const origLoad = document.fonts.load.bind(document.fonts);
+    document.fonts.load = function(fontSpec, text) {{
+      const family = parseFamily(fontSpec);
+      if (allowed.has(family)) return Promise.resolve([makeFace(family)]);
+      return origLoad(fontSpec, text);
+    }};
+    document.fonts.check = function(fontSpec, text) {{
+      return allowed.has(parseFamily(fontSpec));
+    }};
+  }}
+  if (window.FontFace) {{
+    const Orig = window.FontFace;
+    window.FontFace = function(family, source, descriptors) {{
+      if (!allowed.has(parseFamily(family))) {{
+        return new Orig('sans-serif', 'url(data:application/font-woff2;base64,)', descriptors);
+      }}
+      return new Orig(family, source, descriptors);
+    }};
+    window.FontFace.prototype = Orig.prototype;
+  }}
+}})();"#,
+            set = set
         ))
     }
 }
@@ -1103,7 +1231,7 @@ mod tests {
     #[test]
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 25);
+        assert_eq!(providers.len(), 26);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());

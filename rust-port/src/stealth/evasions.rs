@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 
-use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyMaskingMode};
+use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyMaskingMode, QuicMode};
 use crate::stealth::providers::{default_registry, EvasionContext};
 
 /// Generates a single combined bootstrap script for the given fingerprint.
@@ -94,14 +94,22 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
         }
     }
 
-    if matches!(fp.flags.proxy_masking, ProxyMaskingMode::Custom) {
+    if matches!(
+        fp.flags.proxy_masking,
+        ProxyMaskingMode::Custom
+            | ProxyMaskingMode::Socks5
+            | ProxyMaskingMode::Http
+            | ProxyMaskingMode::Https
+    ) {
         if let Some(proxy) = fp.proxy.as_ref() {
             args.push(format!("--proxy-server={}", proxy.to_url()));
         }
     }
 
-    if fp.flags.quic_mode == crate::stealth::fingerprint::QuicMode::Disabled {
-        args.push("--disable-quic".to_owned());
+    match fp.flags.quic_mode {
+        QuicMode::Disabled | QuicMode::ForceHttp2 => args.push("--disable-quic".to_owned()),
+        QuicMode::Enabled => args.push("--enable-quic".to_owned()),
+        QuicMode::Natural | QuicMode::Auto => {}
     }
 
     for (flag, value) in &fp.cmd_params {

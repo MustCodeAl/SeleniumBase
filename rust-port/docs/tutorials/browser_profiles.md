@@ -86,7 +86,7 @@ bootstrap.
     "fingerprint": {
       "screen": { "width": 1920, "height": 1080, "pixel_ratio": 1 },
       "geolocation": { "latitude": 52.52, "longitude": 13.405, "accuracy": 100 },
-      "timezone": { "id": "Europe/Berlin" }
+      "timezone": { "zone": "Europe/Berlin" }
     }
   }
 }
@@ -95,6 +95,63 @@ bootstrap.
 `screen_masking: custom` applies the exact resolution. `geolocation_masking:
 custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
 `timezone_masking: mask` picks a timezone that matches the geolocation.
+
+## Literal value shortcuts
+
+For convenience, most masking flags also accept a concrete literal string
+instead of a mode keyword. When a literal value is supplied, the parser sets the
+corresponding mode to `Custom` and writes the value into the fingerprint so it
+is applied automatically.
+
+| Flag | Literal format | Example |
+|---|---|---|
+| `screen_masking` | `WIDTHxHEIGHTxDEPTH` | `"1920x1080x24"` |
+| `geolocation_masking` | `lat,lon,altitude` | `"40.7128,-74.0060,10.5"` |
+| `graphics_masking` | `vendor~renderer` | `"Intel Inc.~Intel(R) Iris(R) Xe Graphics"` |
+| `navigator_masking` | full UA string | `"Mozilla/5.0 (Windows NT 10.0; Win64; x64)..."` |
+| `localization_masking` | locale / accept-language | `"en-US,en;q=0.9"` |
+| `timezone_masking` | IANA zone | `"America/New_York"` |
+| `fonts_masking` | comma-separated fonts | `"Arial,Calibri,Consolas"` |
+| `media_devices_masking` | `kind:deviceId:label\|...` | `"audioinput:default:Mic1\|videoinput:default:Cam1"` |
+| `ports_masking` | `block:port,port,...` or list | `"block:80,443,3000"` |
+| `proxy_masking` | proxy URL | `"socks5://user:pass@host:1080"` |
+| `webrtc_masking` | `public:IP\|local:IP` | `"public:172.56.21.89\|local:10.0.0.5"` |
+
+### Full literal-value profile
+
+```json
+{
+  "name": "US_Ecom_Buyer_01",
+  "browser_type": "chromium",
+  "folder_id": "folder_88a2b1",
+  "os_type": "windows",
+  "core_version": 133,
+  "parameters": {
+    "flags": {
+      "audio_masking": "noise",
+      "fonts_masking": "Arial,Helvetica,Open Sans,Roboto,Segoe UI,Times New Roman",
+      "geolocation_masking": "40.7128,-74.0060,10.5",
+      "geolocation_popup": "allow",
+      "graphics_masking": "Intel Inc.~Intel(R) Iris(R) Xe Graphics~WebGL 2.0",
+      "graphics_noise": "medium",
+      "localization_masking": "en-US,en;q=0.9",
+      "media_devices_masking": "audioinput:default:Mic1|videoinput:default:Cam1",
+      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "ports_masking": "block:80,443,3000,8080,9222",
+      "proxy_masking": "socks5://user123:pass456@192.168.1.50:1080",
+      "screen_masking": "1920x1080x24",
+      "quic_mode": "disabled",
+      "timezone_masking": "America/New_York",
+      "webrtc_masking": "public:192.168.1.50|local:10.0.0.5",
+      "canvas_noise": "random"
+    }
+  }
+}
+```
+
+The parser extracts every literal value above and populates the matching
+`Fingerprint` fields, so the stealth bootstrap and launch args can use them
+without any extra code.
 
 #### Custom proxy (`proxy_masking: custom`)
 
@@ -125,15 +182,28 @@ custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
 ```json
 {
   "parameters": {
-    "flags": { "webrtc_masking": "mask" },
-    "fingerprint": { "webrtc": { "mode": "default_public_interface_only" } }
+    "flags": { "webrtc_masking": "mask" }
   }
 }
 ```
 
-`webrtc_masking: mask` translates the `webrtc.mode` field into Chromium's
-`--force-webrtc-ip-handling-policy` flag. `webrtc_masking: disabled` omits the
-flag and lets the browser use its default.
+`webrtc_masking: mask` forces `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
+so public IP leakage is reduced. `webrtc_masking: disabled` leaves the browser's
+default policy in place.
+
+To spoof specific public/local IPs, use the literal `public:IP|local:IP` format
+or the `fingerprint.webrtc.public_ip` field:
+
+```json
+{
+  "parameters": {
+    "flags": { "webrtc_masking": "public:172.56.21.89|local:10.0.0.5" },
+    "fingerprint": {
+      "webrtc": { "public_ip": "172.56.21.89" }
+    }
+  }
+}
+```
 
 ## Mapping to SeleniumBase concepts
 

@@ -71,16 +71,23 @@ following modes:
 | `Custom` | Use the explicit value supplied in the `Fingerprint`. | Set a specific `user_agent`, `screen` resolution, `proxy`, or `geolocation`. |
 | `Disabled` | Turn the feature off entirely. | Disable WebRTC, block QUIC, or leave proxy unconfigured. |
 
-| Flag | Modes | Default |
+| Flag | Modes / literal format | Default |
 |---|---|---|
-| `navigator_masking` | natural / mask / custom / disabled | mask |
-| `screen_masking` | natural / mask / custom / disabled | mask |
-| `graphics_masking` | natural / mask / custom / disabled | mask |
-| `audio_masking` | natural / mask / custom / disabled | natural |
-| `media_devices_masking` | natural / mask / custom / disabled | natural |
-| `canvas_noise` | mask / natural / disabled | mask |
-| `webrtc_masking` | natural / mask / custom / disabled | mask |
-| `geolocation_masking` | natural / mask / custom / disabled | mask |
+| `navigator_masking` | `natural` / `mask` / `custom` / `disabled`, or a full UA string | mask |
+| `screen_masking` | `natural` / `mask` / `custom` / `disabled`, or `WIDTHxHEIGHTxDEPTH` | mask |
+| `graphics_masking` | `natural` / `mask` / `custom` / `disabled`, or `vendor~renderer` | mask |
+| `audio_masking` | `natural` / `mask` / `custom` / `disabled` | natural |
+| `media_devices_masking` | `natural` / `mask` / `custom` / `disabled`, or `kind:deviceId:label\|...` | natural |
+| `canvas_noise` | `random` / `persistent` / `low` / `natural` / `disabled` | mask |
+| `webrtc_masking` | `natural` / `mask` / `custom` / `disabled` / `public_only`, or `public:IP\|local:IP` | mask |
+| `geolocation_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or `lat,lon,alt` | mask |
+| `timezone_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or an IANA zone | mask |
+| `localization_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or a locale string | mask |
+| `fonts_masking` | `natural` / `mask` / `custom` / `disabled`, or a comma-separated font list | mask |
+| `ports_masking` | `natural` / `off` / `mask` / `block` / `block_all` / `whitelist`, or a port list | mask |
+| `proxy_masking` | `disabled` / `direct` / `custom` / `socks5` / `http` / `https`, or a proxy URL | disabled |
+| `quic_mode` | `enabled` / `disabled` / `force_http2` / `auto` | disabled |
+| `graphics_noise` | `low` / `medium` / `high` / `off` / `natural` / `mask` | mask |
 | `battery_masking` | natural / mask / custom / disabled | mask |
 | `connection_masking` | natural / mask / custom / disabled | mask |
 | `speech_masking` | natural / mask / custom / disabled | mask |
@@ -91,10 +98,29 @@ following modes:
 | `headless_masking` | natural / mask / custom / disabled | mask |
 | `humanize` | bool | false |
 | `block_trackers` | bool | false |
-| `proxy_masking` | disabled / custom | disabled |
 
 Use `StealthFlags::balanced()` for sensible defaults or `StealthFlags::all_custom()`
 when every value is supplied explicitly.
+
+### Literal values in JSON payloads
+
+When a profile is imported through `ProfileParams`, many flags accept a concrete
+string literal. The parser detects the literal, sets the mode to `Custom`, and
+writes the value into the matching `Fingerprint` field:
+
+| Flag | Literal example | Populated fingerprint field |
+|---|---|---|
+| `screen_masking` | `"1920x1080x24"` | `screen_width`, `screen_height`, `color_depth` |
+| `geolocation_masking` | `"40.7128,-74.0060,10.5"` | `latitude`, `longitude`, `altitude` |
+| `graphics_masking` | `"Intel Inc.~Intel(R) Iris(R) Xe Graphics"` | `webgl_vendor`, `webgl_renderer` |
+| `navigator_masking` | full UA string | `user_agent` |
+| `localization_masking` | `"en-US,en;q=0.9"` | `locale`, `languages`, `accept_languages` |
+| `timezone_masking` | `"America/New_York"` | `timezone` |
+| `fonts_masking` | `"Arial,Calibri,Consolas"` | `fonts` |
+| `media_devices_masking` | `"audioinput:default:Mic1\|videoinput:default:Cam1"` | `media_devices` |
+| `ports_masking` | `"block:80,443,3000"` | `ports` |
+| `proxy_masking` | `"socks5://user:pass@host:1080"` | `proxy` |
+| `webrtc_masking` | `"public:172.56.21.89\|local:10.0.0.5"` | `webrtc_public_ip`, `webrtc_local_ip` |
 
 ### Concrete mask-mode examples
 
@@ -244,10 +270,11 @@ Registered by `default_registry()`, in execution order:
 | 50 | `webgl` | WebGL1/WebGL2 `UNMASKED_VENDOR_WEBGL` / `UNMASKED_RENDERER_WEBGL` |
 | 55 | `canvas_noise` | deterministic per-session noise on `toDataURL` / `toBlob` |
 | 60 | `audio_noise` | deterministic noise on `AudioBuffer.getChannelData` |
-| 65 | `webrtc` | filters STUN/TURN servers to prevent IP leaks |
+| 65 | `webrtc` | filters STUN/TURN servers and rewrites SDP / `RTCIceCandidate` IPs when custom IPs are configured |
 | 70 | `battery` | Battery Status API |
 | 72 | `connection` | Network Information API (`effectiveType`, `rtt`, `downlink`) |
-| 75 | `media_devices` | `enumerateDevices` audioinput/audiooutput/videoinput |
+| 75 | `media_devices` | `enumerateDevices` audioinput/audiooutput/videoinput (supports explicit labels) |
+| 76 | `fonts` | restricts `document.fonts.load` / `check` / `FontFace` to the configured font list |
 | 78 | `speech` | `speechSynthesis.getVoices` |
 | 80 | `bluetooth` | `navigator.bluetooth` stub |
 | 85 | `headless` | `matchMedia`, `prefers-reduced-motion`, missing-plugin tells |

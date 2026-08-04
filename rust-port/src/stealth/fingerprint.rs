@@ -85,15 +85,27 @@ pub enum MaskingMode {
     Disabled,
 }
 
-/// Noise strategy for graphics/canvas.
+/// Noise/masking strategy used by `graphics_noise` and `ports_masking`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum NoiseMode {
-    /// Add deterministic noise.
+    /// Add deterministic noise / active masking.
     #[default]
     Mask,
-    /// Use natural rendering.
+    /// Use natural rendering / allow all.
     Natural,
+    /// Turn the feature off entirely.
+    Off,
+    /// Block / deny (used by `ports_masking`).
+    Block,
+    /// Randomized output.
+    Random,
+    /// Low intensity (used by `graphics_noise`).
+    Low,
+    /// Medium intensity (used by `graphics_noise`).
+    Medium,
+    /// High intensity (used by `graphics_noise`).
+    High,
 }
 
 /// Canvas-specific noise mode.
@@ -104,6 +116,12 @@ pub enum CanvasNoiseMode {
     Mask,
     Natural,
     Disabled,
+    /// Non-deterministic per-session noise.
+    Random,
+    /// Deterministic noise tied to the profile seed.
+    Persistent,
+    /// Low-intensity noise.
+    Low,
 }
 
 /// Geolocation permission popup behaviour.
@@ -123,6 +141,10 @@ pub enum ProxyMaskingMode {
     #[default]
     Disabled,
     Custom,
+    Socks5,
+    Http,
+    Https,
+    Direct,
 }
 
 /// QUIC mode.
@@ -132,6 +154,9 @@ pub enum QuicMode {
     #[default]
     Natural,
     Disabled,
+    Enabled,
+    ForceHttp2,
+    Auto,
 }
 
 /// Startup behaviour for a profile session.
@@ -403,6 +428,15 @@ impl BrandVersion {
     }
 }
 
+/// A single labeled media device used by `MediaDevicesProvider`.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MediaDeviceSpec {
+    pub kind: String,
+    pub device_id: String,
+    pub group_id: String,
+    pub label: String,
+}
+
 /// User-Agent Client Hints (`navigator.userAgentData`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClientHints {
@@ -530,6 +564,9 @@ pub struct Fingerprint {
     pub audio_inputs: Option<u32>,
     pub audio_outputs: Option<u32>,
     pub video_inputs: Option<u32>,
+    /// Explicitly labeled media devices (overrides the default generated labels).
+    #[serde(default)]
+    pub media_devices: Vec<MediaDeviceSpec>,
 
     // Geolocation
     pub latitude: Option<f64>,
@@ -545,6 +582,16 @@ pub struct Fingerprint {
 
     // WebRTC
     pub webrtc_policy: WebRtcPolicy,
+    /// Public IP reported by WebRTC when the masking mode supplies one.
+    #[serde(default)]
+    pub webrtc_public_ip: Option<String>,
+    /// Local IP reported by WebRTC when the masking mode supplies one.
+    #[serde(default)]
+    pub webrtc_local_ip: Option<String>,
+
+    // Ports
+    #[serde(default)]
+    pub ports: Vec<u16>,
 
     // Storage
     pub local_storage: bool,
@@ -849,6 +896,22 @@ impl FingerprintBuilder {
         self.inner.audio_inputs = Some(audio_in);
         self.inner.audio_outputs = Some(audio_out);
         self.inner.video_inputs = Some(video_in);
+        self
+    }
+
+    pub fn media_device_specs(mut self, v: Vec<MediaDeviceSpec>) -> Self {
+        self.inner.media_devices = v;
+        self
+    }
+
+    pub fn webrtc_ips(mut self, public_ip: impl Into<String>, local_ip: impl Into<String>) -> Self {
+        self.inner.webrtc_public_ip = Some(public_ip.into());
+        self.inner.webrtc_local_ip = Some(local_ip.into());
+        self
+    }
+
+    pub fn blocked_ports(mut self, v: Vec<u16>) -> Self {
+        self.inner.ports = v;
         self
     }
 

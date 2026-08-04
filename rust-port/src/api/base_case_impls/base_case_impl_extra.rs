@@ -131,6 +131,34 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Asserts that the fallible closure `f` returns an error.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use seleniumbase_rs::{BaseCase, SeleniumBaseError};
+    ///
+    /// fn example(sb: &BaseCase) -> Result<(), SeleniumBaseError> {
+    ///     sb.assert_raises(|| Err::<i32, _>("expected failure"))?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn assert_raises<T, E, F>(&self, f: F) -> Result<(), SeleniumBaseError>
+    where
+        F: FnOnce() -> Result<T, E>,
+        E: std::fmt::Debug,
+    {
+        match f() {
+            Ok(_) => Err(SeleniumBaseError::AssertionFailed(
+                "Expected an error, but the operation succeeded".to_owned(),
+            )),
+            Err(e) => {
+                debug!(error = ?e, "assert_raises caught expected error");
+                Ok(())
+            }
+        }
+    }
+
     /// Asserts that `value` is false.
     pub fn assert_false(&self, value: bool) -> Result<(), SeleniumBaseError> {
         if value {

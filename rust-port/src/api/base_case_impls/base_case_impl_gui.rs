@@ -171,4 +171,31 @@ impl BaseCase {
         gui.click()?;
         Ok(())
     }
+
+    // --- UC-mode GUI bypass aliases ---
+    // These are the same native-input helpers as `gui_*`, but exposed under the
+    // `uc_*` naming convention used by Python SeleniumBase for anti-detection
+    // workflows that bypass the browser input path.
+
+    /// UC alias for [`gui_click_x_y`].
+    pub fn uc_gui_click_x_y(&mut self, x: i32, y: i32) -> Result<(), SeleniumBaseError> {
+        self.gui_click_x_y(x, y)
+    }
+
+    /// UC alias for [`gui_write`].
+    pub fn uc_gui_write(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        self.gui_write(text)
+    }
+
+    /// UC alias for [`gui_press_key`].
+    pub fn uc_gui_press_key(&self, key: &str) -> Result<(), SeleniumBaseError> {
+        self.gui_press_key(key)
+    }
+
+    /// Best-effort CAPTCHA handler: clicks the element matching `css` using
+    /// native mouse input. This is a pragmatic fallback for simple checkbox-style
+    /// challenges; it does not solve audio/image CAPTCHAs.
+    pub async fn uc_gui_handle_captcha(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        self.gui_click_element(css).await
+    }
 }

@@ -118,6 +118,11 @@ impl BaseCase {
             .ok_or_else(|| SeleniumBaseError::AssertionFailed(format!("Link '{}' has no href", text)))
     }
 
+    /// Returns the HTTP status code for `url`.
+    pub async fn get_link_status_code(&self, url: &str) -> Result<u16, SeleniumBaseError> {
+        http_status_code(url).await
+    }
+
     /// Asserts that a link with exact `text` exists.
     pub async fn assert_link(&mut self, text: &str) -> Result<(), SeleniumBaseError> {
         if !self.is_link_text_present(text).await? {

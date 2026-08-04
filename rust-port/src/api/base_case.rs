@@ -44,6 +44,8 @@ pub struct BaseCase {
     /// Default implicit wait timeout used by [`wait_for_element_visible_default`].
     timeout_secs: u64,
     gui_held: Option<(i32, i32)>,
+    /// Additional browser sessions created by [`BaseCase::get_new_driver`].
+    extra_sessions: Vec<BrowserSession>,
 }
 
 impl BaseCase {
@@ -73,6 +75,7 @@ impl BaseCase {
             time_limit_secs: None,
             timeout_secs: 10,
             gui_held: None,
+            extra_sessions: Vec::new(),
         }
     }
 
@@ -1487,6 +1490,29 @@ impl BaseCase {
         self.human_type(css, text).await
     }
 
+    /// Opens `url` in UC mode after reconnecting the session.
+    ///
+    /// Reconnecting can help evade detection schemes that fingerprint the
+    /// WebDriver session state across navigations.
+    pub async fn uc_open_with_reconnect(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.reconnect().await?;
+        self.open(url).await?;
+        Ok(())
+    }
+
+    /// Opens `url` in UC mode after a brief disconnect/reconnect cycle.
+    ///
+    /// This is a best-effort anti-detection helper: it quits the current
+    /// WebDriver session, creates a fresh one with the same config, and then
+    /// navigates to `url`.
+    pub async fn uc_open_with_disconnect(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
+        self.quit().await?;
+        let session = BrowserSession::connect(self.config.clone()).await?;
+        self.session = session;
+        self.open(url).await?;
+        Ok(())
+    }
+
     // --- JS Code Execution Helpers ---
 
     pub async fn execute_active_css_js(&mut self) -> Result<(), SeleniumBaseError> {
@@ -2360,6 +2386,7 @@ include!("base_case_impls/base_case_impl_downloads.rs");
 include!("base_case_impls/base_case_impl_storage.rs");
 include!("base_case_impls/base_case_impl_dom.rs");
 include!("base_case_impls/base_case_impl_window.rs");
+include!("base_case_impls/base_case_impl_drivers.rs");
 include!("base_case_impls/base_case_impl_mouse.rs");
 include!("base_case_impls/base_case_impl_alerts.rs");
 include!("base_case_impls/base_case_impl_browser.rs");

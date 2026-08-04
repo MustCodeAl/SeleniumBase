@@ -36,12 +36,15 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(SpeechProvider),
         Box::new(BluetoothProvider),
         Box::new(HeadlessProvider),
+        Box::new(PrepareStackTraceProvider),
         Box::new(ClientHintsProvider),
+        Box::new(MediaCodecsProvider),
         Box::new(TimezoneProvider),
         Box::new(LocalizationProvider),
         Box::new(GeolocationProvider),
         Box::new(HairlineProvider),
         Box::new(IframeProvider),
+        Box::new(AttachShadowProvider),
         Box::new(TrackerBlockProvider),
     ]
 }
@@ -218,6 +221,7 @@ impl EvasionProvider for NavigatorPropsProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
+        let native = fp.flags.native_spoofing;
         let mut out = String::from("(function() {\n");
         let mut define = |prop: &str, value: String| {
             out.push_str(&format!(
@@ -225,24 +229,26 @@ impl EvasionProvider for NavigatorPropsProvider {
             ));
         };
 
-        let platform = fp
-            .platform
-            .clone()
-            .unwrap_or_else(|| fp.os_type.platform().to_owned());
-        define(
-            "platform",
-            format!("'{}'", EvasionContext::escape(&platform)),
-        );
+        if !native {
+            let platform = fp
+                .platform
+                .clone()
+                .unwrap_or_else(|| fp.os_type.platform().to_owned());
+            define(
+                "platform",
+                format!("'{}'", EvasionContext::escape(&platform)),
+            );
 
-        if let Some(ua) = fp.user_agent.as_deref() {
-            define("userAgent", format!("'{}'", EvasionContext::escape(ua)));
-            define("appVersion", {
-                let av = fp
-                    .app_version
-                    .clone()
-                    .unwrap_or_else(|| ua.replacen("Mozilla/", "", 1));
-                format!("'{}'", EvasionContext::escape(&av))
-            });
+            if let Some(ua) = fp.user_agent.as_deref() {
+                define("userAgent", format!("'{}'", EvasionContext::escape(ua)));
+                define("appVersion", {
+                    let av = fp
+                        .app_version
+                        .clone()
+                        .unwrap_or_else(|| ua.replacen("Mozilla/", "", 1));
+                    format!("'{}'", EvasionContext::escape(&av))
+                });
+            }
         }
         if let Some(cores) = fp.hardware_concurrency {
             define("hardwareConcurrency", cores.to_string());
@@ -402,6 +408,7 @@ impl EvasionProvider for WindowGeometryProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
+        let native = fp.flags.native_spoofing;
         let (w, h) = match (fp.screen_width, fp.screen_height) {
             (Some(w), Some(h)) => (w, h),
             _ => fp.os_type.default_screen(),
@@ -409,6 +416,16 @@ impl EvasionProvider for WindowGeometryProvider {
         let pr = fp.pixel_ratio.unwrap_or(1.0);
         let depth = fp.color_depth.unwrap_or(24);
         let avail_h = h.saturating_sub(40);
+        if native {
+            // Width/height/scale are handled by CDP Emulation.setDeviceMetricsOverride.
+            // Only colorDepth is not covered by CDP, so patch it minimally.
+            return Some(format!(
+                r#"(function() {{
+  try {{ Object.defineProperty(window.Screen.prototype, 'colorDepth', {{ get: function() {{ return {depth}; }}, configurable: true }}); }} catch (e) {{}}
+  try {{ Object.defineProperty(window.Screen.prototype, 'pixelDepth', {{ get: function() {{ return {depth}; }}, configurable: true }}); }} catch (e) {{}}
+}})();"#
+            ));
+        }
         Some(format!(
             r#"(function() {{
   const defs = {{
@@ -523,6 +540,16 @@ impl EvasionProvider for CanvasNoiseProvider {
       tweak(this); return origToBlob.apply(this, arguments);
     }}, 'toBlob');
   }}
+  const origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+  CanvasRenderingContext2D.prototype.getImageData = (window.__sbNative || function(f){{return f;}})(function() {{
+    const img = origGetImageData.apply(this, arguments);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {{
+      const n = Math.floor(rand() * 3) - 1;
+      d[i] = Math.max(0, Math.min(255, d[i] + n));
+    }}
+    return img;
+  }}, 'getImageData');
 }})();"#
         ))
     }
@@ -562,6 +589,19 @@ impl EvasionProvider for AudioNoiseProvider {
       origF.call(this, array);
       for (let i = 0; i < array.length; i++) {{ array[i] += rand() * 0.0002; }}
     }}, 'getFloatFrequencyData');
+  }}
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (AC) {{
+    const origCreateAnalyser = AC.prototype.createAnalyser;
+    AC.prototype.createAnalyser = (window.__sbNative || function(f){{return f;}})(function() {{
+      const node = origCreateAnalyser.apply(this, arguments);
+      const origGetFloat = node.getFloatFrequencyData.bind(node);
+      node.getFloatFrequencyData = function(array) {{
+        origGetFloat(array);
+        for (let i = 0; i < array.length; i++) {{ array[i] += rand() * 0.0002; }}
+      }};
+      return node;
+    }}, 'createAnalyser');
   }}
 }})();"#
         ))
@@ -937,12 +977,74 @@ impl EvasionProvider for HeadlessProvider {
       if (query === '(prefers-reduced-motion: reduce)' || query === '(prefers-color-scheme: dark)') {
         return { matches: false, media: query, onchange: null, addListener: function() {}, removeListener: function() {}, addEventListener: function() {}, removeEventListener: function() {}, dispatchEvent: function() { return false; } };
       }
+      if (query === '(any-pointer: fine)') {
+        return { matches: true, media: query, onchange: null, addListener: function() {}, removeListener: function() {}, addEventListener: function() {}, removeEventListener: function() {}, dispatchEvent: function() { return false; } };
+      }
       return mql;
     };
     window.matchMedia = (window.__sbNative || function(f){return f;})(patched, 'matchMedia');
   }
   try { Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true }); } catch (e) {}
   try { Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true }); } catch (e) {}
+  try { Object.defineProperty(window, 'outerWidth', { get: function() { return window.innerWidth; }, configurable: true }); } catch (e) {}
+  try { Object.defineProperty(window, 'outerHeight', { get: function() { return window.innerHeight; }, configurable: true }); } catch (e) {}
+})();"#
+                .to_owned(),
+        )
+    }
+}
+
+/// Traps `Error.prepareStackTrace` assignments so anti-bot scripts cannot
+/// detect CDP by inspecting stack-trace formatting.
+pub struct PrepareStackTraceProvider;
+
+impl EvasionProvider for PrepareStackTraceProvider {
+    fn name(&self) -> &str {
+        "prepare_stack_trace"
+    }
+    fn priority(&self) -> i32 {
+        87
+    }
+    fn script(&self, _ctx: &EvasionContext) -> Option<String> {
+        Some(
+            r#"(function() {
+  try {
+    let current = Error.prepareStackTrace;
+    Object.defineProperty(Error, 'prepareStackTrace', {
+      get: function() { return current; },
+      set: function(fn) { current = fn; },
+      configurable: true
+    });
+  } catch (e) {}
+})();"#
+                .to_owned(),
+        )
+    }
+}
+
+/// Spoofs `HTMLMediaElement.canPlayType` to report support for common codecs
+/// (H.264, AAC) that headless Chrome sometimes omits, a signal checked by
+/// Turnstile/DataDome-style scripts.
+pub struct MediaCodecsProvider;
+
+impl EvasionProvider for MediaCodecsProvider {
+    fn name(&self) -> &str {
+        "media_codecs"
+    }
+    fn priority(&self) -> i32 {
+        89
+    }
+    fn script(&self, _ctx: &EvasionContext) -> Option<String> {
+        Some(
+            r#"(function() {
+  if (!HTMLMediaElement || !HTMLMediaElement.prototype.canPlayType) return;
+  const orig = HTMLMediaElement.prototype.canPlayType;
+  HTMLMediaElement.prototype.canPlayType = (window.__sbNative || function(f){return f;})(function(type) {
+    const t = String(type).toLowerCase();
+    if (t.indexOf('video/mp4') !== -1 || t.indexOf('video/webm') !== -1) return 'probably';
+    if (t.indexOf('audio/mp4') !== -1 || t.indexOf('audio/mpeg') !== -1 || t.indexOf('audio/aac') !== -1) return 'probably';
+    return orig.call(this, type);
+  }, 'canPlayType');
 })();"#
                 .to_owned(),
         )
@@ -960,7 +1062,9 @@ impl EvasionProvider for ClientHintsProvider {
         88
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.client_hints_masking) && fp.client_hints.is_some()
+        masked(fp.flags.client_hints_masking)
+            && fp.client_hints.is_some()
+            && !fp.flags.native_spoofing
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let ch = ctx.fingerprint.client_hints.as_ref()?;
@@ -1020,7 +1124,7 @@ impl EvasionProvider for TimezoneProvider {
         90
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.timezone_masking)
+        masked(fp.flags.timezone_masking) && !(fp.flags.native_spoofing && fp.timezone.is_some())
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let zone = ctx
@@ -1064,7 +1168,8 @@ impl EvasionProvider for LocalizationProvider {
         92
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.localization_masking) || masked(fp.flags.navigator_masking)
+        (masked(fp.flags.localization_masking) || masked(fp.flags.navigator_masking))
+            && !fp.flags.native_spoofing
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
@@ -1100,7 +1205,7 @@ impl EvasionProvider for GeolocationProvider {
         95
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        masked(fp.flags.geolocation_masking) && fp.latitude.is_some()
+        masked(fp.flags.geolocation_masking) && fp.latitude.is_some() && !fp.flags.native_spoofing
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
@@ -1188,6 +1293,39 @@ impl EvasionProvider for IframeProvider {
     }
 }
 
+/// Forces all `Element.attachShadow` calls to use `mode: 'open'`.
+///
+/// Closed shadow roots make automation difficult and can be a signal that the
+/// page is running in a controllable environment. This provider does not
+/// change the return value's API surface; it only ensures the shadow root is
+/// reachable via `element.shadowRoot`.
+pub struct AttachShadowProvider;
+
+impl EvasionProvider for AttachShadowProvider {
+    fn name(&self) -> &str {
+        "attach_shadow"
+    }
+    fn priority(&self) -> i32 {
+        125
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        !matches!(fp.flags.headless_masking, MaskingMode::Disabled)
+    }
+    fn script(&self, _ctx: &EvasionContext) -> Option<String> {
+        Some(
+            r#"(function() {
+  if (!Element.prototype.attachShadow) return;
+  const orig = Element.prototype.attachShadow;
+  Element.prototype.attachShadow = (window.__sbNative || function(f){return f;})(function(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    return orig.call(this, { ...opts, mode: 'open' });
+  }, 'attachShadow');
+})();"#
+                .to_owned(),
+        )
+    }
+}
+
 /// Records a tracker/fingerprint-script host block list on `window`.
 ///
 /// The actual blocking is best enforced by a CDP/network interceptor; this
@@ -1243,7 +1381,7 @@ mod tests {
     #[test]
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 26);
+        assert_eq!(providers.len(), 29);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());

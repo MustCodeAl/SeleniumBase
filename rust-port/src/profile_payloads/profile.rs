@@ -87,6 +87,12 @@ pub struct Flags {
     pub canvas_noise: Option<String>,
     #[serde(default = "default_startup_behavior")]
     pub startup_behavior: String,
+    #[serde(default)]
+    pub disable_csp: bool,
+    #[serde(default)]
+    pub grant_permissions: bool,
+    #[serde(default)]
+    pub native_spoofing: bool,
 }
 
 impl Default for Flags {
@@ -109,6 +115,9 @@ impl Default for Flags {
             quic_mode: default_quic_mode(),
             canvas_noise: None,
             startup_behavior: default_startup_behavior(),
+            disable_csp: false,
+            grant_permissions: false,
+            native_spoofing: false,
         }
     }
 }
@@ -754,6 +763,9 @@ impl ProfileParams {
                     .map(parse_canvas_noise)
                     .unwrap_or_default(),
                 startup_behavior: parse_startup(&self.parameters.flags.startup_behavior),
+                disable_csp: self.parameters.flags.disable_csp,
+                grant_permissions: self.parameters.flags.grant_permissions,
+                native_spoofing: self.parameters.flags.native_spoofing,
                 ..StealthFlags::balanced()
             })
             .local_storage(self.parameters.storage.is_local)

@@ -227,6 +227,19 @@ pub struct StealthFlags {
     /// Emit a tracker/fingerprint-script domain block list.
     #[serde(default)]
     pub block_trackers: bool,
+    /// Bypass Content-Security-Policy for the page context.
+    #[serde(default)]
+    pub disable_csp: bool,
+    /// Grant common browser permissions at startup so permission prompts do
+    /// not fire (a bot-detection signal).
+    #[serde(default)]
+    pub grant_permissions: bool,
+    /// Apply spoofing through CDP / launch args instead of JavaScript where
+    /// possible. This makes the spoof invisible to page-side introspection
+    /// (`toString`, `getOwnPropertyNames`, etc.) because the browser's own
+    /// implementation returns the fake value.
+    #[serde(default)]
+    pub native_spoofing: bool,
 }
 
 impl StealthFlags {
@@ -260,6 +273,9 @@ impl StealthFlags {
             headless_masking: MaskingMode::Mask,
             humanize: false,
             block_trackers: false,
+            disable_csp: false,
+            grant_permissions: false,
+            native_spoofing: false,
         }
     }
 
@@ -294,6 +310,9 @@ impl StealthFlags {
             headless_masking: MaskingMode::Custom,
             humanize: false,
             block_trackers: false,
+            disable_csp: false,
+            grant_permissions: false,
+            native_spoofing: false,
         }
     }
 }
@@ -1037,6 +1056,15 @@ impl FingerprintBuilder {
     /// Sets a custom tracker host block list.
     pub fn blocked_trackers(mut self, v: Vec<String>) -> Self {
         self.inner.blocked_trackers = v;
+        self
+    }
+
+    /// Enables Rust/CDP-level spoofing for dimensions that the browser can
+    /// override natively. When enabled, page JavaScript cannot detect the
+    /// spoof through `toString` or property-descriptor inspection because
+    /// there is no JS-visible override.
+    pub fn native_spoofing(mut self, v: bool) -> Self {
+        self.inner.flags.native_spoofing = v;
         self
     }
 

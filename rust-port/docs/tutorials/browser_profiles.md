@@ -80,7 +80,10 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 | `geolocation_masking` | `custom`, `mask` | yes | Literal value is `lat,lon,altitude`. |
 | `canvas_noise` | `mask`, `natural`, `disabled` | no | Defaults to the value of `graphics_noise`. |
 | `quic_mode` | `enabled`, `disabled`, `force_http2`, `auto` | no | Default `disabled`. |
+| `disable_csp` | `true`, `false` | no | Bypass Content-Security-Policy for the page context. |
+| `grant_permissions` | `true`, `false` | no | Grant common browser permissions at startup so prompts do not fire. |
 | `startup_behavior` | `recover`, `custom` | no | `recover` restores last-session tabs; `custom` opens `custom_start_urls`. |
+| `native_spoofing` | `true`, `false` | no | When `true`, spoofing is applied through CDP/launch args instead of JS where possible, making it invisible to page-side inspection. |
 
 ### `parameters.fingerprint`
 
@@ -255,6 +258,30 @@ without any extra code.
 `proxy_masking: custom` turns the `parameters.proxy` block into
 `--proxy-server=http://alice:secret@proxy.example.com:8080`. Use
 `proxy_masking: disabled` to leave proxy configuration empty.
+
+#### Native-level spoofing (`native_spoofing: true`)
+
+```json
+{
+  "name": "native-spoof",
+  "browser_type": "chromium",
+  "os_type": "windows",
+  "parameters": {
+    "flags": {
+      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 …",
+      "screen_masking": "1920x1080x24",
+      "timezone_masking": "America/New_York",
+      "geolocation_masking": "40.7580,-73.9855,10.5",
+      "native_spoofing": true
+    }
+  }
+}
+```
+
+When `native_spoofing` is `true`, the user agent, screen size, timezone, and
+geolocation are applied through CDP/launch args rather than JavaScript. Page
+scripts see the fake values as native browser properties with no JS override to
+inspect.
 
 #### WebRTC disabled / masked
 

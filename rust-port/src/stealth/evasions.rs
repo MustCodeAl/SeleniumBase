@@ -16,6 +16,8 @@
 
 use std::collections::HashMap;
 
+use base64::Engine;
+
 use crate::stealth::fingerprint::{Fingerprint, OsType, ProxyMaskingMode, QuicMode};
 use crate::stealth::providers::{default_registry, EvasionContext};
 
@@ -61,11 +63,31 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
         "--no-first-run".to_owned(),
         "--no-service-autorun".to_owned(),
         "--no-pings".to_owned(),
+        "--homepage=about:blank".to_owned(),
         "--disable-background-timer-throttling".to_owned(),
         "--disable-backgrounding-occluded-windows".to_owned(),
         "--disable-renderer-backgrounding".to_owned(),
-        "--disable-features=IsolateOrigins,site-per-process,PrivacySandboxSettings4".to_owned(),
+        "--disable-popup-blocking".to_owned(),
+        "--disable-translate".to_owned(),
+        "--disable-search-engine-choice-screen".to_owned(),
+        "--enable-unsafe-extension-debugging".to_owned(),
+        "--password-store=basic".to_owned(),
+        "--profile-directory=Default".to_owned(),
+        "--safebrowsing-disable-download-protection".to_owned(),
+        "--disable-client-side-phishing-detection".to_owned(),
+        "--disable-single-click-autofill".to_owned(),
+        "--disable-password-generation".to_owned(),
+        "--disable-save-password-bubble".to_owned(),
+        "--simulate-outdated-no-au=\"Tue, 31 Dec 2099 23:59:59 GMT\"".to_owned(),
+        "--disable-features=IsolateOrigins,site-per-process,Translate,InsecureDownloadWarnings,DownloadBubble,DownloadBubbleV2,OptimizationTargetPrediction,OptimizationGuideModelDownloading,SafeBrowsingEnhancedProtection,PrivacySandboxSettings4,AutofillEnableAccountWalletStorage".to_owned(),
     ];
+
+    // Sandbox flags are required for Docker / CI environments and avoid setuid
+    // failures on some Linux distributions. They are a common fingerprinting
+    // trade-off; real users launching with a real user account can omit these.
+    args.push("--no-sandbox".to_owned());
+    args.push("--disable-setuid-sandbox".to_owned());
+    args.push("--disable-dev-shm-usage".to_owned());
 
     if let Some(ua) = fp.user_agent.as_deref() {
         args.push(format!("--user-agent={ua}"));
@@ -152,9 +174,33 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
     }
 
     if let Some(ua) = fp.user_agent.as_deref() {
+        let platform = fp
+            .platform
+            .clone()
+            .unwrap_or_else(|| fp.os_type.platform().to_owned());
+        let accept_language = fp
+            .accept_languages
+            .clone()
+            .or_else(|| fp.locale.clone())
+            .unwrap_or_else(|| "en-US,en;q=0.9".to_owned());
+        let mut ua_override = serde_json::json!({
+            "userAgent": ua,
+            "acceptLanguage": accept_language,
+            "platform": platform,
+        });
+        if let Some(meta) = build_user_agent_metadata(fp, ua) {
+            ua_override
+                .as_object_mut()
+                .expect("object")
+                .insert("userAgentMetadata".to_owned(), meta);
+        }
+        map.insert("Network.setUserAgentOverride".to_owned(), ua_override);
+    }
+
+    if let Some(locale) = fp.locale.as_deref() {
         map.insert(
-            "Network.setUserAgentOverride".to_owned(),
-            serde_json::json!({ "userAgent": ua }),
+            "Emulation.setLocaleOverride".to_owned(),
+            serde_json::json!({ "locale": locale }),
         );
     }
 
@@ -165,7 +211,138 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
         );
     }
 
+    if fp.flags.grant_permissions {
+        map.insert(
+            "Browser.grantPermissions".to_owned(),
+            serde_json::json!({
+                "permissions": [
+                    "notifications", "midi", "midiSysex", "clipboardRead",
+                    "clipboardWrite", "clipboardSanitizedWrite", "paymentHandler",
+                    "backgroundSync", "idleDetection", "webAppInstallation"
+                ]
+            }),
+        );
+    }
+
+    if fp.flags.block_trackers {
+        let hosts: Vec<String> = fp
+            .tracker_hosts()
+            .iter()
+            .map(|h| format!("*{h}*"))
+            .collect();
+        if !hosts.is_empty() {
+            map.insert(
+                "Network.setBlockedURLs".to_owned(),
+                serde_json::json!({ "urls": hosts }),
+            );
+        }
+    }
+
+    if fp.flags.disable_csp {
+        map.insert(
+            "Page.setBypassCSP".to_owned(),
+            serde_json::json!({ "enabled": true }),
+        );
+    }
+
+    if matches!(
+        fp.flags.headless_masking,
+        crate::stealth::fingerprint::MaskingMode::Mask
+            | crate::stealth::fingerprint::MaskingMode::Custom
+    ) {
+        map.insert(
+            "Emulation.setFocusEmulationEnabled".to_owned(),
+            serde_json::json!({ "enabled": true }),
+        );
+    }
+
+    if let Some(proxy) = fp.proxy.as_ref() {
+        if proxy.username.is_some() && proxy.password.is_some() {
+            let creds = format!(
+                "{}:{}",
+                proxy.username.as_deref().unwrap_or_default(),
+                proxy.password.as_deref().unwrap_or_default()
+            );
+            let encoded = base64::engine::general_purpose::STANDARD.encode(creds);
+            map.insert(
+                "Network.setExtraHTTPHeaders".to_owned(),
+                serde_json::json!({ "headers": { "Proxy-Authorization": format!("Basic {encoded}") } }),
+            );
+        }
+    }
+
     map
+}
+
+/// Builds a `userAgentMetadata` object for `Network.setUserAgentOverride` from
+/// the fingerprint. This populates Client Hints at the browser level so page
+/// scripts see consistent brands/platform/architecture without a JS patch.
+fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::Value> {
+    if let Some(ch) = fp.client_hints.as_ref() {
+        let brands: Vec<serde_json::Value> = ch
+            .brands
+            .iter()
+            .map(|b| serde_json::json!({"brand": b.brand.clone(), "version": b.version.clone()}))
+            .collect();
+        return Some(serde_json::json!({
+            "brands": brands,
+            "fullVersion": ch.ua_full_version,
+            "platform": ch.platform,
+            "platformVersion": ch.platform_version,
+            "architecture": ch.architecture,
+            "model": ch.model,
+            "mobile": ch.mobile,
+        }));
+    }
+
+    let platform = fp
+        .platform
+        .clone()
+        .unwrap_or_else(|| fp.os_type.platform().to_owned());
+    let (arch, platform_version, model, wow64) = match fp.os_type {
+        OsType::Windows => ("x86", "10.0", "", fp.platform.as_deref() == Some("Win64")),
+        OsType::Macos => ("arm", "14.0", "", false),
+        OsType::Linux => ("x86", "", "", false),
+        OsType::Android => ("arm", "14.0", "Pixel 7", true),
+    };
+    let full_version = fp
+        .core_version
+        .map(|v| format!("{v}.0.0.0"))
+        .or_else(|| extract_chrome_version(ua))
+        .unwrap_or_else(|| "133.0.0.0".to_owned());
+    let major = full_version
+        .split('.')
+        .next()
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(133);
+    let brands = if ua.contains("Chrome") {
+        vec![
+            serde_json::json!({"brand": "Chromium", "version": major.to_string()}),
+            serde_json::json!({"brand": "Google Chrome", "version": major.to_string()}),
+            serde_json::json!({"brand": "Not(A:Brand", "version": "24"}),
+        ]
+    } else {
+        vec![serde_json::json!({"brand": "Chromium", "version": major.to_string()})]
+    };
+    Some(serde_json::json!({
+        "brands": brands,
+        "fullVersion": full_version,
+        "platform": platform,
+        "platformVersion": platform_version,
+        "architecture": arch,
+        "model": model,
+        "mobile": fp.os_type == OsType::Android,
+        "wow64": wow64,
+    }))
+}
+
+/// Extracts a Chrome/Chromium version such as `133.0.0.0` from a user-agent string.
+fn extract_chrome_version(ua: &str) -> Option<String> {
+    use regex::Regex;
+    let re = Regex::new(r"Chrome/(\d+\.\d+\.\d+\.\d+)").ok()?;
+    re.captures(ua)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_owned())
 }
 
 #[cfg(test)]
@@ -200,5 +377,34 @@ mod tests {
         let map = cdp_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
+    }
+
+    #[test]
+    fn native_spoofing_emits_cdp_user_agent_locale() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.native_spoofing = true;
+        let map = cdp_overrides(&fp);
+        let ua = map
+            .get("Network.setUserAgentOverride")
+            .expect("UA override");
+        assert!(ua.get("userAgent").is_some());
+        assert!(ua.get("acceptLanguage").is_some());
+        assert!(ua.get("platform").is_some());
+        assert!(ua.get("userAgentMetadata").is_some());
+        assert!(map.contains_key("Emulation.setLocaleOverride"));
+    }
+
+    #[test]
+    fn native_spoofing_skips_js_overrides_for_cdp_dimensions() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.flags.native_spoofing = true;
+        let script = bootstrap_script(&fp);
+        // CDP handles userAgent, platform, screen size, timezone, locale, geo.
+        assert!(!script.contains("navigator.userAgent"));
+        assert!(!script.contains("navigator.platform"));
+        assert!(!script.contains("window.Screen.prototype, 'width'"));
+        assert!(!script.contains("Intl.DateTimeFormat"));
+        // Hardware properties still need JS patching.
+        assert!(script.contains("hardwareConcurrency"));
     }
 }

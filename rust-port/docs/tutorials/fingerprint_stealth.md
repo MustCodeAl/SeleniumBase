@@ -98,6 +98,9 @@ following modes:
 | `headless_masking` | natural / mask / custom / disabled | mask |
 | `humanize` | bool | false |
 | `block_trackers` | bool | false |
+| `disable_csp` | bool | false |
+| `grant_permissions` | bool | false |
+| `native_spoofing` | bool | false |
 
 Use `StealthFlags::balanced()` for sensible defaults or `StealthFlags::all_custom()`
 when every value is supplied explicitly.
@@ -186,6 +189,61 @@ This adds `--force-webrtc-ip-handling-policy=disable_non_proxied_udp` so WebRTC
 cannot leak the local IP address. Set `webrtc_masking: Disabled` to omit the
 flag and let the browser use its default policy.
 
+## Native-level (CDP) spoofing
+
+By default, most spoofed values are injected through JavaScript providers. This
+works everywhere, but page scripts can *in principle* detect the patch through
+`Function.prototype.toString`, `Object.getOwnPropertyNames`, or descriptor
+inspection.
+
+Enable `StealthFlags::native_spoofing` to move every spoofing dimension that
+can be driven by the Chrome DevTools Protocol (CDP) or Chromium launch args out
+of JavaScript and into the browser's own implementation:
+
+```rust
+use seleniumbase_rs::Fingerprint;
+
+let fp = Fingerprint::builder()
+    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 …")
+    .platform("Win32")
+    .screen(1920, 1080)
+    .locale("en-US")
+    .timezone("America/New_York")
+    .geolocation(40.7580, -73.9855)
+    .native_spoofing(true)
+    .build();
+```
+
+When `native_spoofing` is true the framework:
+
+* Sends `Network.setUserAgentOverride` with `userAgent`, `acceptLanguage`,
+  `platform`, and `userAgentMetadata` so `navigator.userAgent`,
+  `navigator.platform`, `navigator.languages`, and Client Hints come from the
+  browser itself.
+* Sends `Emulation.setDeviceMetricsOverride` so `screen.width/height`,
+  `window.outerWidth/Height`, and `devicePixelRatio` are native values.
+* Sends `Emulation.setTimezoneOverride` and `Emulation.setLocaleOverride` for
+  time-zone and localization semantics.
+* Sends `Emulation.setGeolocationOverride` for `navigator.geolocation`.
+* Keeps JS providers only for dimensions that have no CDP equivalent:
+  `hardwareConcurrency`, `deviceMemory`, WebGL vendor/renderer, canvas/audio
+  noise, media devices, fonts, battery, connection, speech, Bluetooth, and
+  `navigator.webdriver` cleanup.
+
+Because the browser returns the fake values directly, there is no JS-visible
+override to inspect. `toString()`, `getOwnPropertyNames()`, and descriptor
+probes see the native getter/property, making the spoof effectively invisible
+to page-side introspection.
+
+### Caveats
+
+* Native spoofing requires a CDP session. In pure WebDriver fallback mode the
+  framework falls back to the JS providers.
+* `colorDepth` / `pixelDepth` are not covered by CDP device metrics, so a
+  minimal JS patch is still emitted for them.
+* Some signals (WebGL, canvas noise, audio noise) have no CDP override and
+  remain JS-based even in native mode.
+
 ## rustwright / Playwright mode
 
 ```rust
@@ -268,8 +326,8 @@ Registered by `default_registry()`, in execution order:
 | 40 | `plugins` | five PDF-viewer plugins and mimeTypes |
 | 45 | `window_geometry` | screen/window dimensions, `devicePixelRatio` |
 | 50 | `webgl` | WebGL1/WebGL2 `UNMASKED_VENDOR_WEBGL` / `UNMASKED_RENDERER_WEBGL` |
-| 55 | `canvas_noise` | deterministic per-session noise on `toDataURL` / `toBlob` |
-| 60 | `audio_noise` | deterministic noise on `AudioBuffer.getChannelData` |
+| 55 | `canvas_noise` | deterministic per-session noise on `toDataURL` / `toBlob` / `getImageData` |
+| 60 | `audio_noise` | deterministic noise on `AudioBuffer.getChannelData` and `AnalyserNode.getFloatFrequencyData` |
 | 65 | `webrtc` | filters STUN/TURN servers and rewrites SDP / `RTCIceCandidate` IPs when custom IPs are configured |
 | 70 | `battery` | Battery Status API |
 | 72 | `connection` | Network Information API (`effectiveType`, `rtt`, `downlink`) |
@@ -277,13 +335,16 @@ Registered by `default_registry()`, in execution order:
 | 76 | `fonts` | restricts `document.fonts.load` / `check` / `FontFace` to the configured font list |
 | 78 | `speech` | `speechSynthesis.getVoices` |
 | 80 | `bluetooth` | `navigator.bluetooth` stub |
-| 85 | `headless` | `matchMedia`, `prefers-reduced-motion`, missing-plugin tells |
+| 85 | `headless` | `matchMedia`, `prefers-reduced-motion`, missing-plugin tells, `outerWidth/Height`, pointer media |
+| 87 | `prepare_stack_trace` | protects `Error.prepareStackTrace` from CDP stack-trace probing |
 | 88 | `client_hints` | `navigator.userAgentData` brands/platform/architecture/model |
+| 89 | `media_codecs` | normalizes `HTMLMediaElement.canPlayType` for H.264/AAC/MP4/WebM |
 | 90 | `timezone` | `Intl.DateTimeFormat` / `Date` time zone |
 | 92 | `localization` | language / locale |
 | 95 | `geolocation` | `geolocation.getCurrentPosition` |
 | 110 | `hairline` | image-`srcset` / device-pixel hairline feature detection |
 | 120 | `iframe` | `contentWindow` self-defense for same-origin frames |
+| 125 | `attach_shadow` | forces open `Element.attachShadow` roots so content remains inspectable |
 | 130 | `tracker_block` | optional fetch guard for known tracker hosts |
 
 List them at runtime with `default_registry().provider_names()`, or over MCP
@@ -341,6 +402,7 @@ assert_eq!(delays.len(), 5);
 * Client Hints (`navigator.userAgentData`) brands, platform, and architecture
 * WebRTC STUN/TURN filtering to prevent local-IP leaks
 * Launch args such as `--disable-blink-features=AutomationControlled`
+* Optional native-level spoofing via CDP so page JS cannot detect the override
 
 ## Complementary defenses
 
@@ -359,5 +421,8 @@ automation markers:
 
 * TLS / JA3 / JA4 fingerprint spoofing is not implemented. For pure HTTP
   requests that need browser-faithful TLS, consider `wreq` + `wreq-util`.
-* The spoofed values are applied at the CDP / JavaScript layer; no Chromium
-  source patching is performed.
+* Some dimensions (WebGL vendor/renderer, canvas/audio noise, media devices,
+  fonts, battery, etc.) have no CDP override and remain JavaScript-based even
+  when `native_spoofing` is enabled.
+* Chromium source patching is not performed; for the strongest protection use
+  `ChromedriverPatcher` plus engine spoofing args in addition to fingerprints.

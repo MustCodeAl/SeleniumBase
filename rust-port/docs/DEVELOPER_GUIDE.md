@@ -271,13 +271,20 @@ Chrome DevTools Protocol client.
 
 ## Stealth architecture
 
-The stealth system has three independent axes:
+The stealth system has four independent axes:
 
 1. **Launch configuration** — `StealthOptions` emits Chromium args and prefs.
 2. **Runtime JavaScript** — `EvasionProvider`s generate a bootstrap script.
-3. **Network interception** — `StealthReactor` uses CDP `Fetch` to override
+3. **CDP-level overrides** — `evasions::cdp_overrides()` sends
+   `Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`,
+   `Emulation.setTimezoneOverride`, `Emulation.setLocaleOverride`,
+   `Emulation.setGeolocationOverride`, and related commands. When
+   `StealthFlags::native_spoofing` is enabled, providers skip JS patches for
+   dimensions the browser can spoof natively, making the spoof invisible to
+   page-side `toString()` / descriptor inspection.
+4. **Network interception** — `StealthReactor` uses CDP `Fetch` to override
    headers and responses.
-4. **Binary patching** — `ChromedriverPatcher` edits driver markers.
+5. **Binary patching** — `ChromedriverPatcher` edits driver markers.
 
 ```text
                  BrowserConfig

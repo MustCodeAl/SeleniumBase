@@ -446,10 +446,14 @@ impl EvasionProvider for WebglProvider {
             .webgl_renderer
             .as_deref()
             .unwrap_or("Intel Iris OpenGL Engine");
+        let vendor_id = fp.webgl_vendor_id.as_deref().unwrap_or("");
+        let renderer_id = fp.webgl_renderer_id.as_deref().unwrap_or("");
         Some(format!(
             r#"(function() {{
   const vendor = '{v}';
   const renderer = '{r}';
+  const vendorId = '{vid}';
+  const rendererId = '{rid}';
   function patch(ctx) {{
     if (!ctx || !ctx.prototype) return;
     const orig = ctx.prototype.getParameter;
@@ -459,12 +463,20 @@ impl EvasionProvider for WebglProvider {
       return orig.call(this, parameter);
     }};
     ctx.prototype.getParameter = (window.__sbNative || function(f){{return f;}})(patched, 'getParameter');
+    if (vendorId) {{
+      Object.defineProperty(ctx.prototype, '__sbVendorId', {{ value: vendorId, configurable: true }});
+    }}
+    if (rendererId) {{
+      Object.defineProperty(ctx.prototype, '__sbRendererId', {{ value: rendererId, configurable: true }});
+    }}
   }}
   patch(window.WebGLRenderingContext);
   patch(window.WebGL2RenderingContext);
 }})();"#,
             v = EvasionContext::escape(vendor),
             r = EvasionContext::escape(renderer),
+            vid = EvasionContext::escape(vendor_id),
+            rid = EvasionContext::escape(renderer_id),
         ))
     }
 }
@@ -1263,6 +1275,18 @@ mod tests {
         assert!(script.contains("Google Inc. (NVIDIA)"));
         assert!(script.contains("37445"));
         assert!(script.contains("37446"));
+    }
+
+    #[test]
+    fn webgl_includes_optional_ids() {
+        let mut fp = Fingerprint::windows_desktop();
+        fp.webgl_vendor_id = Some("0x10de".into());
+        fp.webgl_renderer_id = Some("0x1f91".into());
+        let script = WebglProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("__sbVendorId"));
+        assert!(script.contains("__sbRendererId"));
+        assert!(script.contains("0x10de"));
+        assert!(script.contains("0x1f91"));
     }
 
     #[test]

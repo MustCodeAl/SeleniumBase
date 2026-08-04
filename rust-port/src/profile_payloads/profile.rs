@@ -18,6 +18,10 @@ pub struct ProfileParams {
     pub folder_id: String,
     #[serde(default = "default_os_type")]
     pub os_type: String,
+    #[serde(default = "default_automation")]
+    pub automation: String,
+    #[serde(default)]
+    pub is_headless: bool,
     #[serde(default)]
     pub core_version: Option<u32>,
     #[serde(default)]
@@ -133,6 +137,8 @@ pub struct Fingerprint {
     #[serde(default)]
     pub localization: Option<LocalizationFingerprint>,
     #[serde(default)]
+    pub max_touch_points: Option<u32>,
+    #[serde(default)]
     pub timezone: Option<TimezoneFingerprint>,
     #[serde(default)]
     pub graphic: Option<GraphicFingerprint>,
@@ -156,6 +162,8 @@ pub struct Fingerprint {
 pub struct NavigatorFingerprint {
     #[serde(default)]
     pub hardware_concurrency: Option<u32>,
+    #[serde(default)]
+    pub device_memory: Option<f64>,
     pub user_agent: String,
     pub platform: String,
     #[serde(default)]
@@ -251,6 +259,9 @@ fn default_folder_id() -> String {
 }
 fn default_os_type() -> String {
     "windows".into()
+}
+fn default_automation() -> String {
+    "selenium".into()
 }
 fn default_auto_update_core() -> bool {
     true
@@ -755,12 +766,17 @@ impl ProfileParams {
                 .user_agent(nav.user_agent.clone())
                 .platform(nav.platform.clone())
                 .hardware_concurrency(nav.hardware_concurrency.unwrap_or(8));
+            if let Some(mem) = nav.device_memory {
+                builder = builder.device_memory(mem);
+            }
             if !nav.os_cpu.is_empty() {
-                // Kept for completeness; os_cpu is rarely exposed to page JS.
-                let _ = &nav.os_cpu;
+                builder = builder.os_cpu(nav.os_cpu.clone());
             }
         } else if let Some(ua) = nav_ua {
             builder = builder.user_agent(ua);
+        }
+        if let Some(touch) = self.parameters.fingerprint.max_touch_points {
+            builder = builder.max_touch_points(touch);
         }
 
         if let Some(loc) = self.parameters.fingerprint.localization.as_ref() {
@@ -783,6 +799,9 @@ impl ProfileParams {
 
         if let Some(gpu) = self.parameters.fingerprint.graphic.as_ref() {
             builder = builder.webgl(gpu.vendor.clone(), gpu.renderer.clone());
+            if !gpu.vendor_id.is_empty() || !gpu.renderer_id.is_empty() {
+                builder = builder.webgl_ids(gpu.vendor_id.clone(), gpu.renderer_id.clone());
+            }
         } else if let Some((vendor, renderer)) = gfx_vendor_renderer {
             builder = builder.webgl(vendor, renderer);
         }
@@ -869,22 +888,33 @@ impl ProfileParams {
     /// equivalent. The conversion applies the values that do map cleanly:
     /// browser type, user agent, locale, proxy, and extra command-line flags.
     pub fn to_browser_config(&self, container_url: impl Into<String>) -> BrowserConfig {
+        let mode = match self.automation.to_lowercase().as_str() {
+            "playwright" | "puppeteer" => DriverMode::Cdp,
+            "selenium" => DriverMode::WebDriver,
+            _ if matches!(self.browser_type.as_str(), "firefox" | "stealthfox") => {
+                DriverMode::WebDriver
+            }
+            _ => DriverMode::Uc,
+        };
+        let custom_start_urls: Vec<String> = self
+            .parameters
+            .custom_start_urls
+            .iter()
+            .take(5)
+            .cloned()
+            .collect();
         let mut config = BrowserConfig {
             webdriver_url: container_url.into(),
             browser: self.browser(),
-            headless: false,
-            mode: if matches!(self.browser_type.as_str(), "firefox" | "stealthfox") {
-                DriverMode::WebDriver
-            } else {
-                DriverMode::Uc
-            },
+            headless: self.is_headless,
+            mode,
             user_agent: self.user_agent(),
             locale: self.locale(),
             proxy: self.proxy_string(),
             proxy_pac_url: None,
             user_data_dir: self.user_data_dir(),
             extension_dir: None,
-            start_page: self.parameters.custom_start_urls.first().cloned(),
+            start_page: custom_start_urls.first().cloned(),
             reuse_session: false,
             mobile: self.os_type == "android",
             threads: None,
@@ -1088,6 +1118,82 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(firefox.browser(), Browser::Firefox);
+    }
+
+    #[test]
+    fn profile_automation_and_headless_map_to_browser_config() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "HeadlessPlaywright",
+            "automation": "playwright",
+            "is_headless": true,
+            "parameters": {}
+        }))
+        .unwrap();
+        let config = params.to_browser_config("http://localhost:4444");
+        assert!(config.headless);
+        assert_eq!(config.mode, DriverMode::Cdp);
+    }
+
+    #[test]
+    fn profile_navigator_extras_are_applied() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "Extras",
+            "os_type": "android",
+            "parameters": {
+                "fingerprint": {
+                    "navigator": {
+                        "hardware_concurrency": 8,
+                        "device_memory": 4.0,
+                        "user_agent": "Mozilla/5.0 (Linux; Android 10)",
+                        "platform": "Linux armv8l",
+                        "os_cpu": "Linux armv8l"
+                    },
+                    "max_touch_points": 5
+                }
+            }
+        }))
+        .unwrap();
+        let fp = params.to_fingerprint();
+        assert_eq!(fp.hardware_concurrency, Some(8));
+        assert_eq!(fp.device_memory, Some(4.0));
+        assert_eq!(fp.oscpu.as_deref(), Some("Linux armv8l"));
+        assert_eq!(fp.max_touch_points, Some(5));
+    }
+
+    #[test]
+    fn profile_webgl_ids_are_applied() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "WebGLIds",
+            "parameters": {
+                "fingerprint": {
+                    "graphic": {
+                        "vendor": "NVIDIA",
+                        "renderer": "GeForce RTX",
+                        "vendor_id": "0x10de",
+                        "renderer_id": "0x1f91"
+                    }
+                }
+            }
+        }))
+        .unwrap();
+        let fp = params.to_fingerprint();
+        assert_eq!(fp.webgl_vendor.as_deref(), Some("NVIDIA"));
+        assert_eq!(fp.webgl_renderer.as_deref(), Some("GeForce RTX"));
+        assert_eq!(fp.webgl_vendor_id.as_deref(), Some("0x10de"));
+        assert_eq!(fp.webgl_renderer_id.as_deref(), Some("0x1f91"));
+    }
+
+    #[test]
+    fn custom_start_urls_are_capped_at_five() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "Urls",
+            "parameters": {
+                "custom_start_urls": ["a", "b", "c", "d", "e", "f"]
+            }
+        }))
+        .unwrap();
+        let config = params.to_browser_config("http://localhost:4444");
+        assert_eq!(config.start_page, Some("a".to_string()));
     }
 
     #[test]

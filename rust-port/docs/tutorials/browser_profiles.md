@@ -31,6 +31,85 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 > `mimic` and `stealthfox`, but they are treated as aliases for `chromium` and
 > `firefox`. New profiles should use the generic names.
 
+## Complete field reference
+
+### Top-level profile fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Profile name. |
+| `browser_type` | `chromium` \| `firefox` | yes | Browser engine. Legacy aliases `mimic`/`stealthfox` still work. |
+| `os_type` | `linux` \| `macos` \| `windows` \| `android` | yes | Operating-system persona. |
+| `automation` | `selenium` \| `playwright` \| `puppeteer` | no | Automation backend. `selenium` is default; `playwright`/`puppeteer` map to CDP mode. |
+| `is_headless` | boolean | no | Run the browser headlessly. Default `false`. |
+| `folder_id` | string | no | Persistent folder identifier for local storage. |
+| `core_version` | number | no | Browser major version (informational). |
+| `core_minor_version` | number | no | Browser minor version (informational). |
+| `auto_update_core` | boolean | no | Whether to auto-update the core version. |
+| `tags` | string[] | no | Arbitrary tags. |
+| `times` | number | no | Usage counter. Default `1`. |
+| `notes` | string | no | Human-readable notes. |
+
+### `parameters`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `flags` | object | yes | Masking mode switches (see below). |
+| `fingerprint` | object | yes | Explicit fingerprint values used when a flag is `custom`. |
+| `storage` | object | yes | `is_local` and `save_service_worker`. |
+| `proxy` | object | no | Proxy configuration. |
+| `custom_start_urls` | string[] | no | URLs opened on launch. Maximum **5**; extras are ignored. |
+
+### `parameters.flags`
+
+| Flag | Accepted values | Required | Notes |
+|---|---|---|---|
+| `webrtc_masking` | `natural`, `custom`, `mask`, `disabled` | yes | Use literal `public:IP\|local:IP` for custom IPs. |
+| `proxy_masking` | `custom`, `disabled` | yes | Pair with `parameters.proxy`. |
+| `geolocation_popup` | `prompt`, `allow`, `block` | yes | Geolocation permission prompt behavior. |
+| `audio_masking` | `natural`, `mask` | yes | Additional engine-specific values such as `noise`, `random`, `block`, `off` are also accepted. |
+| `graphics_noise` | `natural`, `mask` | yes | Also accepts `low`, `medium`, `high`, `off`. |
+| `navigator_masking` | `natural`, `custom`, `mask` | yes | Literal value is a full user-agent string. |
+| `localization_masking` | `natural`, `custom`, `mask` | yes | Literal value is a locale/accept-language string. |
+| `timezone_masking` | `natural`, `custom`, `mask` | yes | Literal value is an IANA zone. |
+| `graphics_masking` | `natural`, `custom`, `mask` | yes | Literal value is `vendor~renderer`. |
+| `fonts_masking` | `natural`, `custom`, `mask` | yes | Literal value is a comma-separated font list. |
+| `media_devices_masking` | `natural`, `custom`, `mask` | yes | Literal value is `kind:deviceId:label\|...`. |
+| `screen_masking` | `natural`, `custom`, `mask` | yes | Literal value is `WIDTHxHEIGHTxDEPTH`. |
+| `ports_masking` | `natural`, `custom`, `mask` | yes | Literal value is `block:port,port,...` or a plain list. |
+| `geolocation_masking` | `custom`, `mask` | yes | Literal value is `lat,lon,altitude`. |
+| `canvas_noise` | `mask`, `natural`, `disabled` | no | Defaults to the value of `graphics_noise`. |
+| `quic_mode` | `enabled`, `disabled`, `force_http2`, `auto` | no | Default `disabled`. |
+| `startup_behavior` | `recover`, `custom` | no | `recover` restores last-session tabs; `custom` opens `custom_start_urls`. |
+
+### `parameters.fingerprint`
+
+| Sub-field | Fields | Required when flag is `custom` | Notes |
+|---|---|---|---|
+| `navigator` | `hardware_concurrency`, `device_memory`, `user_agent`, `platform`, `os_cpu` | `hardware_concurrency`, `user_agent`, `platform` | `os_cpu` is optional; mostly relevant for Firefox personas. |
+| `localization` | `languages`, `locale`, `accept_languages` | all | Pass an empty string for `languages`/`locale` if you only need `accept_languages`. |
+| `timezone` | `zone` | yes | IANA zone such as `America/New_York`. |
+| `graphic` | `vendor`, `renderer`, `vendor_id`, `renderer_id` | `vendor`, `renderer` | `vendor_id`/`renderer_id` are optional GPU identifiers attached to the WebGL context. |
+| `webrtc` | `public_ip` | yes | Also supports `local_ip` via the flag literal. |
+| `media_devices` | `audio_outputs`, `audio_inputs`, `video_inputs` | all | |
+| `screen` | `width`, `height`, `pixel_ratio` | all | `width` 360–5000, `height` 640–3000, `pixel_ratio` 1.0–5.0. |
+| `geolocation` | `accuracy`, `altitude`, `longitude`, `latitude` | all except `accuracy` | |
+| `ports` | number[] | no | List of ports to block/allow. |
+| `fonts` | string[] | no | List of installed fonts. |
+| `cmd_params` | `{ params: [{ flag, value }] }` | no | Extra Chromium command-line flags. |
+| `max_touch_points` | number | no | Android only; default `5`. |
+
+### `parameters.proxy`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | `http` \| `https` \| `socks5` | yes | Proxy scheme. |
+| `host` | string | yes | Proxy host. IPv6 addresses should **not** include brackets when supplied in this object (use them only in `proxy_masking` URL literals). |
+| `port` | number | yes | Proxy port. |
+| `username` | string | no | Basic-auth username. |
+| `password` | string | no | Basic-auth password. |
+| `save_traffic` | boolean | no | When `true`, disables image/video loading to save proxy bandwidth. Default `false`. |
+
 ## Masking modes
 
 Flags control how a fingerprint dimension is handled. Each mode has a concrete
@@ -213,14 +292,22 @@ port applies what it can and preserves the rest as metadata:
 | Profile field | Applied via |
 |---|---|
 | `browser_type` | `Browser::Chrome` or `Browser::Firefox` |
-| `os_type == android` | mobile emulation |
+| `os_type == android` | mobile emulation (`max_touch_points`, mobile UA) |
+| `automation` | `DriverMode::WebDriver` for `selenium`; `DriverMode::Cdp` for `playwright`/`puppeteer` |
+| `is_headless` | `BrowserConfig.headless` |
 | `fingerprint.navigator.user_agent` | `--user-agent` argument |
+| `fingerprint.navigator.hardware_concurrency` | `navigator.hardwareConcurrency` override |
+| `fingerprint.navigator.device_memory` | `navigator.deviceMemory` override |
+| `fingerprint.navigator.os_cpu` | `navigator.oscpu` override (Firefox) |
+| `fingerprint.max_touch_points` | `navigator.maxTouchPoints` override |
 | `fingerprint.localization.locale` | `--lang` argument |
 | `parameters.proxy` | `--proxy-server` argument |
+| `parameters.proxy.save_traffic` | `ad_block` / image-blocking launch args |
+| `fingerprint.graphic.vendor_id` / `renderer_id` | attached to WebGL context for introspection scripts |
 | `fingerprint.screen` | `BaseCase::set_window_size` at runtime |
 | `fingerprint.geolocation` | `Emulation.setGeolocationOverride` CDP call |
 | `fingerprint.cmd_params` | extra Chromium arguments |
-| `parameters.custom_start_urls` | first URL is used as `start_page`; extras are opened at runtime |
+| `parameters.custom_start_urls` | first URL is used as `start_page`; extras are opened at runtime (max 5) |
 
 Flags such as canvas noise, font masking, WebRTC masking, and idle-time behavior
 are stored in the profile and exposed to the stealth bootstrap, custom CDP

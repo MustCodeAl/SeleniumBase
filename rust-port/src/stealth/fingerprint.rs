@@ -559,6 +559,12 @@ pub struct Fingerprint {
     // WebGL
     pub webgl_vendor: Option<String>,
     pub webgl_renderer: Option<String>,
+    /// Optional GPU vendor id (e.g. `0x10de`). Not all browsers expose this.
+    #[serde(default)]
+    pub webgl_vendor_id: Option<String>,
+    /// Optional GPU renderer id (e.g. `0x1f91`). Not all browsers expose this.
+    #[serde(default)]
+    pub webgl_renderer_id: Option<String>,
 
     // Media devices
     pub audio_inputs: Option<u32>,
@@ -889,6 +895,21 @@ impl FingerprintBuilder {
     pub fn webgl(mut self, vendor: impl Into<String>, renderer: impl Into<String>) -> Self {
         self.inner.webgl_vendor = Some(vendor.into());
         self.inner.webgl_renderer = Some(renderer.into());
+        self
+    }
+
+    pub fn webgl_ids(
+        mut self,
+        vendor_id: impl Into<String>,
+        renderer_id: impl Into<String>,
+    ) -> Self {
+        self.inner.webgl_vendor_id = Some(vendor_id.into());
+        self.inner.webgl_renderer_id = Some(renderer_id.into());
+        self
+    }
+
+    pub fn os_cpu(mut self, v: impl Into<String>) -> Self {
+        self.inner.oscpu = Some(v.into());
         self
     }
 

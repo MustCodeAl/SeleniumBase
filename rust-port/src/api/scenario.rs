@@ -1,27 +1,44 @@
-#[derive(Debug, Default, Clone)]
-pub struct RunSummary {
-    pub scenario_name: String,
-    pub total_steps: usize,
-    pub passed_steps: usize,
-    pub failed_steps: usize,
-    pub errors: Vec<String>,
-}
+//! JSON-driven scenario runner and dashboard writer.
+//!
+//! A [`Scenario`] is a portable list of high-level browser actions described in
+//! JSON. [`run_scenario`] replays those actions against a [`BaseCase`] and
+//! produces a [`RunSummary`] that can be rendered to HTML with
+//! [`write_dashboard_html`].
 
 use serde::Deserialize;
 
-// use crate::utils::dashboard::RunSummary;
 use crate::api::base_case::BaseCase;
 use crate::error::SeleniumBaseError;
 
+/// Result summary for a scenario run.
+#[derive(Debug, Default, Clone)]
+pub struct RunSummary {
+    /// Name of the executed scenario.
+    pub scenario_name: String,
+    /// Total number of steps in the scenario.
+    pub total_steps: usize,
+    /// Number of steps that completed without error.
+    pub passed_steps: usize,
+    /// Number of steps that produced an error.
+    pub failed_steps: usize,
+    /// Human-readable error messages for failed steps.
+    pub errors: Vec<String>,
+}
+
+/// A scenario parsed from JSON, containing a sequence of browser actions.
 #[derive(Debug, Deserialize)]
 pub struct Scenario {
+    /// Human-readable name for the scenario.
     pub name: String,
+    /// Ordered list of steps to execute.
     pub steps: Vec<ScenarioStep>,
 }
 
+/// A single step inside a [`Scenario`].
 #[derive(Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ScenarioStep {
+    /// Navigate to a URL.
     Open {
         url: String,
     },
@@ -136,6 +153,10 @@ pub enum ScenarioStep {
     },
 }
 
+/// Executes every step of `scenario` against `sb` and returns a summary.
+///
+/// Each step is executed in order; failures are collected and reported in the
+/// returned [`RunSummary`] rather than stopping execution early.
 pub async fn run_scenario(
     sb: &mut BaseCase,
     scenario: &Scenario,
@@ -228,6 +249,7 @@ pub async fn run_scenario(
     })
 }
 
+/// Writes a simple HTML dashboard report for `summary` to `path`.
 pub fn write_dashboard_html<P: AsRef<std::path::Path>>(
     summary: &RunSummary,
     path: P,

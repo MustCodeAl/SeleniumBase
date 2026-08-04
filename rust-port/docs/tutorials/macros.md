@@ -7,9 +7,10 @@ inside an `async` function or closure.
 
 ```rust
 use seleniumbase_rs::{
-    assert_visible, fingerprint, sb_assert_text, sb_assert_title, sb_assert_url,
-    sb_click, sb_hover, sb_js, sb_open, sb_quit, sb_scroll_to, sb_select,
-    sb_screenshot, sb_test, sb_type, sb_wait_for, selector, uc_config,
+    assert_visible, cdp_config, fingerprint, sb_assert_not_visible, sb_assert_text,
+    sb_assert_title, sb_assert_url, sb_click, sb_config, sb_fill_form, sb_hover,
+    sb_js, sb_open, sb_quit, sb_scroll_to, sb_select, sb_screenshot, sb_test,
+    sb_type, sb_wait_and_click, sb_wait_for, sb_with_timeout, selector, uc_config,
 };
 ```
 
@@ -58,6 +59,31 @@ use seleniumbase_rs::uc_config;
 let config = uc_config!();
 ```
 
+## `cdp_config!`
+
+Returns a [`BrowserConfig`](crate::BrowserConfig) with CDP mode enabled.
+
+```rust
+use seleniumbase_rs::cdp_config;
+
+let config = cdp_config!();
+```
+
+## `sb_config!`
+
+Builds a [`BrowserConfig`](crate::BrowserConfig) using common field
+permutations. Fields can be chained in any order supported by the macro.
+
+```rust
+use seleniumbase_rs::{sb_config, Browser, DriverMode};
+
+let config = sb_config! {
+    mode: DriverMode::Uc,
+    headless: true,
+    browser: Browser::Chrome,
+};
+```
+
 ## `fingerprint!`
 
 Returns a built-in [`Fingerprint`](crate::Fingerprint) preset.
@@ -67,7 +93,10 @@ use seleniumbase_rs::fingerprint;
 
 let fp = fingerprint!(windows);
 let fp = fingerprint!(macos);
+let fp = fingerprint!(linux);
 let fp = fingerprint!(android);
+let fp = fingerprint!(ios);
+let fp = fingerprint!(edge);
 ```
 
 ## Action macros
@@ -82,15 +111,40 @@ await it. An optional trailing message is passed to `.expect(...)`.
 | `sb_type!(sb, selector, text)` | `sb.type_text(selector, text).await` |
 | `sb_hover!(sb, selector)` | `sb.hover(selector).await` |
 | `sb_scroll_to!(sb, selector)` | `sb.scroll_to(selector).await` |
-| `sb_wait_for!(sb, selector)` | `sb.wait_for_element_visible(selector).await` |
+| `sb_wait_for!(sb, selector)` | `sb.wait_for_element_visible_default(selector).await` |
+| `sb_wait_and_click!(sb, selector)` | wait then `sb.click(selector).await` |
 | `sb_select!(sb, selector, text)` | `sb.select_option_by_text(selector, text).await` |
 | `sb_assert_text!(sb, selector, expected)` | `sb.assert_text(selector, expected).await` |
 | `sb_assert_title!(sb, expected)` | `sb.assert_title_contains(expected).await` |
 | `sb_assert_url!(sb, expected)` | `sb.assert_url_contains(expected).await` |
+| `sb_assert_not_visible!(sb, selector)` | fails if the element is visible |
 | `sb_screenshot!(sb, path)` | `sb.save_screenshot_to_path(path).await` |
 | `sb_js!(sb, script)` | `sb.execute_script(script).await` |
 | `sb_quit!(sb)` | `sb.quit().await` |
 | `assert_visible!(sb, selector)` | `sb.assert_element_visible(selector).await` |
+
+## Form and timeout macros
+
+`sb_fill_form!` types into multiple fields in sequence and returns a
+[`Result`](crate::Result), so it works with the `?` operator inside tests:
+
+```rust,ignore
+use seleniumbase_rs::sb_fill_form;
+
+sb_fill_form!(sb, "#username" => "alice", "#password" => "secret")?;
+```
+
+`sb_with_timeout!` temporarily raises the default implicit wait timeout for the
+enclosed block and restores it afterwards:
+
+```rust,ignore
+use seleniumbase_rs::sb_with_timeout;
+
+sb_with_timeout!(sb, 30, {
+    sb_wait_for!(sb, "#slow-element");
+    sb_click!(sb, "#slow-element");
+});
+```
 
 ```rust,ignore
 use seleniumbase_rs::{

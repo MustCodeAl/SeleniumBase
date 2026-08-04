@@ -65,10 +65,7 @@ impl StealthOptions {
         caps.add_arg("--disable-dev-shm-usage")?;
         caps.add_arg("--no-sandbox")?;
 
-        let size = self
-            .window_size
-            .clone()
-            .unwrap_or_else(|| "1280,720".to_owned());
+        let size = self.window_size.as_deref().unwrap_or("1280,720");
         caps.add_arg(&format!("--window-size={size}"))?;
 
         if self.headless {

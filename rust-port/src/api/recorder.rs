@@ -1,22 +1,37 @@
+//! Action recorder that turns browser interactions into Rust test scripts.
+//!
+//! [`ActionRecorder`] collects a sequence of [`RecordedAction`] values and can
+//! emit a standalone Rust `main` function, a `#[tokio::test]` function, or a
+//! saved test file. It is used by the recorder mode to replay manual browser
+//! sessions as automated tests.
+
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 use crate::SeleniumBaseError;
 
+/// A single recorded browser action.
 #[derive(Clone, Debug, Serialize)]
 pub struct RecordedAction {
+    /// Method name on [`BaseCase`](crate::BaseCase) that the action maps to.
     pub name: String,
+    /// Primary argument, typically a selector or URL.
     pub target: Option<String>,
+    /// Secondary argument, such as text to type.
     pub value: Option<String>,
+    /// Unix timestamp in milliseconds when the action was recorded.
     pub timestamp_ms: u128,
 }
 
+/// Collector and code generator for recorded actions.
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct ActionRecorder {
+    /// Ordered list of recorded actions.
     pub actions: Vec<RecordedAction>,
 }
 
 impl ActionRecorder {
+    /// Records a new action with the current timestamp.
     pub fn record(&mut self, name: &str, target: Option<&str>, value: Option<&str>) {
         let timestamp_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -30,6 +45,7 @@ impl ActionRecorder {
         });
     }
 
+    /// Generates a standalone `#[tokio::main]` Rust program from the recording.
     pub fn to_rust_script(&self) -> String {
         let mut out = String::from(
             "use seleniumbase_rs::{BaseCase, BrowserConfig};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let mut sb = BaseCase::new(BrowserConfig::default()).await?;\n",
@@ -39,6 +55,7 @@ impl ActionRecorder {
         out
     }
 
+    /// Generates a `#[tokio::test]` async function from the recording.
     pub fn to_rust_test(&self, test_name: &str) -> String {
         let fn_name = rust_identifier(test_name);
         let mut out =
@@ -52,6 +69,7 @@ impl ActionRecorder {
         out
     }
 
+    /// Writes the recording as a Rust test file into `dir/{name}.rs`.
     pub fn save_recording_as_test(
         &self,
         dir: &Path,

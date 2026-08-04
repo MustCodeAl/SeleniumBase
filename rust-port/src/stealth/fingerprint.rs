@@ -682,13 +682,11 @@ impl Fingerprint {
     /// derives a stable value from the user-agent (falling back to a constant
     /// when no user-agent is present) so noise is reproducible per persona.
     pub fn seed_value(&self) -> u64 {
-        if let Some(seed) = self.seed {
-            return seed;
-        }
-        match self.user_agent.as_deref() {
-            Some(ua) => fnv1a(ua.as_bytes()),
-            None => 0x9E37_79B9_7F4A_7C15,
-        }
+        self.seed.unwrap_or_else(|| {
+            self.user_agent
+                .as_deref()
+                .map_or(0x9E37_79B9_7F4A_7C15, |ua| fnv1a(ua.as_bytes()))
+        })
     }
 
     /// Validates cross-field coherence and returns a [`CoherenceReport`].
@@ -703,8 +701,8 @@ impl Fingerprint {
 
         let platform = self
             .platform
-            .clone()
-            .unwrap_or_else(|| self.os_type.platform().to_owned());
+            .as_deref()
+            .unwrap_or_else(|| self.os_type.platform());
 
         // OS persona vs navigator.platform.
         let platform_ok = match self.os_type {
@@ -825,6 +823,23 @@ impl Fingerprint {
             .languages("en-US,en;q=0.9")
             .timezone("America/Los_Angeles")
             .webgl("Apple Inc.", "Apple M3")
+            .flags(StealthFlags::balanced())
+            .build()
+    }
+
+    /// Quick preset for a Linux desktop Chrome profile.
+    pub fn linux_desktop() -> Self {
+        Self::builder()
+            .os_type(OsType::Linux)
+            .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+            .platform("Linux x86_64")
+            .screen(1920, 1080)
+            .hardware_concurrency(8)
+            .device_memory(8.0)
+            .locale("en-US")
+            .languages("en-US,en;q=0.9")
+            .timezone("America/Chicago")
+            .webgl("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Ti Direct3D11 vs_5_0 ps_5_0, D3D11)")
             .flags(StealthFlags::balanced())
             .build()
     }
@@ -1158,6 +1173,7 @@ mod tests {
     fn presets_are_valid() {
         assert_eq!(Fingerprint::windows_desktop().os_type, OsType::Windows);
         assert_eq!(Fingerprint::macos_desktop().os_type, OsType::Macos);
+        assert_eq!(Fingerprint::linux_desktop().os_type, OsType::Linux);
         assert_eq!(Fingerprint::android_mobile().os_type, OsType::Android);
         let ios = Fingerprint::ios_mobile_safari();
         assert_eq!(ios.os_type, OsType::Ios);
@@ -1182,6 +1198,7 @@ mod tests {
         for fp in [
             Fingerprint::windows_desktop(),
             Fingerprint::macos_desktop(),
+            Fingerprint::linux_desktop(),
             Fingerprint::android_mobile(),
             Fingerprint::ios_mobile_safari(),
         ] {

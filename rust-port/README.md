@@ -62,7 +62,7 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
   plugins, permissions, battery, canvas, WebRTC, media devices, tracker block,
   window geometry, etc.) assembled into a priority-ordered registry.
 - **Fingerprint Presets**: Ready-made personas for Chrome/Firefox/Safari/Edge
-  on Windows/macOS/Android and `ios_mobile_safari`.
+  on Windows/macOS/Linux/Android and `ios_mobile_safari`.
 - **Multilogin-Style Profiles**: JSON profile payloads with concrete masking
   values for screen, geolocation, timezone, fonts, WebGL, WebRTC, proxy, and ports.
 - **Native CDP Spoofing**: `Network.setUserAgentOverride` with Client Hints and

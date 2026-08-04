@@ -1,3 +1,9 @@
+//! Chrome DevTools Protocol (CDP) helpers.
+//!
+//! This module wraps the `thirtyfour` CDP extensions with typed helpers for
+//! common commands such as injecting scripts, clearing state, and dispatching
+//! input events. It is used by stealth and automation internals.
+
 #![allow(deprecated)]
 
 use std::sync::Arc;

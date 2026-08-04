@@ -1,3 +1,8 @@
+//! HTML/Chart.js chart generation for reports and presentations.
+//!
+//! The [`Chart`] type supports pie, bar, line, area, and column charts and can
+//! emit both a JSON description and a self-contained HTML file using Chart.js.
+
 use crate::error::SeleniumBaseError;
 use std::fs;
 use std::path::Path;
@@ -15,11 +20,14 @@ pub enum ChartType {
 /// A named data series for charts.
 #[derive(Clone, Debug)]
 pub struct ChartSeries {
+    /// Display name for the series (used in the legend).
     pub name: String,
+    /// Label/value pairs for this series.
     pub data: Vec<(String, i32)>,
 }
 
 impl ChartSeries {
+    /// Creates an empty series with the given name.
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_owned(),
@@ -27,6 +35,7 @@ impl ChartSeries {
         }
     }
 
+    /// Adds a labeled data point to the series.
     pub fn add_data_point(&mut self, label: &str, value: i32) {
         self.data.push((label.to_owned(), value));
     }
@@ -35,13 +44,18 @@ impl ChartSeries {
 /// A simple HTML/Chart.js chart generator.
 #[derive(Clone, Debug)]
 pub struct Chart {
+    /// Chart title shown in the page and legend.
     pub title: String,
+    /// Visual chart type.
     pub chart_type: ChartType,
+    /// Primary label/value data points.
     pub data: Vec<(String, i32)>,
+    /// Additional named series overlaid on the same chart.
     pub extra_series: Vec<ChartSeries>,
 }
 
 impl Chart {
+    /// Creates an empty chart with the given title and type.
     pub fn new(title: &str, chart_type: ChartType) -> Self {
         Self {
             title: title.to_owned(),
@@ -51,6 +65,7 @@ impl Chart {
         }
     }
 
+    /// Adds a labeled data point to the primary series.
     pub fn add_data_point(&mut self, label: &str, value: i32) {
         self.data.push((label.to_owned(), value));
     }
@@ -61,6 +76,9 @@ impl Chart {
     }
 
     /// Returns the chart data as a JSON object string.
+    ///
+    /// The JSON contains the title, type, labels, and datasets required to
+    /// render the chart with Chart.js or a custom front-end.
     pub fn to_json(&self) -> String {
         let datasets: Vec<serde_json::Value> = std::iter::once(serde_json::json!({
             "label": self.title,
@@ -186,6 +204,9 @@ new Chart(document.getElementById('chart'), {{
 }
 
 /// Backwards-compatible pie chart constructor.
+///
+/// Prefer [`Chart`] for new code; `PieChart` is kept for existing callers and
+/// simply delegates to a `Chart` of type [`ChartType::Pie`].
 #[derive(Clone, Debug, Default)]
 pub struct PieChart {
     pub title: String,
@@ -193,6 +214,7 @@ pub struct PieChart {
 }
 
 impl PieChart {
+    /// Creates an empty pie chart with the given title.
     pub fn new(title: &str) -> Self {
         Self {
             title: title.to_owned(),
@@ -200,10 +222,12 @@ impl PieChart {
         }
     }
 
+    /// Adds a labeled slice to the pie chart.
     pub fn add_data_point(&mut self, label: &str, value: i32) {
         self.data.push((label.to_owned(), value));
     }
 
+    /// Saves the pie chart as a self-contained HTML file.
     pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), SeleniumBaseError> {
         let mut chart = Chart::new(&self.title, ChartType::Pie);
         for (label, value) in &self.data {

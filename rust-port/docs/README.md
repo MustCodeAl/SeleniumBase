@@ -24,7 +24,8 @@ an existing suite, use [Migrate Python Tests](python-migration.md).
 - Multilogin-style browser profile payloads with concrete masking values for
   screen, geolocation, timezone, fonts, WebGL, WebRTC, proxy, and ports.
 - Built-in fingerprint presets including `chrome_windows`, `firefox_windows`,
-  `safari_macos`, `edge_windows`, `android_chrome`, and `ios_mobile_safari`.
+  `safari_macos`, `edge_windows`, `linux_desktop`, `android_chrome`, and
+  `ios_mobile_safari`.
 - Twelve-Factor runtime configuration through `SB_*` environment variables,
   structured tracing, and graceful shutdown.
 - Static HTML checks with stable rule IDs and source selectors.

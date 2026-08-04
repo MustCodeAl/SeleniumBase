@@ -1,3 +1,8 @@
+//! Local WebDriver binary launcher and port discovery.
+//!
+//! This module is responsible for starting a local `chromedriver` process on a
+//! free port when the crate is configured to manage its own driver lifecycle.
+
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};

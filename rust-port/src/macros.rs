@@ -125,11 +125,11 @@ macro_rules! sb_scroll_to {
     };
 }
 
-/// Waits for an element to be visible.
+/// Waits for an element to be visible using the default timeout.
 #[macro_export]
 macro_rules! sb_wait_for {
     ($sb:expr, $selector:expr $(, $msg:expr)?) => {
-        $sb.wait_for_element_visible($selector).await $(.expect($msg))?
+        $sb.wait_for_element_visible_default($selector).await $(.expect($msg))?
     };
 }
 
@@ -206,7 +206,11 @@ macro_rules! assert_visible {
 ///
 /// let fp = fingerprint!(windows);
 /// let fp = fingerprint!(macos);
+/// let fp = fingerprint!(linux);
 /// let fp = fingerprint!(android);
+/// let fp = fingerprint!(ios);
+/// let fp = fingerprint!(safari);
+/// let fp = fingerprint!(edge);
 /// ```
 #[macro_export]
 macro_rules! fingerprint {
@@ -216,8 +220,20 @@ macro_rules! fingerprint {
     (macos) => {
         $crate::Fingerprint::macos_desktop()
     };
+    (linux) => {
+        $crate::Fingerprint::linux_desktop()
+    };
     (android) => {
         $crate::Fingerprint::android_mobile()
+    };
+    (ios) => {
+        $crate::Fingerprint::ios_mobile_safari()
+    };
+    (safari) => {
+        $crate::Fingerprint::ios_mobile_safari()
+    };
+    (edge) => {
+        $crate::Fingerprint::windows_desktop()
     };
 }
 
@@ -233,6 +249,115 @@ macro_rules! uc_config {
     () => {
         $crate::BrowserConfig::default().with_mode($crate::DriverMode::Uc)
     };
+}
+
+/// Builds a [`BrowserConfig`](crate::BrowserConfig) with CDP mode enabled.
+#[macro_export]
+macro_rules! cdp_config {
+    () => {
+        $crate::BrowserConfig::default().with_mode($crate::DriverMode::Cdp)
+    };
+}
+
+/// Builds a [`BrowserConfig`](crate::BrowserConfig) using chained options.
+///
+/// ```ignore
+/// use seleniumbase_rs::{sb_config, DriverMode, Browser};
+///
+/// let config = sb_config! {
+///     mode: DriverMode::Uc,
+///     headless: true,
+///     browser: Browser::Chrome,
+/// };
+/// ```
+#[macro_export]
+macro_rules! sb_config {
+    () => {
+        $crate::BrowserConfig::default()
+    };
+    (headless: $h:expr) => {
+        $crate::BrowserConfig::default().with_headless($h)
+    };
+    (mode: $m:expr) => {
+        $crate::BrowserConfig::default().with_mode($m)
+    };
+    (browser: $b:expr) => {
+        $crate::BrowserConfig::default().with_browser($b)
+    };
+    (headless: $h:expr, mode: $m:expr) => {
+        $crate::BrowserConfig::default()
+            .with_headless($h)
+            .with_mode($m)
+    };
+    (mode: $m:expr, headless: $h:expr) => {
+        $crate::BrowserConfig::default()
+            .with_mode($m)
+            .with_headless($h)
+    };
+    (mode: $m:expr, headless: $h:expr, browser: $b:expr) => {
+        $crate::BrowserConfig::default()
+            .with_mode($m)
+            .with_headless($h)
+            .with_browser($b)
+    };
+}
+
+/// Fills multiple form fields in sequence.
+///
+/// ```ignore
+/// use seleniumbase_rs::sb_fill_form;
+///
+/// sb_fill_form!(sb, "#username" => "alice", "#password" => "secret")?;
+/// ```
+#[macro_export]
+macro_rules! sb_fill_form {
+    ($sb:expr, $($selector:expr => $text:expr),+ $(,)?) => {{
+        let result: $crate::Result<()> = async {
+            $(
+                $sb.type_text($selector, $text).await?;
+            )+
+            Ok(())
+        }.await;
+        result
+    }};
+}
+
+/// Waits for an element to be visible using the default timeout, then clicks it.
+#[macro_export]
+macro_rules! sb_wait_and_click {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {{
+        $sb.wait_for_element_visible_default($selector).await$(.expect($msg))?;
+        $sb.click($selector).await$(.expect($msg))?
+    }};
+}
+
+/// Asserts that an element is not visible.
+#[macro_export]
+macro_rules! sb_assert_not_visible {
+    ($sb:expr, $selector:expr $(, $msg:expr)?) => {{
+        let visible = $sb.is_element_visible($selector).await$(.expect($msg))?;
+        if visible {
+            return Err($crate::SeleniumBaseError::AssertionFailed(
+                format!("element '{}' was unexpectedly visible", stringify!($selector))
+            ));
+        }
+        Ok::<(), $crate::SeleniumBaseError>(())
+    }};
+}
+
+/// Runs an async block with an increased implicit wait timeout.
+///
+/// The original timeout is restored after the block completes or errors.
+#[macro_export]
+macro_rules! sb_with_timeout {
+    ($sb:expr, $secs:expr, $body:expr) => {{
+        let old = $sb.set_timeout($secs).await.ok();
+        let result: $crate::Result<_> = async { $body }.await;
+        if let Some(t) = old {
+            let _ = $sb.set_timeout(t).await;
+        }
+        result
+    }};
 }
 
 #[cfg(test)]
@@ -275,5 +400,9 @@ mod tests {
         let fp = fingerprint!(windows);
         assert_eq!(fp.os_type, crate::stealth::fingerprint::OsType::Windows);
         assert!(fp.user_agent.as_ref().unwrap().contains("Windows"));
+
+        let fp = fingerprint!(linux);
+        assert_eq!(fp.os_type, crate::stealth::fingerprint::OsType::Linux);
+        assert!(fp.user_agent.as_ref().unwrap().contains("Linux"));
     }
 }

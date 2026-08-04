@@ -35,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 * `Fingerprint::windows_desktop()`
 * `Fingerprint::macos_desktop()`
+* `Fingerprint::linux_desktop()`
 * `Fingerprint::android_mobile()`
 * `Fingerprint::ios_mobile_safari()`
 

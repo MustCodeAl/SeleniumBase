@@ -105,6 +105,81 @@ impl BrowserConfig {
         self
     }
 
+    pub fn with_browser(mut self, browser: Browser) -> Self {
+        self.browser = browser;
+        self
+    }
+
+    pub fn with_headless(mut self, headless: bool) -> Self {
+        self.headless = headless;
+        self
+    }
+
+    pub fn with_webdriver_url(mut self, url: impl Into<String>) -> Self {
+        self.webdriver_url = url.into();
+        self
+    }
+
+    pub fn with_user_agent(mut self, user_agent: impl Into<String>) -> Self {
+        self.user_agent = Some(user_agent.into());
+        self
+    }
+
+    pub fn with_locale(mut self, locale: impl Into<String>) -> Self {
+        self.locale = Some(locale.into());
+        self
+    }
+
+    pub fn with_proxy(mut self, proxy: impl Into<String>) -> Self {
+        self.proxy = Some(proxy.into());
+        self
+    }
+
+    pub fn with_proxy_pac_url(mut self, url: impl Into<String>) -> Self {
+        self.proxy_pac_url = Some(url.into());
+        self
+    }
+
+    pub fn with_user_data_dir(mut self, dir: impl Into<String>) -> Self {
+        self.user_data_dir = Some(dir.into());
+        self
+    }
+
+    pub fn with_extension_dir(mut self, dir: impl Into<String>) -> Self {
+        self.extension_dir = Some(dir.into());
+        self
+    }
+
+    pub fn with_start_page(mut self, page: impl Into<String>) -> Self {
+        self.start_page = Some(page.into());
+        self
+    }
+
+    pub fn with_reuse_session(mut self, reuse: bool) -> Self {
+        self.reuse_session = reuse;
+        self
+    }
+
+    pub fn with_mobile(mut self, mobile: bool) -> Self {
+        self.mobile = mobile;
+        self
+    }
+
+    pub fn with_threads(mut self, threads: usize) -> Self {
+        self.threads = Some(threads);
+        self
+    }
+
+    pub fn with_fingerprint(mut self, fingerprint: Fingerprint) -> Self {
+        self.fingerprint = Some(fingerprint);
+        self
+    }
+
+    pub fn with_browser_binary_path(mut self, path: impl Into<PathBuf>) -> Self {
+        self.browser_binary_path = Some(path.into());
+        self
+    }
+
     pub fn is_cdp_enabled(&self) -> bool {
         self.mode == DriverMode::Cdp || self.mode == DriverMode::Uc
     }

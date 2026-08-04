@@ -20,6 +20,14 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! ## Helpers
+//!
+//! Convenience macros such as [`selector!`], [`sb_test!`], [`sb_open!`],
+//! [`sb_click!`], [`sb_type!`], [`sb_wait_for!`], [`fingerprint!`], and
+//! [`uc_config!`] live in the [`macros`] module. Fingerprint presets include
+//! `windows_desktop`, `macos_desktop`, `linux_desktop`, `android_mobile`, and
+//! `ios_mobile_safari`.
 
 pub mod api;
 pub mod artifacts;

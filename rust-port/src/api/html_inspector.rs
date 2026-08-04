@@ -9,7 +9,9 @@ use crate::SeleniumBaseError;
 /// Importance of an inspection issue.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum InspectionSeverity {
+    /// A problem that should not reach production.
     Warning,
+    /// A problem that blocks accessibility or validity.
     Error,
 }
 
@@ -18,7 +20,9 @@ pub enum InspectionSeverity {
 pub struct InspectionIssue {
     /// Stable rule identifier suitable for CI allowlists.
     pub rule: String,
+    /// Whether the issue is a warning or an error.
     pub severity: InspectionSeverity,
+    /// Human-readable explanation of the problem.
     pub message: String,
     /// Best-effort selector identifying the affected element.
     pub selector: Option<String>,
@@ -27,6 +31,7 @@ pub struct InspectionIssue {
 /// Result of inspecting one HTML document.
 #[derive(Clone, Debug, Default)]
 pub struct InspectionResult {
+    /// All issues discovered during inspection.
     pub issues: Vec<InspectionIssue>,
 }
 
@@ -34,6 +39,7 @@ pub struct InspectionResult {
 pub type HtmlInspection = InspectionResult;
 
 impl InspectionResult {
+    /// Returns true when no issues were found.
     pub fn is_clean(&self) -> bool {
         self.issues.is_empty()
     }

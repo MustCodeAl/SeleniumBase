@@ -41,6 +41,8 @@ pub struct BaseCase {
     #[cfg(feature = "playwright")]
     playwright_session: Option<PlaywrightSession>,
     time_limit_secs: Option<u64>,
+    /// Default implicit wait timeout used by [`wait_for_element_visible_default`].
+    timeout_secs: u64,
     gui_held: Option<(i32, i32)>,
 }
 
@@ -69,6 +71,7 @@ impl BaseCase {
             #[cfg(feature = "playwright")]
             playwright_session: None,
             time_limit_secs: None,
+            timeout_secs: 10,
             gui_held: None,
         }
     }
@@ -77,6 +80,21 @@ impl BaseCase {
     /// of helper methods that do not interact with the browser.
     pub fn without_session(config: BrowserConfig) -> Self {
         Self::with_session(config, BrowserSession::disconnected())
+    }
+
+    /// Sets the default implicit wait timeout used by helper macros and returns
+    /// the previous value.
+    ///
+    /// The timeout is capped by the optional overall test time limit.
+    pub async fn set_timeout(&mut self, secs: u64) -> Result<u64, SeleniumBaseError> {
+        let old = self.timeout_secs;
+        self.timeout_secs = secs;
+        Ok(old)
+    }
+
+    /// Returns the current default implicit wait timeout.
+    pub fn timeout_secs(&self) -> u64 {
+        self.timeout_secs
     }
 
     /// Activates the optional Playwright-compatible stealth browser mode.
@@ -729,6 +747,18 @@ impl BaseCase {
             .wait_for_element_visible(by, timeout_secs)
             .await?;
         Ok(())
+    }
+
+    /// Waits up to the configured default timeout for `css` to become visible.
+    ///
+    /// Use [`set_timeout`](BaseCase::set_timeout) or the [`sb_with_timeout!`]
+    /// macro to adjust the default.
+    pub async fn wait_for_element_visible_default(
+        &self,
+        css: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        self.wait_for_element_visible(css, self.effective_timeout(self.timeout_secs))
+            .await
     }
 
     /// Waits up to `timeout` seconds for `css` to be removed from the DOM.

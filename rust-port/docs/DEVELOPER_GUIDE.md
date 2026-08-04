@@ -26,7 +26,7 @@ rust-port/
 │   ├── lib.rs              # Crate root, public re-exports
 │   ├── api/                # Public test API
 │   │   ├── base_case.rs    # BaseCase struct and core inherent impl
-│   │   ├── base_case_impls/# Per-domain BaseCase method modules
+│   │   ├── base_case_impls/ # Per-domain BaseCase method modules
 │   │   ├── chart.rs        # Chart generation
 │   │   ├── tour.rs         # Guided tour builder
 │   │   ├── presentation.rs # HTML presentation builder
@@ -50,7 +50,7 @@ rust-port/
 │   ├── cli/                # Command-line tooling (sbase binary)
 │   ├── common/             # Decorators, obfuscation, exceptions
 │   ├── config/             # Settings and proxy/ad-block lists
-│   ├── core/               # Logging, reporting, download/session helpers
+│   ├── core/               # Reporting helper
 │   ├── js_code/            # JavaScript snippets injected into pages
 │   ├── plugins/            # Cloud/logging plugin interfaces
 │   ├── utilities/          # Selenium IDE, Grid, and Python migration
@@ -84,6 +84,32 @@ The inherent implementation is split across `src/api/base_case.rs` (core
 constructors and commonly used methods) and `src/api/base_case_impls/*.rs`
 (domain-specific helpers). Each included file is an `impl BaseCase { ... }`
 block; they rely on the imports declared at the top of `base_case.rs`.
+
+Domain files:
+
+- `base_case_impl_common.rs` — constructors, lifecycle, and widely-shared helpers.
+- `base_case_impl_alerts.rs` — alert and prompt handling.
+- `base_case_impl_browser.rs` — browser introspection and state.
+- `base_case_impl_charts.rs` — chart generation helpers.
+- `base_case_impl_dom.rs` — DOM querying and manipulation.
+- `base_case_impl_downloads.rs` — file download helpers.
+- `base_case_impl_links.rs` — link and anchor helpers.
+- `base_case_impl_storage.rs` — cookies and web-storage helpers.
+- `base_case_impl_window.rs` — windows, frames, and tabs.
+- `base_case_impl_mouse.rs` — mouse and hover actions.
+- `base_case_impl_nav.rs` — navigation and URL helpers.
+- `base_case_impl_media.rs` — media and screenshot helpers.
+- `base_case_impl_tours.rs` — guided tour helpers.
+- `base_case_impl_presentations.rs` — presentation helpers.
+- `base_case_impl_jslibs.rs` — third-party JS library injection.
+- `base_case_impl_misc.rs` — test-control and message-overload helpers.
+- `base_case_impl_pdf_html.rs` — PDF and HTML parsing helpers.
+- `base_case_impl_extra.rs` — extra assertion and wait helpers.
+- `base_case_impl_cdp_page.rs` — CDP-page helpers.
+- `base_case_impl_dialog_inspector.rs` — dialog inspection helpers.
+- `base_case_impl_shadow.rs` — shadow-DOM helpers.
+- `base_case_impl_gui.rs` — GUI automation helpers.
+- `base_case_impl_masterqa.rs` — MasterQA helpers.
 
 ### Adding a new `BaseCase` helper
 

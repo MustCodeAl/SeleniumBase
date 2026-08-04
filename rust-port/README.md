@@ -55,8 +55,25 @@ interactions, plus stealth modes, CDP integrations, and a command-line helper.
 - **Macros**: Crate-root macros such as `sb_test!`, `sb_open!`, `sb_click!`,
   `selector!`, `fingerprint!`, and `uc_config!` reduce test boilerplate.
 - **Binary Patching**: `ChromedriverPatcher` strips `cdc_` and `__webdriver`
-  markers from the driver binary before launch.
+  markers from the driver binary before launch; `ChromeBinaryPatcher` can also
+  patch the Chrome executable itself for native-level spoofing.
 - **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal with `--headless`, `--mobile`, `--proxy`, `--proxy-pac-url`, `--user-data-dir`, `--extension-dir`, `--reuse-session`, and `-n` threads.
+- **Stealth Evasion Registry**: 20+ providers (navigator, WebGL, fonts,
+  plugins, permissions, battery, canvas, WebRTC, media devices, tracker block,
+  window geometry, etc.) assembled into a priority-ordered registry.
+- **Fingerprint Presets**: Ready-made personas for Chrome/Firefox/Safari/Edge
+  on Windows/macOS/Android and `ios_mobile_safari`.
+- **Multilogin-Style Profiles**: JSON profile payloads with concrete masking
+  values for screen, geolocation, timezone, fonts, WebGL, WebRTC, proxy, and ports.
+- **Native CDP Spoofing**: `Network.setUserAgentOverride` with Client Hints and
+  `Emulation.setLocaleOverride` for dimensions that page-side JS cannot
+  introspect.
+- **Twelve-Factor Config**: Runtime settings loaded from `SB_*` environment
+  variables with typed defaults and structured tracing output.
+- **Graceful Shutdown**: SIGTERM handling and `BrowserSession` cleanup on drop
+  for disposable processes.
+- **Admin Commands**: `sbase patch-chrome` and `sbase doctor` for one-off
+  diagnostics and binary patching.
 
 ## Documentation
 
@@ -388,3 +405,36 @@ cargo run --bin sbase -- commander
 
 Use `↑/↓` or `j/k` to navigate, `Enter` to run the selected item, `/` or `f` to
 filter, `r` to refresh, and `q` to quit.
+
+## Project status
+
+The initial Rust port plan is complete. The crate builds and tests cleanly on
+stable Rust with all feature flags enabled. Work is continuously pushed to two
+locations:
+
+- Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
+- Crate-only orphan branch: `MustCodeAl/seleniumbase-rs/main`
+
+### Verified commands
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --features s3,azure,gcp,playwright,mcp-server,full-tracing -- -D warnings
+cargo test --features s3,azure,gcp,playwright,mcp-server,full-tracing
+mdbook build
+```
+
+On macOS with Python 3.14 from [mise](https://mise.jdx.dev), the `playwright`
+feature tests need the Python library path exported:
+
+```bash
+export DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib:$DYLD_LIBRARY_PATH"
+```
+
+### Known limitation
+
+`cargo publish --dry-run` currently fails because the `playwright` feature
+depends on `rustwright` from a Git tag (`v0.2.0`) that is newer than the
+version published on crates.io (`0.1.1`). Publishing requires an upstream
+`rustwright 0.2.0` release or replacing the git dependency with a published
+crate.

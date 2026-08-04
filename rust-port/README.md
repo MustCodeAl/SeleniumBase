@@ -1,135 +1,225 @@
 # SeleniumBase for Rust
 
-A Rust port of SeleniumBase using `thirtyfour` as the underlying WebDriver engine.
+`seleniumbase-rs` is a Rust port of the Python SeleniumBase browser-automation
+framework. It layers an ergonomic, Python-parity `BaseCase` API on top of the
+`thirtyfour` WebDriver crate and adds native stealth, CDP, and tooling features
+that are usually only available in Python or Node-based stacks.
 
-It provides API parity with the Python SeleniumBase library for core DOM
-interactions, plus stealth modes, CDP integrations, and a command-line helper.
+This README is the project landing page. If you are reading the mdBook, see the
+[book overview](./docs/README.md) for a narrative introduction.
 
-### Key Features Ported
+## Table of contents
 
-- **BaseCase API**: 200+ actions, waits, assertions, and DOM manipulation methods.
-  - Basic interactions: `open`, `click`, `type_text`, `submit`, `clear`, `hover`
-  - Advanced interactions: `double_click`, `context_click`, `slow_click`, `drag_and_drop`
-  - JS interactions: `js_click`, `js_type`, `execute_script`, `execute_async_script`
-  - Selectors & Shadow DOM: `find_element`, `find_elements`, `shadow_click`, `shadow_type`, `shadow_get_text`
-  - Attributes/Properties: `get_attribute`, `get_property`, `set_attribute`, `remove_attribute`
-  - Windows & Frames: `switch_to_frame`, `switch_to_default_content`, `switch_to_window`, `switch_to_new_window`, `maximize_window`
-  - Navigation: `go_back`, `go_forward`, `refresh`
-  - Scrolling: `scroll_to`, `scroll_to_top`, `scroll_to_bottom`
-  - Alerts: `accept_alert`, `dismiss_alert`, `type_alert_text`
-  - Cookies & Storage: `get_cookie`, `add_cookie`, `delete_all_cookies`, `set_local_storage_item`, `clear_local_storage`, `remove_local_storage_item`
-  - Uploads: `choose_file`
-  - MFA/TOTP: `get_totp_code`
-  - PDF: `save_as_pdf`, `get_pdf_text`, `assert_pdf_text`
-  - HTML parsing: `soup_find`, `soup_find_all`, `get_beautiful_soup_object`
-- **Driver Modes (`BrowserConfig`)**: `WebDriver`, `Cdp`, `Uc` (Undetected Chromedriver).
-- **Stealth Integrations**:
-  - UC mode (Chromium flags + `navigator.webdriver` evasion).
-  - CDC stealth binary patcher to strip hardcoded signatures from the `chromedriver` executable.
-- **CDP Automation**:
-  - Raw CDP commands: `execute_cdp`, `execute_cdp_with_params`.
-  - High-level CDP page API: `cdp_open`, `cdp_click`, `cdp_type`, `cdp_get_text`, `cdp_evaluate`, `cdp_screenshot`.
-  - Standalone async CDP driver (`CdpDriver`) for direct WebSocket control.
-  - Network & Cache: `set_network_conditions`, `clear_browser_cache`.
-- **Playwright Mode** (optional `playwright` feature): Bypass bot-detection using a Playwright-backed driver.
-- **GUI Automation**: OS-level mouse and keyboard control via `enigo` (`gui_click`, `gui_type`, `gui_key_sequence`).
-- **Native Dialogs**: Cross-platform message/confirm/input dialogs via `rfd` (`dialog`, `dialog_confirm`, `dialog_input`).
-- **HTML Inspector**: Lint-like checks for missing alt text, empty links, duplicate ids, skipped headings, and landmarks.
-- **MasterQA**: Hybrid manual testing session with Markdown test-case reports.
-- **Global Config**: Load `sbase_config.toml` / `.sbase_config` with env overrides.
-- **Commander TUI**: Terminal UI for browsing and running tests (`sbase commander`).
-- **Recorder CLI**: Capture interactions and generate Rust tests (`sbase recorder`).
-- **Cloud Integrations**: Upload artifacts to S3, Azure Blob Storage, or Google Cloud Storage behind feature flags (`--features s3/azure/gcp`).
-- **MCP Server**: Expose browser automation tools to trusted MCP clients over
-  stdio with the optional `mcp-server` feature.
-- **Python Migration**: Convert common SeleniumBase and Selenium Python tests
-  into reviewable Rust with `sbase import-python`.
-- **Rust Test Lifecycle**: `run_browser_test` integrates with `#[tokio::test]`
-  and always attempts asynchronous browser cleanup.
-- **Shell Completions**: Generate Bash, Zsh, Fish, Elvish, or PowerShell
-  completion scripts with `sbase completions`.
-- **CI/CD & Docker**: Ready-to-use GitHub Actions workflows and a `Dockerfile`.
-- **Test Artifacts**: `save_screenshot_to_logs()`, `save_page_source_to_logs()`.
-- **Low-Code Runner**: JSON scenario execution with an HTML dashboard.
-- **Action Recorder**: Captures browser interactions and compiles them into a JSON scenario or a standalone Rust script.
-- **Macros**: Crate-root macros such as `sb_test!`, `sb_open!`, `sb_click!`,
-  `selector!`, `fingerprint!`, and `uc_config!` reduce test boilerplate.
-- **Binary Patching**: `ChromedriverPatcher` strips `cdc_` and `__webdriver`
-  markers from the driver binary before launch; `ChromeBinaryPatcher` can also
-  patch the Chrome executable itself for native-level spoofing.
-- **Interactive CLI (`sbase`)**: Execute single commands directly from the terminal with `--headless`, `--mobile`, `--proxy`, `--proxy-pac-url`, `--user-data-dir`, `--extension-dir`, `--reuse-session`, and `-n` threads.
-- **Stealth Evasion Registry**: 20+ providers (navigator, WebGL, fonts,
-  plugins, permissions, battery, canvas, WebRTC, media devices, tracker block,
-  window geometry, etc.) assembled into a priority-ordered registry.
-- **Fingerprint Presets**: Ready-made personas for Chrome/Firefox/Safari/Edge
-  on Windows/macOS/Linux/Android and `ios_mobile_safari`.
-- **Multilogin-Style Profiles**: JSON profile payloads with concrete masking
-  values for screen, geolocation, timezone, fonts, WebGL, WebRTC, proxy, and ports.
-- **Native CDP Spoofing**: `Network.setUserAgentOverride` with Client Hints and
-  `Emulation.setLocaleOverride` for dimensions that page-side JS cannot
-  introspect.
-- **Twelve-Factor Config**: Runtime settings loaded from `SB_*` environment
-  variables with typed defaults and structured tracing output.
-- **Graceful Shutdown**: SIGTERM handling and `BrowserSession` cleanup on drop
-  for disposable processes.
-- **Admin Commands**: `sbase patch-chrome` and `sbase doctor` for one-off
-  diagnostics and binary patching.
+- [What you get](#what-you-get)
+- [Quick start](#quick-start)
+- [Installation](#installation)
+- [Architecture at a glance](#architecture-at-a-glance)
+- [Feature overview](#feature-overview)
+  - [BaseCase API](#basecase-api)
+  - [Browser modes](#browser-modes)
+  - [Stealth and fingerprinting](#stealth-and-fingerprinting)
+  - [Recorder and low-code scenarios](#recorder-and-low-code-scenarios)
+- [CLI highlights](#cli-highlights)
+- [Examples](#examples)
+- [Feature flags](#feature-flags)
+- [Documentation](#documentation)
+- [Project status](#project-status)
+- [Verified commands](#verified-commands)
+- [Known limitations](#known-limitations)
 
-## Documentation
+## What you get
 
-- [Developer Guide](./docs/DEVELOPER_GUIDE.md)
-- [Extended Documentation](./DOCS.md)
-- [Rust Book Source](./docs/README.md)
-- [Why Rust?](./docs/why-rust.md)
-- [Python Migration](./docs/python-migration.md)
-- [Rust Test Tooling](./docs/rust-test-tooling.md)
-
-### Tutorials
-
-- [Getting Started](./docs/tutorials/getting_started.md)
-- [Selectors](./docs/tutorials/selectors.md)
-- [Waits and Assertions](./docs/tutorials/waits_assertions.md)
-- [Shadow DOM](./docs/tutorials/shadow_dom.md)
-- [CDP Mode](./docs/tutorials/cdp_mode.md)
-- [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
-- [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
-- [Browser Profiles](./docs/tutorials/browser_profiles.md)
-- [Recorder Mode](./docs/tutorials/recorder_mode.md)
-- [GUI Automation](./docs/tutorials/gui_automation.md)
-- [MasterQA](./docs/tutorials/masterqa.md)
-- [Tours](./docs/tutorials/tours.md)
-- [Charts](./docs/tutorials/charts.md)
-- [MFA / TOTP](./docs/tutorials/mfa_totp.md)
-- [PDF Parsing](./docs/tutorials/pdf_parsing.md)
-- [Test Translations](./docs/tutorials/translations.md)
-- [CLI Usage](./docs/tutorials/cli_usage.md)
-- [API Reference](./docs/tutorials/api_reference.md)
-- [Macros](./docs/tutorials/macros.md)
-- [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
-- [Settings and Configuration](./docs/tutorials/settings_and_config.md)
-- [Behave / Gherkin Support](./docs/tutorials/behave.md)
-- [Selenium IDE Migration](./docs/tutorials/selenium_ide.md)
-- [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
-- [Binary Patching](./docs/tutorials/binary_patching.md)
-
-### Help pages
-
-- [Customizing Test Runs](./docs/help/customizing_test_runs.md)
-- [Syntax Formats](./docs/help/syntax_formats.md)
-- [Commander TUI](./docs/help/commander.md)
-- [Recorder CLI](./docs/help/recorder_cli.md)
-- [Playwright Mode](./docs/help/playwright_mode.md)
-- [Docker Guide](./docs/help/docker.md)
-- [HTML Inspector](./docs/help/html_inspector.md)
-- [Common Problems](./docs/help/common_problems.md)
-- [ABI & API Stability](./docs/ABI_API.md)
+- **A familiar test API**: `open`, `click`, `type_text`, assertions, waits,
+  frames, windows, cookies, local storage, uploads, PDF handling, and more than
+  200 helper methods.
+- **Multiple browser backends**: WebDriver, Chrome DevTools Protocol (CDP), and
+  Undetected Chromedriver (UC) mode, plus an optional `rustwright`-based
+  Playwright-compatible engine.
+- **Anti-detection tooling**: binary patching for `chromedriver` and Chrome, a
+  priority-ordered JavaScript evasion registry, fingerprint presets, and
+  CDP-level spoofing.
+- **Low-code and migration tools**: JSON scenario runner, Python-to-Rust
+  importer, Selenium IDE parser, Gherkin runner, and a recorder that emits Rust
+  tests.
+- **Operational helpers**: `sbase` CLI, shell completions, Docker image,
+  Twelve-Factor `SB_*` configuration, structured tracing, and cloud artifact
+  uploads.
 
 ## Quick start
 
 ```bash
+# Run a UC-mode smoke test against seleniumbase.io
 cd rust-port
 cargo run --bin sbase -- --uc open https://seleniumbase.io
+
+# Or assert on title from the CLI
+cargo run --bin sbase -- --uc smoke https://seleniumbase.io --title-contains SeleniumBase
 ```
+
+## Installation
+
+Add the crate to a Cargo project:
+
+```bash
+cargo add seleniumbase-rs
+```
+
+Or add it manually to `Cargo.toml`:
+
+```toml
+[dependencies]
+seleniumbase-rs = "0.1"
+```
+
+Optional features are enabled in `Cargo.toml`:
+
+```toml
+[dependencies]
+seleniumbase-rs = { version = "0.1", features = ["playwright", "s3", "azure", "gcp", "mcp-server"] }
+```
+
+## Architecture at a glance
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  Test API / CLI / Examples / MCP server / Recorder / Behave  │
+├─────────────────────────────────────────────────────────────┤
+│  BaseCase  ──►  capability traits (BrowserApi, ElementApi,   │
+│                 AssertionApi, ScreenshotApi)                 │
+├─────────────────────────────────────────────────────────────┤
+│  BrowserSession  ──►  thirtyfour WebDriver + CDP session     │
+├─────────────────────────────────────────────────────────────┤
+│  Stealth layer: patcher, evasion registry, fingerprint       │
+│  presets, CDP overrides, engine-spoofing args                │
+├─────────────────────────────────────────────────────────────┤
+│  Driver: chromedriver / geckodriver / Playwright engine      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The implementation of `BaseCase` is split across `src/api/base_case.rs` (the
+struct, constructors, and core helpers) and focused domain files under
+`src/api/base_case_impls/` (DOM, mouse, alerts, browser introspection,
+navigation, storage, PDF, tours, charts, and more). See the
+[Developer Guide](./docs/DEVELOPER_GUIDE.md) for how to add a new helper.
+
+## Feature overview
+
+### BaseCase API
+
+`BaseCase` is the single entry point for tests. It wraps a `BrowserSession` and
+exposes capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`,
+`ScreenshotApi`) so helpers can depend on behavior rather than the concrete type.
+
+Core groups of methods include:
+
+| Group | Examples |
+|-------|----------|
+| Navigation | `open`, `refresh`, `go_back`, `go_forward`, `get_current_url`, `get_title` |
+| Element interaction | `click`, `type_text`, `clear`, `submit`, `hover`, `double_click`, `context_click`, `drag_and_drop` |
+| JavaScript execution | `execute_script`, `execute_async_script`, `js_click`, `js_type`, `set_attribute`, `remove_attribute` |
+| Waits | `wait_for_element_present`, `wait_for_element_visible`, `wait_for_element_clickable`, `wait_for_text`, `wait_for_ready_state_complete` |
+| Assertions | `assert_title`, `assert_text`, `assert_element`, `assert_attribute`, `assert_no_404_errors`, `assert_no_js_errors` |
+| Queries | `is_element_present`, `is_element_visible`, `is_element_enabled`, `is_text_visible`, `get_text`, `get_attribute`, `get_property` |
+| Frames and windows | `switch_to_frame`, `switch_to_default_content`, `switch_to_window`, `switch_to_new_window`, `maximize_window`, `set_window_size` |
+| Storage | `add_cookie`, `get_cookie`, `delete_all_cookies`, `set_local_storage_item`, `get_local_storage_item`, `clear_local_storage` |
+| Scroll | `scroll_to`, `scroll_to_top`, `scroll_to_bottom`, `smooth_scroll_to`, `scroll_by_y` |
+| Alerts | `accept_alert`, `dismiss_alert`, `type_alert_text`, `get_alert_text` |
+| Uploads | `choose_file` |
+| MFA/TOTP | `get_totp_code` |
+| PDF | `save_as_pdf`, `get_pdf_text`, `assert_pdf_text` |
+| HTML parsing | `soup_find`, `soup_find_all`, `get_beautiful_soup_object` |
+
+Most methods are `async`, return `Result<T, SeleniumBaseError>`, and many
+automatically wait for the target element to be present and visible before
+acting.
+
+### Browser modes
+
+`BrowserConfig::mode` selects how the browser is driven:
+
+| Mode | Use when |
+|------|----------|
+| `DriverMode::WebDriver` | Standard WebDriver automation against `chromedriver` or a Selenium Grid. |
+| `DriverMode::Cdp` | You want direct CDP access for network/cache/headers or lower-level control. |
+| `DriverMode::Uc` | The site blocks normal WebDriver traffic and you need anti-detection evasions. |
+
+```rust
+use seleniumbase_rs::{BrowserConfig, DriverMode};
+
+let config = BrowserConfig::default()
+    .with_mode(DriverMode::Uc)
+    .with_headless(true)
+    .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...");
+```
+
+### Stealth and fingerprinting
+
+UC mode and the standalone fingerprint system work together:
+
+1. `ChromedriverPatcher` strips `cdc_` and `__webdriver` markers from the driver
+   executable before launch.
+2. `EnginePatch::balanced()` and `engine_spoofing_args()` disable automation
+   telemetry at the Chromium launch level.
+3. `Fingerprint` presets set coherent user agent, platform, screen size, WebGL
+   vendor, timezone, geolocation, and other signals.
+4. `EvasionProvider`s inject JavaScript to mask `navigator.webdriver`, plugins,
+   permissions, canvas/audio noise, WebRTC, and more.
+5. `native_spoofing` moves whatever it can out of JavaScript and into CDP
+   (`Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`, etc.).
+
+See the [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
+and [Binary Patching](./docs/tutorials/binary_patching.md) tutorials for the full
+recipe.
+
+### Recorder and low-code scenarios
+
+Record interactions from the CLI:
+
+```bash
+cargo run --bin sbase -- recorder --output my_test.rs
+```
+
+Or write a JSON scenario and run it:
+
+```bash
+cargo run --bin sbase -- run-scenario --file ./scenario.json --dashboard ./report.html
+```
+
+Scenario files support navigation, clicks, typing, assertions, waits, hover,
+selects, drag-and-drop, frames, alerts, storage operations, JavaScript actions,
+and more. The runner writes an HTML dashboard summarizing passed and failed
+steps.
+
+## CLI highlights
+
+The `sbase` binary supports one-off browser commands, admin utilities, code
+generation, and shell completions.
+
+```bash
+# Browser one-offs
+cargo run --bin sbase -- --uc open https://seleniumbase.io
+cargo run --bin sbase -- --uc smoke https://seleniumbase.io --title-contains SeleniumBase
+cargo run --bin sbase -- screenshot
+cargo run --bin sbase -- save-source
+
+# Assertions and waits
+cargo run --bin sbase -- open https://seleniumbase.io
+cargo run --bin sbase -- assert-element --css "body"
+cargo run --bin sbase -- wait-for-text --css "body" --text "SeleniumBase" --timeout 15
+
+# Admin / binary patching
+cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
+cargo run --bin sbase -- doctor
+
+# Shell completions
+cargo run --bin sbase -- completions bash > sbase.bash
+cargo run --bin sbase -- completions zsh > _sbase
+
+# Interactive commander TUI
+cargo run --bin sbase -- commander
+```
+
+See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 
 ## Examples
 
@@ -166,81 +256,6 @@ cargo run --bin sbase -- --uc open https://seleniumbase.io
 | Browser test lifecycle | `cargo run --example browser_test_runner` |
 
 See also [`examples/tauri-profile-manager`](./examples/tauri-profile-manager) for a desktop multi-profile browser manager with a profile-compatible REST API.
-
-The command expects a running WebDriver endpoint at `http://localhost:4444`.
-Override it with `--webdriver` when needed.
-
-### Why use the Rust crate?
-
-Rust provides compile-time type checking, explicit error handling, controlled
-concurrency, and native CLI distribution. Those properties can make large test
-harnesses easier to refactor and operate reliably. Browser and network work
-still dominate many end-to-end tests, so the project does not claim universal
-speedups over Python or JavaScript. See [Why Rust?](./docs/why-rust.md) for the
-tradeoffs and measurement guidance.
-
-### Import Python tests
-
-```bash
-cargo run --bin sbase -- import-python tests/login_test.py \
-  --output tests/login_test.rs
-```
-
-The static importer handles common SeleniumBase and Selenium WebDriver calls.
-Unsupported or dynamic Python remains visible as diagnostics and `TODO`
-comments for manual review.
-
-### Generate shell completions
-
-```bash
-cargo run --bin sbase -- completions bash > sbase.bash
-cargo run --bin sbase -- completions zsh > _sbase
-```
-
-See [CLI Usage](./docs/tutorials/cli_usage.md) for installation locations.
-
-### Build the documentation book
-
-```bash
-cargo install mdbook
-mdbook serve --open
-```
-
-### Smoke test with assertion
-
-```bash
-cargo run --bin sbase -- --uc smoke https://seleniumbase.io --title-contains SeleniumBase
-```
-
-### Run raw CDP command
-
-```bash
-cargo run --bin sbase -- --cdp cdp --cmd Browser.getVersion
-cargo run --bin sbase -- --cdp cdp --cmd Network.setCacheDisabled --params '{"cacheDisabled":true}'
-```
-
-### Save artifacts
-
-```bash
-cargo run --bin sbase -- screenshot
-cargo run --bin sbase -- save-source
-```
-
-### Assertions and Waits from CLI
-
-```bash
-cargo run --bin sbase -- open https://seleniumbase.io
-cargo run --bin sbase -- assert-element --css "body"
-cargo run --bin sbase -- wait-for-text --css "body" --text "SeleniumBase" --timeout 15
-```
-
-### CDC Stealth Binary Patcher
-
-You can patch your downloaded `chromedriver` executable directly to remove hardcoded CDC variables and signatures (matching SeleniumBase Python `undetected-chromedriver` patches):
-
-```bash
-cargo run --bin sbase -- patch-chromedriver --path /path/to/chromedriver
-```
 
 ### CDP page automation
 
@@ -395,16 +410,85 @@ WebDriver endpoint at `http://localhost:4444`.
 Only connect trusted MCP clients. The server can control the browser and
 execute JavaScript in the active page.
 
-### Commander TUI
+## Feature flags
 
-Browse and run tests or examples interactively:
+| Feature | Purpose |
+|---------|---------|
+| `playwright` | `rustwright` Playwright-compatible engine. |
+| `s3` | AWS S3 artifact uploads. |
+| `azure` | Azure Blob Storage artifact uploads. |
+| `gcp` | Google Cloud Storage artifact uploads. |
+| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
+| `full-tracing` | Verbose `tracing` span events for debugging. |
+| `json-logs` | Structured JSON log output. |
+| `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
+
+## Documentation
+
+- [Developer Guide](./docs/DEVELOPER_GUIDE.md)
+- [Extended Documentation](./DOCS.md)
+- [Rust Book Source](./docs/README.md)
+- [Why Rust?](./docs/why-rust.md)
+- [Python Migration](./docs/python-migration.md)
+- [Rust Test Tooling](./docs/rust-test-tooling.md)
+
+### Tutorials
+
+- [Getting Started](./docs/tutorials/getting_started.md)
+- [Selectors](./docs/tutorials/selectors.md)
+- [Waits and Assertions](./docs/tutorials/waits_assertions.md)
+- [Shadow DOM](./docs/tutorials/shadow_dom.md)
+- [CDP Mode](./docs/tutorials/cdp_mode.md)
+- [Undetected (UC) Mode](./docs/tutorials/uc_mode.md)
+- [Fingerprint & Stealth Profiles](./docs/tutorials/fingerprint_stealth.md)
+- [Browser Profiles](./docs/tutorials/browser_profiles.md)
+- [Recorder Mode](./docs/tutorials/recorder_mode.md)
+- [GUI Automation](./docs/tutorials/gui_automation.md)
+- [MasterQA](./docs/tutorials/masterqa.md)
+- [Tours](./docs/tutorials/tours.md)
+- [Charts](./docs/tutorials/charts.md)
+- [MFA / TOTP](./docs/tutorials/mfa_totp.md)
+- [PDF Parsing](./docs/tutorials/pdf_parsing.md)
+- [Test Translations](./docs/tutorials/translations.md)
+- [CLI Usage](./docs/tutorials/cli_usage.md)
+- [API Reference](./docs/tutorials/api_reference.md)
+- [Macros](./docs/tutorials/macros.md)
+- [Cloud Integrations](./docs/tutorials/cloud_integrations.md)
+- [Settings and Configuration](./docs/tutorials/settings_and_config.md)
+- [Behave / Gherkin Support](./docs/tutorials/behave.md)
+- [Selenium IDE Migration](./docs/tutorials/selenium_ide.md)
+- [Remaining Helpers](./docs/tutorials/remaining_helpers.md)
+- [Binary Patching](./docs/tutorials/binary_patching.md)
+
+### Help pages
+
+- [Customizing Test Runs](./docs/help/customizing_test_runs.md)
+- [Syntax Formats](./docs/help/syntax_formats.md)
+- [Commander TUI](./docs/help/commander.md)
+- [Recorder CLI](./docs/help/recorder_cli.md)
+- [Playwright Mode](./docs/help/playwright_mode.md)
+- [Docker Guide](./docs/help/docker.md)
+- [HTML Inspector](./docs/help/html_inspector.md)
+- [Common Problems](./docs/help/common_problems.md)
+- [ABI & API Stability](./docs/ABI_API.md)
+
+### Build the documentation book
 
 ```bash
-cargo run --bin sbase -- commander
+cargo install mdbook
+mdbook serve --open
 ```
 
-Use `↑/↓` or `j/k` to navigate, `Enter` to run the selected item, `/` or `f` to
-filter, `r` to refresh, and `q` to quit.
+### Import Python tests
+
+```bash
+cargo run --bin sbase -- import-python tests/login_test.py \
+  --output tests/login_test.rs
+```
+
+The static importer handles common SeleniumBase and Selenium WebDriver calls.
+Unsupported or dynamic Python remains visible as diagnostics and `TODO`
+comments for manual review.
 
 ## Project status
 
@@ -415,7 +499,16 @@ locations:
 - Monorepo feature branch: `MustCodeAl/SeleniumBase/mustcodeal-rust-port`
 - Crate-only orphan branch: `MustCodeAl/seleniumbase-rs/main`
 
-### Verified commands
+### Why use the Rust crate?
+
+Rust provides compile-time type checking, explicit error handling, controlled
+concurrency, and native CLI distribution. Those properties can make large test
+harnesses easier to refactor and operate reliably. Browser and network work
+still dominate many end-to-end tests, so the project does not claim universal
+speedups over Python or JavaScript. See [Why Rust?](./docs/why-rust.md) for the
+tradeoffs and measurement guidance.
+
+## Verified commands
 
 ```bash
 cargo fmt --all -- --check
@@ -431,7 +524,7 @@ feature tests need the Python library path exported:
 export DYLD_LIBRARY_PATH="$HOME/.local/share/mise/installs/python/3.14.6/lib:$DYLD_LIBRARY_PATH"
 ```
 
-### Known limitation
+## Known limitations
 
 `cargo publish --dry-run` currently fails because the `playwright` feature
 depends on `rustwright` from a Git tag (`v0.2.0`) that is newer than the

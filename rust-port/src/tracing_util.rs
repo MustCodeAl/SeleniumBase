@@ -24,8 +24,59 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
+use crate::config::{LogFormat, RuntimeConfig};
+
 fn env_filter() -> EnvFilter {
     EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+}
+
+/// Initialize tracing from the current [`RuntimeConfig`].
+///
+/// Honors `SB_LOG_LEVEL` and `SB_LOG_FORMAT` so logs are treated as an
+/// environment-driven event stream (Twelve-Factor XI).
+pub fn init_tracing_from_runtime(config: &RuntimeConfig) {
+    let filter = EnvFilter::new(&config.log_level);
+    let _ = tracing_log::LogTracer::init();
+
+    #[cfg(feature = "full-tracing")]
+    let timing = timing_layer();
+
+    match config.log_format {
+        LogFormat::Json => {
+            let fmt = json_subscriber::fmt::layer()
+                .with_current_span(true)
+                .with_span_list(false)
+                .with_filter(filter);
+            #[cfg(feature = "full-tracing")]
+            {
+                let _ = tracing_subscriber::registry()
+                    .with(fmt)
+                    .with(timing)
+                    .try_init();
+            }
+            #[cfg(not(feature = "full-tracing"))]
+            {
+                let _ = tracing_subscriber::registry().with(fmt).try_init();
+            }
+        }
+        LogFormat::Pretty => {
+            let fmt = tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_thread_ids(false)
+                .with_filter(filter);
+            #[cfg(feature = "full-tracing")]
+            {
+                let _ = tracing_subscriber::registry()
+                    .with(fmt)
+                    .with(timing)
+                    .try_init();
+            }
+            #[cfg(not(feature = "full-tracing"))]
+            {
+                let _ = tracing_subscriber::registry().with(fmt).try_init();
+            }
+        }
+    }
 }
 
 /// Install a plain text tracing subscriber and bridge `log` records.

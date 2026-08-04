@@ -13,7 +13,7 @@ flags, CDP calls, and window settings.
 
 The `ProfileParams` type mirrors a common `POST /profile/create` body:
 
-- `name`, `browser_type` (`chromium` or `firefox`), `os_type`
+- `name`, `browser_type` (`chromium`, `firefox`, or `mobile_safari`), `os_type`
 - `folder_id`, `tags`, `notes`, `times`
 - `core_version`, `core_minor_version`, `auto_update_core`
 - `parameters.flags` — masking mode for WebRTC, audio, fonts, geolocation,
@@ -38,8 +38,8 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Profile name. |
-| `browser_type` | `chromium` \| `firefox` | yes | Browser engine. Legacy aliases `mimic`/`stealthfox` still work. |
-| `os_type` | `linux` \| `macos` \| `windows` \| `android` | yes | Operating-system persona. |
+| `browser_type` | `chromium` \| `firefox` \| `mobile_safari` | yes | Browser engine. Legacy aliases `mimic`/`stealthfox` still work. |
+| `os_type` | `linux` \| `macos` \| `windows` \| `android` \| `ios` | yes | Operating-system persona. |
 | `automation` | `selenium` \| `playwright` \| `puppeteer` | no | Automation backend. `selenium` is default; `playwright`/`puppeteer` map to CDP mode. |
 | `is_headless` | boolean | no | Run the browser headlessly. Default `false`. |
 | `folder_id` | string | no | Persistent folder identifier for local storage. |
@@ -100,7 +100,7 @@ The `ProfileParams` type mirrors a common `POST /profile/create` body:
 | `ports` | number[] | no | List of ports to block/allow. |
 | `fonts` | string[] | no | List of installed fonts. |
 | `cmd_params` | `{ params: [{ flag, value }] }` | no | Extra Chromium command-line flags. |
-| `max_touch_points` | number | no | Android only; default `5`. |
+| `max_touch_points` | number | no | Android/iOS only; default `5`. |
 
 ### `parameters.proxy`
 
@@ -177,6 +177,43 @@ bootstrap.
 `screen_masking: custom` applies the exact resolution. `geolocation_masking:
 custom` emits `Emulation.setGeolocationOverride` with the supplied coordinates.
 `timezone_masking: mask` picks a timezone that matches the geolocation.
+
+#### iOS Mobile Safari (`mobile_safari` / `ios`)
+
+```json
+{
+  "name": "iphone-consumer",
+  "browser_type": "mobile_safari",
+  "os_type": "ios",
+  "core_version": 17,
+  "parameters": {
+    "flags": {
+      "navigator_masking": "custom",
+      "screen_masking": "custom",
+      "timezone_masking": "mask",
+      "geolocation_masking": "custom",
+      "webrtc_masking": "disabled",
+      "native_spoofing": true
+    },
+    "fingerprint": {
+      "navigator": {
+        "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1",
+        "platform": "iPhone",
+        "hardware_concurrency": 4,
+        "device_memory": 8
+      },
+      "screen": { "width": 390, "height": 844, "pixel_ratio": 3 },
+      "timezone": { "zone": "America/New_York" },
+      "geolocation": { "latitude": 40.758, "longitude": -73.9855, "accuracy": 20 },
+      "graphic": { "vendor": "Apple Inc.", "renderer": "Apple GPU" }
+    }
+  }
+}
+```
+
+Use `browser_type: mobile_safari` and `os_type: ios` to activate iOS personas.
+`native_spoofing: true` pushes the user agent, platform, locale, and screen
+metrics through CDP so page-side JS cannot detect the override.
 
 ## Literal value shortcuts
 

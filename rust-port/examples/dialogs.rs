@@ -2,7 +2,7 @@ use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let sb = BaseCase::new(BrowserConfig::default()).await?;
+    let mut sb = BaseCase::new(BrowserConfig::default()).await?;
 
     sb.show_message("Welcome", "Welcome to the SeleniumBase Rust demo!");
 

@@ -1,6 +1,7 @@
 //! Chrome / Edge option helpers for undetected-chrome (UC) stealth profiles.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::browser::config::BrowserConfig;
 use crate::error::SeleniumBaseError;
@@ -27,6 +28,8 @@ pub struct StealthOptions {
     pub extra_headers: HashMap<String, String>,
     /// Extra Chromium/Edge command-line arguments supplied by integrations.
     pub extra_args: Vec<String>,
+    /// Optional explicit path to a patched or custom browser binary.
+    pub binary_path: Option<PathBuf>,
 }
 
 impl From<&BrowserConfig> for StealthOptions {
@@ -46,6 +49,7 @@ impl From<&BrowserConfig> for StealthOptions {
             fingerprint: config.fingerprint.clone(),
             extra_headers: HashMap::new(),
             extra_args: config.extra_args.clone(),
+            binary_path: config.browser_binary_path.clone(),
         }
     }
 }
@@ -102,6 +106,15 @@ impl StealthOptions {
         if self.mobile {
             caps.add_arg("--user-agent=Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")?;
             caps.add_arg("--window-size=390,844")?;
+        }
+
+        if let Some(binary) = self.binary_path.as_deref() {
+            let binary_str = binary.display().to_string();
+            caps.set_binary(&binary_str).map_err(|e| {
+                SeleniumBaseError::invalid_config(format!(
+                    "failed to set chrome binary to {binary_str}: {e}"
+                ))
+            })?;
         }
 
         if self.uc {

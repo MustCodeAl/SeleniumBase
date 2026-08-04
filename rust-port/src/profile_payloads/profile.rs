@@ -376,6 +376,7 @@ fn parse_os(s: &str) -> OsType {
         "macos" => OsType::Macos,
         "linux" => OsType::Linux,
         "android" => OsType::Android,
+        "ios" | "ipados" => OsType::Ios,
         _ => OsType::Windows,
     }
 }
@@ -928,7 +929,7 @@ impl ProfileParams {
             extension_dir: None,
             start_page: custom_start_urls.first().cloned(),
             reuse_session: false,
-            mobile: self.os_type == "android",
+            mobile: self.os_type == "android" || self.os_type == "ios",
             threads: None,
             ad_block: self
                 .parameters
@@ -939,6 +940,7 @@ impl ProfileParams {
             auto_start_driver: true,
             extra_args: Vec::new(),
             fingerprint: Some(self.to_fingerprint()),
+            browser_binary_path: None,
         };
 
         for extra in self.extra_args() {
@@ -952,6 +954,7 @@ impl ProfileParams {
     pub fn browser(&self) -> Browser {
         match self.browser_type.as_str() {
             "firefox" | "stealthfox" => Browser::Firefox,
+            "safari" | "mobile_safari" => Browser::Chrome,
             _ => Browser::Chrome,
         }
     }

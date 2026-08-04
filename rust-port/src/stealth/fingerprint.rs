@@ -35,6 +35,9 @@ pub enum BrowserType {
     /// Firefox-oriented persona (conceptual; WebDriver mode uses Chromium).
     #[serde(rename = "firefox")]
     Firefox,
+    /// Mobile Safari / WebKit persona (iOS).
+    #[serde(rename = "mobile_safari", alias = "safari")]
+    MobileSafari,
 }
 
 /// Operating-system persona.
@@ -46,6 +49,9 @@ pub enum OsType {
     Macos,
     Linux,
     Android,
+    /// iOS / iPadOS persona.
+    #[serde(rename = "ios", alias = "ipados")]
+    Ios,
 }
 
 impl OsType {
@@ -56,6 +62,7 @@ impl OsType {
             OsType::Macos => "MacIntel",
             OsType::Linux => "Linux x86_64",
             OsType::Android => "Linux armv8l",
+            OsType::Ios => "iPhone",
         }
     }
 
@@ -66,7 +73,13 @@ impl OsType {
             OsType::Macos => (1920, 1080),
             OsType::Linux => (1920, 1080),
             OsType::Android => (412, 732),
+            OsType::Ios => (390, 844),
         }
+    }
+
+    /// Returns true for mobile OS personas that typically use touch input.
+    pub fn is_mobile(&self) -> bool {
+        matches!(self, OsType::Android | OsType::Ios)
     }
 }
 
@@ -699,6 +712,9 @@ impl Fingerprint {
             OsType::Macos => platform.contains("Mac"),
             OsType::Linux => platform.contains("Linux") && !platform.contains("arm"),
             OsType::Android => platform.contains("arm") || platform.contains("Linux"),
+            OsType::Ios => {
+                platform == "iPhone" || platform == "iPad" || platform.contains("iPhone")
+            }
         };
         if !platform_ok {
             report.errors.push(format!(
@@ -714,6 +730,7 @@ impl Fingerprint {
                 OsType::Macos => ua_lower.contains("mac os"),
                 OsType::Linux => ua_lower.contains("linux") || ua_lower.contains("x11"),
                 OsType::Android => ua_lower.contains("android"),
+                OsType::Ios => ua_lower.contains("iphone") || ua_lower.contains("ipad"),
             };
             if !ua_os_ok {
                 report.errors.push(format!(
@@ -724,7 +741,10 @@ impl Fingerprint {
         }
 
         // Mobile user-agents need touch points.
-        let is_mobile_ua = ua_lower.contains("mobile") || ua_lower.contains("android");
+        let is_mobile_ua = ua_lower.contains("mobile")
+            || ua_lower.contains("android")
+            || ua_lower.contains("iphone")
+            || ua_lower.contains("ipad");
         if is_mobile_ua && self.max_touch_points.unwrap_or(0) == 0 {
             report
                 .warnings
@@ -823,6 +843,38 @@ impl Fingerprint {
             .languages("en-US,en;q=0.9")
             .timezone("America/New_York")
             .webgl("Qualcomm", "Adreno (TM) 740")
+            .flags(StealthFlags::balanced())
+            .build()
+    }
+
+    /// Quick preset for an iPhone / Mobile Safari profile.
+    pub fn ios_mobile_safari() -> Self {
+        Self::builder()
+            .browser_type(BrowserType::MobileSafari)
+            .os_type(OsType::Ios)
+            .user_agent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Mobile/15E148 Safari/604.1")
+            .platform("iPhone")
+            .screen(390, 844)
+            .pixel_ratio(3.0)
+            .hardware_concurrency(4)
+            .device_memory(8.0)
+            .max_touch_points(5)
+            .locale("en-US")
+            .languages("en-US,en;q=0.9")
+            .timezone("America/New_York")
+            .webgl("Apple Inc.", "Apple GPU")
+            .vendor("Apple Computer, Inc.")
+            .client_hints(ClientHints {
+                brands: vec![BrandVersion::new("Safari", "17")],
+                full_version_list: vec![BrandVersion::new("Safari", "17.4.1")],
+                platform: "iPhone".to_owned(),
+                platform_version: "17.4.1".to_owned(),
+                architecture: "arm".to_owned(),
+                bitness: "64".to_owned(),
+                model: "iPhone".to_owned(),
+                ua_full_version: "17.4.1".to_owned(),
+                mobile: true,
+            })
             .flags(StealthFlags::balanced())
             .build()
     }
@@ -1107,6 +1159,9 @@ mod tests {
         assert_eq!(Fingerprint::windows_desktop().os_type, OsType::Windows);
         assert_eq!(Fingerprint::macos_desktop().os_type, OsType::Macos);
         assert_eq!(Fingerprint::android_mobile().os_type, OsType::Android);
+        let ios = Fingerprint::ios_mobile_safari();
+        assert_eq!(ios.os_type, OsType::Ios);
+        assert_eq!(ios.browser_type, BrowserType::MobileSafari);
     }
 
     #[test]
@@ -1128,6 +1183,7 @@ mod tests {
             Fingerprint::windows_desktop(),
             Fingerprint::macos_desktop(),
             Fingerprint::android_mobile(),
+            Fingerprint::ios_mobile_safari(),
         ] {
             let report = fp.validate();
             assert!(report.is_coherent(), "preset errors: {:?}", report.errors);

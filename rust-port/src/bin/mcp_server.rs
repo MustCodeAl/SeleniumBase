@@ -20,8 +20,8 @@ use rmcp::serve_server;
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::transport::io::stdio;
 use seleniumbase_rs::{
-    init_tracing, BaseCase, BrowserConfig, ChromedriverPatcher, EnginePatch, Fingerprint,
-    SeleniumBaseError,
+    init_tracing_from_runtime, BaseCase, BrowserConfig, ChromedriverPatcher, EnginePatch,
+    Fingerprint, RuntimeConfig, SeleniumBaseError,
 };
 use serde_json::{json, Value};
 
@@ -412,7 +412,7 @@ impl ServerHandler for SeleniumBaseMcp {
                 }
                 "quit" => {
                     let mut guard = self.case.lock().await;
-                    if let Some(case) = guard.take() {
+                    if let Some(mut case) = guard.take() {
                         case.quit().await.map_err(|e| sb_error_to_mcp("quit", e))?;
                     }
                     text("Browser session closed")
@@ -537,7 +537,8 @@ impl ServerHandler for SeleniumBaseMcp {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_tracing();
+    let runtime = RuntimeConfig::from_env().unwrap_or_default();
+    init_tracing_from_runtime(&runtime);
 
     let service = SeleniumBaseMcp::new();
     let transport = stdio();

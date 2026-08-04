@@ -36,6 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 * `Fingerprint::windows_desktop()`
 * `Fingerprint::macos_desktop()`
 * `Fingerprint::android_mobile()`
+* `Fingerprint::ios_mobile_safari()`
 
 Each preset sets a coherent user agent, platform, screen size, WebGL strings,
 and masking flags.

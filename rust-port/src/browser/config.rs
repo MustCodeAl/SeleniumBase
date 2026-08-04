@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
+use crate::error::SeleniumBaseError;
 use crate::stealth::fingerprint::Fingerprint;
 
 /// Supported browser types.
@@ -47,12 +49,34 @@ pub struct BrowserConfig {
     /// Optional anti-detection fingerprint profile.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<Fingerprint>,
+    /// Optional explicit path to the browser binary (Chrome/Chromium/Edge).
+    /// When `native_spoofing` is enabled and this is unset, the crate will
+    /// locate the system Chrome binary, patch a cached copy, and set this
+    /// field automatically before launch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browser_binary_path: Option<PathBuf>,
 }
 
 impl Default for BrowserConfig {
     fn default() -> Self {
+        Self::from_runtime_config(&crate::config::RuntimeConfig::default())
+    }
+}
+
+impl BrowserConfig {
+    /// Build a `BrowserConfig` from the current process environment.
+    ///
+    /// This is the preferred constructor for deployable applications because
+    /// it honors `SB_WEBDRIVER_URL`, `SB_CHROME_BIN`, and other runtime
+    /// variables without requiring code changes per environment.
+    pub fn from_env() -> Result<Self, SeleniumBaseError> {
+        let runtime = crate::config::RuntimeConfig::from_env()?;
+        Ok(Self::from_runtime_config(&runtime))
+    }
+
+    fn from_runtime_config(runtime: &crate::config::RuntimeConfig) -> Self {
         Self {
-            webdriver_url: "http://localhost:4444".to_owned(),
+            webdriver_url: runtime.webdriver_url.clone(),
             browser: Browser::Chrome,
             headless: true,
             mode: DriverMode::WebDriver,
@@ -70,6 +94,7 @@ impl Default for BrowserConfig {
             auto_start_driver: true,
             extra_args: Vec::new(),
             fingerprint: None,
+            browser_binary_path: runtime.chrome_bin.clone(),
         }
     }
 }
@@ -100,5 +125,13 @@ impl BrowserConfig {
     pub fn push_extra_arg(mut self, arg: impl Into<String>) -> Self {
         self.extra_args.push(arg.into());
         self
+    }
+
+    /// Returns true when the configured fingerprint requests native-level
+    /// (binary + CDP) spoofing.
+    pub fn native_spoofing_enabled(&self) -> bool {
+        self.fingerprint
+            .as_ref()
+            .is_some_and(|fp| fp.flags.native_spoofing)
     }
 }

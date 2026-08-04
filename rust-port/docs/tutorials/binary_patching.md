@@ -96,6 +96,33 @@ assert!(caps.args().contains(&"--disable-blink-features=AutomationControlled".in
 For the strongest defense, combine binary patching, engine spoofing args, a
 matching [`Fingerprint`](crate::Fingerprint), and UC mode.
 
+## Chrome/Chromium binary patching
+
+`ChromeBinaryPatcher` copies the browser executable to a cache directory and
+applies byte-level patches so no JavaScript override is needed for some
+automation markers. Because the browser binary itself returns the modified
+values, page scripts cannot detect the spoof through `toString()` or property
+descriptor inspection.
+
+```rust
+use seleniumbase_rs::{ChromeBinaryPatcher, EnginePatch};
+
+let patcher = ChromeBinaryPatcher::new("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    .with_cache_dir("/tmp/sb-chrome-patches");
+let patched = patcher.patch(EnginePatch::chrome_binary())?;
+println!("Patched binary: {}", patched.display());
+```
+
+When `native_spoofing` is enabled in a `Fingerprint`, the launcher automatically
+patches the Chrome binary and passes the patched copy to chromedriver.
+
+You can also patch from the CLI:
+
+```bash
+sbase patch-chrome --path /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+sbase patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
+```
+
 ## Safety and licensing
 
 Only patch executables that you own or have permission to modify. Patching a

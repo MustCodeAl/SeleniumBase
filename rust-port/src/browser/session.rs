@@ -734,17 +734,42 @@ impl BrowserSession {
 
     /// Closes the browser session and any auto-started driver process.
     #[instrument(skip(self))]
-    pub async fn quit(self) -> Result<(), SeleniumBaseError> {
+    pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting browser session");
-        if let Some(driver) = self.driver {
+        if let Some(driver) = self.driver.take() {
             driver.quit().await?;
         }
-        if let Some(mut process) = self.driver_process {
+        if let Some(mut process) = self.driver_process.take() {
             process.kill();
         }
         Ok(())
     }
+}
 
+impl Drop for BrowserSession {
+    /// Best-effort cleanup when a session is dropped without an explicit
+    /// `quit()` call. This improves disposability (Twelve-Factor IX) by
+    /// reducing leaked browser/driver processes in short-lived scripts.
+    fn drop(&mut self) {
+        if self.driver.is_none() {
+            return;
+        }
+        let driver = self.driver.take();
+        let process = self.driver_process.take();
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                if let Some(driver) = driver {
+                    let _ = driver.quit().await;
+                }
+                if let Some(mut process) = process {
+                    process.kill();
+                }
+            });
+        }
+    }
+}
+
+impl BrowserSession {
     async fn initialize_mode(&self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
         if config.is_cdp_enabled() {
             self.activate_cdp_mode().await?;
@@ -806,11 +831,14 @@ async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, Sel
 async fn connect_driver(
     config: &BrowserConfig,
 ) -> Result<(WebDriver, Option<DriverProcess>), SeleniumBaseError> {
+    let mut config = config.clone();
+    patch_chrome_binary_if_needed(&mut config).await?;
+
     let mut process: Option<DriverProcess> = None;
     let mut url = config.webdriver_url.clone();
 
     if config.auto_start_driver && config.is_default_webdriver_url() {
-        match try_connect(config, &url).await {
+        match try_connect(&config, &url).await {
             Ok(driver) => return Ok((driver, None)),
             Err(_) => {
                 let launched = launch_chromedriver().await?;
@@ -820,8 +848,56 @@ async fn connect_driver(
         }
     }
 
-    let driver = try_connect(config, &url).await?;
+    let driver = try_connect(&config, &url).await?;
     Ok((driver, process))
+}
+
+async fn patch_chrome_binary_if_needed(
+    config: &mut BrowserConfig,
+) -> Result<(), SeleniumBaseError> {
+    if !config.native_spoofing_enabled() {
+        return Ok(());
+    }
+    if !matches!(
+        config.browser,
+        Browser::Chrome | Browser::Chromium | Browser::Edge
+    ) {
+        return Ok(());
+    }
+    if config.browser_binary_path.is_some() {
+        return Ok(());
+    }
+
+    let runtime = crate::config::RuntimeConfig::from_env().unwrap_or_default();
+    let source = runtime
+        .chrome_bin
+        .or_else(crate::stealth::patcher::find_system_chrome)
+        .ok_or_else(|| {
+            SeleniumBaseError::invalid_config(
+                "native_spoofing requires a Chrome/Chromium binary but none was found. \
+                 Set SB_CHROME_BIN or BrowserConfig::browser_binary_path."
+                    .to_owned(),
+            )
+        })?;
+
+    let source_str = source.display().to_string();
+    tracing::info!(source = %source_str, "native_spoofing enabled: patching chrome binary");
+
+    let patched = tokio::task::spawn_blocking(move || {
+        let mut patcher = crate::stealth::patcher::ChromeBinaryPatcher::new(source);
+        if let Some(cache) = runtime.patch_cache_dir {
+            patcher = patcher.with_cache_dir(cache);
+        }
+        patcher.patch(crate::stealth::patcher::EnginePatch::chrome_binary())
+    })
+    .await
+    .map_err(|e| {
+        SeleniumBaseError::patcher(source_str.clone(), format!("patch task panicked: {e}"))
+    })??;
+
+    tracing::info!(path = %patched.display(), "using patched chrome binary");
+    config.browser_binary_path = Some(patched);
+    Ok(())
 }
 
 fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(

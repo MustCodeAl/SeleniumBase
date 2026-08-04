@@ -18,7 +18,9 @@ pub use fingerprint::{
     BatteryProfile, BrandVersion, ClientHints, CoherenceReport, ConnectionProfile, Fingerprint,
     HumanizeConfig, SpeechVoice, StealthFlags,
 };
-pub use patcher::{engine_spoofing_args, ChromedriverPatcher, EnginePatch};
+pub use patcher::{
+    engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
+};
 pub use providers::{
     default_registry, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
 };

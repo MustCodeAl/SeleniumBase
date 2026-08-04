@@ -48,6 +48,7 @@ pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::session::BrowserSession;
+pub use config::{LogFormat, RuntimeConfig};
 pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use stealth::fingerprint::{
     BatteryProfile, BrandVersion, BrowserType, CanvasNoiseMode, ClientHints, CoherenceReport,
@@ -58,9 +59,12 @@ pub use stealth::fingerprint::{
 pub use stealth::providers::{
     default_registry, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
 };
-pub use stealth::{engine_spoofing_args, ChromedriverPatcher, EnginePatch};
+pub use stealth::{
+    engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
+};
 pub use tracing_util::{
-    init_tracing, init_tracing_json, init_tracing_json_with_filter, init_tracing_with_filter,
+    init_tracing, init_tracing_from_runtime, init_tracing_json, init_tracing_json_with_filter,
+    init_tracing_with_filter,
 };
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,

@@ -10,8 +10,8 @@ use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
 use seleniumbase_rs::config::settings::Settings;
 use seleniumbase_rs::{
-    import_python, init_tracing, BaseCase, Browser, DriverMode, ImportOptions, ImportSeverity,
-    PythonSource,
+    import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher, DriverMode,
+    EnginePatch, ImportOptions, ImportSeverity, PythonSource, RuntimeConfig,
 };
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
@@ -258,6 +258,16 @@ enum Commands {
         #[arg(long)]
         path: String,
     },
+    /// Patch a Chrome/Chromium binary for native-level spoofing.
+    PatchChrome {
+        #[arg(long)]
+        path: String,
+        /// Directory where the patched copy is cached.
+        #[arg(long)]
+        cache_dir: Option<String>,
+    },
+    /// Run a diagnostic check on the environment and configuration.
+    Doctor,
     /// Assert that an element contains the expected text.
     AssertTextVisible {
         #[arg(long)]
@@ -518,9 +528,65 @@ enum Commands {
     },
 }
 
+async fn run_doctor() -> Result<(), Box<dyn std::error::Error>> {
+    use seleniumbase_rs::stealth::patcher::find_system_chrome;
+
+    println!("seleniumbase-rs environment diagnostics");
+    println!("========================================");
+
+    let runtime = RuntimeConfig::from_env().unwrap_or_default();
+    println!("SB_WEBDRIVER_URL: {}", runtime.webdriver_url);
+    println!(
+        "SB_CHROME_BIN: {}",
+        runtime
+            .chrome_bin
+            .as_deref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "(auto-detect)".to_owned())
+    );
+    println!(
+        "SB_PATCH_CACHE_DIR: {}",
+        runtime
+            .patch_cache_dir
+            .as_deref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "(platform cache)".to_owned())
+    );
+    println!("SB_LOG_LEVEL: {}", runtime.log_level);
+    println!("SB_LOG_FORMAT: {:?}", runtime.log_format);
+    println!(
+        "SB_SHUTDOWN_TIMEOUT_SECS: {}",
+        runtime.shutdown_timeout.as_secs()
+    );
+
+    match find_system_chrome() {
+        Some(path) => println!("System Chrome: {}", path.display()),
+        None => println!("System Chrome: not found"),
+    }
+
+    let chrome_bin = runtime.chrome_bin.clone().or_else(find_system_chrome);
+    if let Some(path) = chrome_bin {
+        println!("Chrome binary candidate: {}", path.display());
+        let patcher = ChromeBinaryPatcher::new(&path).with_cache_dir(
+            runtime.patch_cache_dir.clone().unwrap_or_else(|| {
+                dirs::cache_dir()
+                    .unwrap_or_default()
+                    .join("sb-chrome-patches")
+            }),
+        );
+        match patcher.patched_path() {
+            Ok(p) => println!("Patched binary cache path: {}", p.display()),
+            Err(e) => println!("Patched binary cache path unavailable: {e}"),
+        }
+    }
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_tracing();
+    let runtime = RuntimeConfig::from_env().unwrap_or_default();
+    init_tracing_from_runtime(&runtime);
 
     let args = Cli::parse();
 
@@ -671,7 +737,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::Cdp { cmd, params } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let result = if let Some(raw_params) = params.as_deref() {
                 let parsed: Value = serde_json::from_str(raw_params)?;
                 sb.execute_cdp_with_params(&cmd, parsed).await?
@@ -682,13 +748,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::CacheClear => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.clear_browser_cache().await?;
             println!("CDP cache clear command sent.");
             sb.quit().await?;
         }
         Commands::Throttle3g => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let mut conditions = NetworkConditions::new();
             conditions.offline = false;
             conditions.latency = 200;
@@ -702,7 +768,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::Screenshot { path } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             if let Some(target_path) = path.as_deref() {
                 sb.save_screenshot(target_path).await?;
                 println!("Saved screenshot: {target_path}");
@@ -713,7 +779,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::SaveSource { path } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             if let Some(target_path) = path.as_deref() {
                 sb.save_page_source(target_path).await?;
                 println!("Saved page source: {target_path}");
@@ -724,13 +790,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::AssertElement { css } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.assert_element(&css).await?;
             println!("Assertion passed: element exists for selector '{css}'");
             sb.quit().await?;
         }
         Commands::WaitForText { css, text, timeout } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.wait_for_text(&css, &text, timeout).await?;
             println!("Text found for selector '{css}': {text}");
             sb.quit().await?;
@@ -779,26 +845,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::CdpTypeText { text } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.cdp_type_text(&text).await?;
             println!("CDP typed text '{text}'");
             sb.quit().await?;
         }
 
         Commands::GoBack => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.go_back().await?;
             println!("Went back");
             sb.quit().await?;
         }
         Commands::GoForward => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.go_forward().await?;
             println!("Went forward");
             sb.quit().await?;
         }
         Commands::Refresh => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.refresh().await?;
             println!("Refreshed page");
             sb.quit().await?;
@@ -845,62 +911,62 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::ClearCookies => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.clear_browser_cookies().await?;
             println!("Cookies cleared");
             sb.quit().await?;
         }
 
         Commands::AcceptAlert => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.accept_alert().await?;
             println!("Accepted alert");
             sb.quit().await?;
         }
         Commands::DismissAlert => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.dismiss_alert().await?;
             println!("Dismissed alert");
             sb.quit().await?;
         }
         Commands::GetAlertText => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let text = sb.get_alert_text().await?;
             println!("Alert text: {}", text);
             sb.quit().await?;
         }
         Commands::TypeAlertText { text } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.type_alert_text(&text).await?;
             println!("Typed alert text: {}", text);
             sb.quit().await?;
         }
         Commands::ClearLocalStorage => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.clear_local_storage().await?;
             println!("Cleared local storage");
             sb.quit().await?;
         }
         Commands::GetLocalStorageItem { key } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let val = sb.get_local_storage_item(&key).await?;
             println!("Local storage item '{}': {}", key, val);
             sb.quit().await?;
         }
         Commands::SetLocalStorageItem { key, value } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.set_local_storage_item(&key, &value).await?;
             println!("Set local storage item '{}' to '{}'", key, value);
             sb.quit().await?;
         }
         Commands::RemoveLocalStorageItem { key } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.remove_local_storage_item(&key).await?;
             println!("Removed local storage item '{}'", key);
             sb.quit().await?;
         }
         Commands::SwitchToWindow { handle } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.switch_to_window(&handle).await?;
             println!("Switched to window '{}'", handle);
             sb.quit().await?;
@@ -919,13 +985,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::GetCookies => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let cookies = sb.get_cookies().await?;
             println!("Cookies: {:?}", cookies);
             sb.quit().await?;
         }
         Commands::ExportRecording => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let (json_file, rust_file) = sb.save_recording_to_logs()?;
             println!("Saved recording json: {}", json_file.display());
             println!("Saved recording script: {}", rust_file.display());
@@ -934,6 +1000,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::PatchChromedriver { path } => {
             seleniumbase_rs::stealth::patcher::patch_chromedriver(&path)?;
             println!("Successfully patched chromedriver binary at: {path}");
+        }
+        Commands::PatchChrome { path, cache_dir } => {
+            let cache = cache_dir
+                .as_deref()
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| {
+                    dirs::cache_dir()
+                        .unwrap_or_default()
+                        .join("sb-chrome-patches")
+                });
+            let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(cache);
+            let patched = patcher.patch(EnginePatch::chrome_binary())?;
+            println!("Patched Chrome binary available at: {}", patched.display());
+        }
+        Commands::Doctor => {
+            run_doctor().await?;
         }
         Commands::AssertTextVisible { css, text } => {
             let mut sb = BaseCase::new(config).await?;
@@ -964,19 +1046,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::WaitForReadyStateComplete => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.wait_for_ready_state_complete().await?;
             println!("Ready state complete");
             sb.quit().await?;
         }
         Commands::GetWindowPosition => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let (x, y) = sb.get_window_position().await?;
             println!("Window position: x={}, y={}", x, y);
             sb.quit().await?;
         }
         Commands::SetWindowPosition { x, y } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             sb.set_window_position(x, y).await?;
             println!("Set window position to x={}, y={}", x, y);
             sb.quit().await?;
@@ -994,13 +1076,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sb.quit().await?;
         }
         Commands::IsElementVisible { css } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let visible = sb.is_element_visible(&css).await?;
             println!("Element '{}' is visible: {}", css, visible);
             sb.quit().await?;
         }
         Commands::IsTextVisible { css, text } => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let visible = sb.is_text_visible(&text, &css).await?;
             println!("Text '{}' in '{}' is visible: {}", text, css, visible);
             sb.quit().await?;
@@ -1062,7 +1144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Switched to default window");
         }
         Commands::GetActiveElementCss => {
-            let sb = BaseCase::new(config).await?;
+            let mut sb = BaseCase::new(config).await?;
             let css = sb.get_active_element_css().await?;
             println!("Active element CSS: {}", css);
             sb.quit().await?;

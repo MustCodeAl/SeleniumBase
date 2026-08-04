@@ -14,6 +14,26 @@ RUST_LOG=seleniumbase_rs=debug cargo test
 RUST_LOG=warn cargo run --bin seleniumbase-mcp
 ```
 
+## Runtime configuration (`SB_*` environment variables)
+
+Following [Twelve-Factor III (config in the environment)](https://12factor.net/config),
+`sbase` and the library read runtime settings from `SB_*` variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `SB_WEBDRIVER_URL` | `http://localhost:4444` | WebDriver endpoint. |
+| `SB_CHROME_BIN` | auto-detect | Explicit Chrome/Chromium binary path. |
+| `SB_PATCH_CACHE_DIR` | platform cache dir | Directory for patched Chrome/Chromedriver copies. |
+| `SB_LOG_LEVEL` | `info` | Default tracing log level. |
+| `SB_LOG_FORMAT` | `pretty` | `pretty` or `json` output. |
+| `SB_SHUTDOWN_TIMEOUT_SECS` | `30` | Graceful shutdown timeout. |
+| `SB_CHROMEDRIVER_PORT` | `0` | Port for auto-started chromedriver (`0` = ephemeral). |
+| `SB_IMPLICIT_WAIT_SECS` | `30` | Default implicit wait timeout. |
+
+```bash
+SB_WEBDRIVER_URL=http://localhost:9515 SB_LOG_LEVEL=debug sbase open https://example.com
+```
+
 ## Spans in the library
 
 Key `BaseCase` and `BrowserSession` methods are instrumented with `tracing`

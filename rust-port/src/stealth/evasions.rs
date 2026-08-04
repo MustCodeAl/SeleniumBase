@@ -168,7 +168,7 @@ pub fn cdp_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Value> {
                 "width": w,
                 "height": h,
                 "deviceScaleFactor": fp.pixel_ratio.unwrap_or(1.0),
-                "mobile": fp.os_type == OsType::Android,
+                "mobile": fp.os_type.is_mobile(),
             }),
         );
     }
@@ -304,6 +304,7 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
         OsType::Macos => ("arm", "14.0", "", false),
         OsType::Linux => ("x86", "", "", false),
         OsType::Android => ("arm", "14.0", "Pixel 7", true),
+        OsType::Ios => ("arm", "17.4.1", "iPhone", true),
     };
     let full_version = fp
         .core_version
@@ -321,6 +322,8 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
             serde_json::json!({"brand": "Google Chrome", "version": major.to_string()}),
             serde_json::json!({"brand": "Not(A:Brand", "version": "24"}),
         ]
+    } else if ua.contains("Safari") && !ua.contains("Chrome") {
+        vec![serde_json::json!({"brand": "Safari", "version": major.to_string()})]
     } else {
         vec![serde_json::json!({"brand": "Chromium", "version": major.to_string()})]
     };
@@ -331,7 +334,7 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
         "platformVersion": platform_version,
         "architecture": arch,
         "model": model,
-        "mobile": fp.os_type == OsType::Android,
+        "mobile": fp.os_type.is_mobile(),
         "wow64": wow64,
     }))
 }

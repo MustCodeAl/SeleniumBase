@@ -1282,7 +1282,7 @@ impl BaseCase {
 
     /// Closes the browser and ends the session.
     #[instrument(skip(self))]
-    pub async fn quit(self) -> Result<(), SeleniumBaseError> {
+    pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
         info!("quitting BaseCase");
         self.session.quit().await
     }

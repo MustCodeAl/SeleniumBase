@@ -19,7 +19,7 @@ pub trait BrowserApi {
     async fn open(&mut self, url: &str) -> crate::Result<()>;
 
     /// Close the browser session.
-    async fn quit(self) -> crate::Result<()>;
+    async fn quit(&mut self) -> crate::Result<()>;
 
     /// Reload the current page.
     async fn refresh(&self) -> crate::Result<()>;
@@ -91,7 +91,7 @@ impl BrowserApi for BaseCase {
         BaseCase::open(self, url).await
     }
 
-    async fn quit(self) -> crate::Result<()> {
+    async fn quit(&mut self) -> crate::Result<()> {
         BaseCase::quit(self).await
     }
 

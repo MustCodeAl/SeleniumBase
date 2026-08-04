@@ -6,7 +6,7 @@
 
 use super::{EvasionContext, EvasionProvider};
 use crate::stealth::fingerprint::{
-    CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, PopupMode,
+    BrowserType, CanvasNoiseMode, Fingerprint, MaskingMode, NoiseMode, OsType, PopupMode,
 };
 
 /// Returns `true` when a masking mode should emit its evasion.
@@ -259,10 +259,13 @@ impl EvasionProvider for NavigatorPropsProvider {
         if let Some(touch) = fp.max_touch_points {
             define("maxTouchPoints", touch.to_string());
         }
-        let vendor = fp
-            .vendor
-            .clone()
-            .unwrap_or_else(|| "Google Inc.".to_owned());
+        let vendor = fp.vendor.clone().unwrap_or_else(|| {
+            if fp.browser_type == BrowserType::MobileSafari || fp.os_type == OsType::Ios {
+                "Apple Computer, Inc.".to_owned()
+            } else {
+                "Google Inc.".to_owned()
+            }
+        });
         define("vendor", format!("'{}'", EvasionContext::escape(&vendor)));
         let product_sub = fp
             .product_sub
@@ -458,11 +461,13 @@ impl EvasionProvider for WebglProvider {
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         let fp = ctx.fingerprint;
-        let vendor = fp.webgl_vendor.as_deref().unwrap_or("Intel Inc.");
-        let renderer = fp
-            .webgl_renderer
-            .as_deref()
-            .unwrap_or("Intel Iris OpenGL Engine");
+        let (default_vendor, default_renderer) = if fp.os_type == OsType::Ios {
+            ("Apple Inc.", "Apple GPU")
+        } else {
+            ("Intel Inc.", "Intel Iris OpenGL Engine")
+        };
+        let vendor = fp.webgl_vendor.as_deref().unwrap_or(default_vendor);
+        let renderer = fp.webgl_renderer.as_deref().unwrap_or(default_renderer);
         let vendor_id = fp.webgl_vendor_id.as_deref().unwrap_or("");
         let renderer_id = fp.webgl_renderer_id.as_deref().unwrap_or("");
         Some(format!(

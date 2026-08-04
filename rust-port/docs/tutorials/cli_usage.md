@@ -55,6 +55,22 @@ cargo build --bin sbase
 ./target/debug/sbase patch-chromedriver --path /path/to/chromedriver
 ```
 
+## Patch Chrome binary
+
+```bash
+./target/debug/sbase patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+./target/debug/sbase patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
+```
+
+## Diagnostic check
+
+```bash
+./target/debug/sbase doctor
+```
+
+`doctor` prints the active `SB_*` environment variables, the detected Chrome
+binary, and the patched-binary cache path.
+
 ## Run a JSON scenario
 
 ```bash

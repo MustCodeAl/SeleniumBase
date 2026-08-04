@@ -143,6 +143,7 @@ impl Settings {
             start_page: None,
             extra_args: Vec::new(),
             fingerprint: None,
+            browser_binary_path: None,
         }
     }
 

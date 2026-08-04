@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde_json::json;
+use seleniumbase_rs::init_tracing;
 use tauri::{command, generate_context, generate_handler, AppHandle, Manager, State};
 use tracing::info;
 
@@ -192,9 +193,7 @@ async fn get_api_base() -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    init_tracing();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

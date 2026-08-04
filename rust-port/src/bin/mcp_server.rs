@@ -13,13 +13,15 @@ use std::future::Future;
 
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResult, ContentBlock, ErrorData, ListToolsResult, ServerInfo,
-    Tool,
+    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
+    ListToolsResult, ServerInfo, Tool,
 };
 use rmcp::serve_server;
 use rmcp::service::{RequestContext, RoleServer};
 use rmcp::transport::io::stdio;
-use seleniumbase_rs::{BaseCase, BrowserConfig, ChromedriverPatcher, EnginePatch, Fingerprint};
+use seleniumbase_rs::{
+    init_tracing, BaseCase, BrowserConfig, ChromedriverPatcher, EnginePatch, Fingerprint,
+};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
@@ -259,11 +261,15 @@ impl ServerHandler for SeleniumBaseMcp {
         &self,
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> impl Future<Output = Result<CallToolResult, ErrorData>> + '_ {
+    ) -> impl Future<Output = Result<CallToolResponse, ErrorData>> + '_ {
         async move {
             let args = request.arguments.unwrap_or_default();
-            let text = |s: &str| CallToolResult::success(vec![ContentBlock::text(s)]);
-            let error = |s: &str| CallToolResult::error(vec![ContentBlock::text(s)]);
+            let text = |s: &str| {
+                CallToolResponse::Complete(CallToolResult::success(vec![ContentBlock::text(s)]))
+            };
+            let error = |s: &str| {
+                CallToolResponse::Complete(CallToolResult::error(vec![ContentBlock::text(s)]))
+            };
 
             let result = match request.name.as_ref() {
                 "open_url" => {
@@ -521,9 +527,7 @@ impl ServerHandler for SeleniumBaseMcp {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    init_tracing();
 
     let service = SeleniumBaseMcp::new();
     let transport = stdio();

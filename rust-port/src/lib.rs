@@ -36,6 +36,7 @@ pub mod plugins;
 pub mod profile_payloads;
 pub mod resources;
 pub mod stealth;
+pub mod tracing_util;
 pub mod utilities;
 pub mod utils;
 
@@ -58,6 +59,9 @@ pub use stealth::providers::{
     default_registry, EvasionConfig, EvasionContext, EvasionProvider, EvasionRegistry,
 };
 pub use stealth::{engine_spoofing_args, ChromedriverPatcher, EnginePatch};
+pub use tracing_util::{
+    init_tracing, init_tracing_json, init_tracing_json_with_filter, init_tracing_with_filter,
+};
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
 };

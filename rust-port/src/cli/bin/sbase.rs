@@ -10,7 +10,8 @@ use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard_html, Scenario};
 use seleniumbase_rs::config::settings::Settings;
 use seleniumbase_rs::{
-    import_python, BaseCase, Browser, DriverMode, ImportOptions, ImportSeverity, PythonSource,
+    import_python, init_tracing, BaseCase, Browser, DriverMode, ImportOptions, ImportSeverity,
+    PythonSource,
 };
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
@@ -432,9 +433,7 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
+    init_tracing();
 
     let args = Cli::parse();
 

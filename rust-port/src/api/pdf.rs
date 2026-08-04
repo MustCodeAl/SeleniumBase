@@ -25,22 +25,31 @@ pub fn save_pdf_bytes<P: AsRef<Path>>(bytes: &[u8], path: P) -> Result<(), Selen
 #[cfg(test)]
 mod tests {
     use super::*;
-    use printpdf::{BuiltinFont, Mm, PdfDocument};
-    use std::fs::File;
-    use std::io::BufWriter;
+    use printpdf::{
+        BuiltinFont, Mm, Op, PdfDocument, PdfFontHandle, PdfPage, PdfSaveOptions, Point,
+    };
 
     fn write_sample_pdf<P: AsRef<Path>>(path: P) {
-        let (doc, page, layer) = PdfDocument::new("Sample", Mm(210.0), Mm(297.0), "Layer 1");
-        let font = doc.add_builtin_font(BuiltinFont::Helvetica).unwrap();
-        doc.get_page(page).get_layer(layer).use_text(
-            "Hello SeleniumBase",
-            12.0,
-            Mm(50.0),
-            Mm(250.0),
-            &font,
-        );
-        doc.save(&mut BufWriter::new(File::create(path).unwrap()))
-            .unwrap();
+        let mut doc = PdfDocument::new("Sample");
+        let font = PdfFontHandle::Builtin(BuiltinFont::Helvetica);
+        let ops = vec![
+            Op::StartTextSection,
+            Op::SetFont {
+                font,
+                size: printpdf::Pt(12.0),
+            },
+            Op::SetTextCursor {
+                pos: Point::new(Mm(50.0), Mm(250.0)),
+            },
+            Op::ShowText {
+                items: vec!["Hello SeleniumBase".into()],
+            },
+            Op::EndTextSection,
+        ];
+        doc.pages.push(PdfPage::new(Mm(210.0), Mm(297.0), ops));
+        let mut warnings = Vec::new();
+        let bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
+        std::fs::write(path, bytes).unwrap();
     }
 
     #[test]

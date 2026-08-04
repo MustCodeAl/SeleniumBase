@@ -18,6 +18,8 @@ use seleniumbase_rs::{
 use serde_json::{json, Value};
 use thirtyfour::extensions::cdp::NetworkConditions;
 
+const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), " (", env!("CARGO_PKG_NAME"), ")");
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 enum BrowserArg {
     Chrome,
@@ -45,7 +47,7 @@ impl From<BrowserArg> for Browser {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "sbase", version, about = "SeleniumBase Rust CLI")]
+#[command(name = "sbase", version = VERSION, about = "SeleniumBase Rust CLI", long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.")]
 struct Cli {
     #[arg(
         long,

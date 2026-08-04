@@ -3,27 +3,32 @@
 impl BaseCase {
     /// Creates a tour using the Shepherd theme.
     pub async fn create_shepherd_tour(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
-        self.create_tour_with_theme(name, TourTheme::Shepherd).await
+        self.tour = Some(Tour::new(name).with_theme(TourTheme::Shepherd));
+        Ok(())
     }
 
     /// Creates a tour using the IntroJS theme.
     pub async fn create_introjs_tour(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
-        self.create_tour_with_theme(name, TourTheme::IntroJs).await
+        self.tour = Some(Tour::new(name).with_theme(TourTheme::IntroJs));
+        Ok(())
     }
 
     /// Creates a tour using the DriverJS theme.
     pub async fn create_driverjs_tour(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
-        self.create_tour_with_theme(name, TourTheme::DriverJs).await
+        self.tour = Some(Tour::new(name).with_theme(TourTheme::DriverJs));
+        Ok(())
     }
 
     /// Creates a tour using the Bootstrap theme.
     pub async fn create_bootstrap_tour(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
-        self.create_tour_with_theme(name, TourTheme::Bootstrap).await
+        self.tour = Some(Tour::new(name).with_theme(TourTheme::Bootstrap));
+        Ok(())
     }
 
     /// Creates a tour using the Hopscotch theme.
     pub async fn create_hopscotch_tour(&mut self, name: &str) -> Result<(), SeleniumBaseError> {
-        self.create_tour_with_theme(name, TourTheme::Hopscotch).await
+        self.tour = Some(Tour::new(name).with_theme(TourTheme::Hopscotch));
+        Ok(())
     }
 
     /// Alias for `play_tour`.

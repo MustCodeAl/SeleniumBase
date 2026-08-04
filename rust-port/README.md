@@ -268,13 +268,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         mode: DriverMode::Cdp,
         ..Default::default()
     }).await?;
-    sb.cdp_open("https://seleniumbase.io").await?;
-    let text = sb.cdp_get_text("h1").await?;
+    sb.open("https://seleniumbase.io").await?;
+    let text = sb.get_text("h1").await?;
     println!("{text}");
     sb.quit().await?;
     Ok(())
 }
 ```
+
+For raw CDP commands, call `execute_cdp` or `execute_cdp_with_params` after
+`activate_cdp_mode()`.
 
 ### Shadow DOM piercing
 

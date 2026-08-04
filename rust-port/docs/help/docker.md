@@ -1,6 +1,15 @@
 # Docker Guide
 
 Run SeleniumBase for Rust tests inside a container for reproducible CI/CD builds.
+This guide covers building the image, running the CLI, using Docker Compose, and
+configuring CI.
+
+## What you will learn
+
+- How to build the Docker image.
+- How to run `sbase` inside a container.
+- How to write a Docker Compose service.
+- How to run headless browsers in Docker.
 
 ## Build the image
 
@@ -32,7 +41,7 @@ services:
   tests:
     build: .
     environment:
-      - SBASE_HEADLESS=true
+      - SB_HEADLESS=true
     command: ["sbase", "--help"]
 ```
 
@@ -59,3 +68,11 @@ Always run browsers in headless mode inside containers; the image already adds
 ```rust
 let config = BrowserConfig::default().with_headless(true);
 ```
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `chromedriver` not found in container | Wrong base image stage | Use the runtime stage produced by the Dockerfile. |
+| Browser crashes with sandbox error | Missing `--no-sandbox` | Enable headless mode or pass `--no-sandbox` via extra args. |
+| Environment variable ignored | Used `SBASE_` prefix | Use the `SB_` prefix. |

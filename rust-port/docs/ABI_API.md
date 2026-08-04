@@ -31,18 +31,20 @@ The crate root exposes the following modules:
 
 The most common types are re-exported from the crate root for convenience:
 
-* `BaseCase`
-* `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`
-* `Selector`
-* `Fingerprint`, `StealthFlags`
-* `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport`
-* `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry`
-* `ChromedriverPatcher`, `EnginePatch`, `engine_spoofing_args`
-* `Chart`, `ChartType`, `TourTheme`, `Gui`
-* `run_browser_test`, `BrowserTestFuture`
-* `AssertionApi`, `BrowserApi`, `ElementApi`, `ScreenshotApi`
-* `Result<T>`, `SeleniumBaseError`
-* `import_python`, `ImportDiagnostic`, `ImportOptions`, `ImportResult`, `ImportSeverity`, `PythonSource`
+| Type | Re-exported from crate root |
+|---|---|
+| `BaseCase` | yes |
+| `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession` | yes |
+| `Selector` | yes |
+| `Fingerprint`, `StealthFlags` | yes |
+| `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport` | yes |
+| `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry` | yes |
+| `ChromedriverPatcher`, `ChromeBinaryPatcher`, `EnginePatch`, `engine_spoofing_args` | yes |
+| `Chart`, `ChartType`, `TourTheme`, `Gui` | yes |
+| `run_browser_test`, `BrowserTestFuture` | yes |
+| `AssertionApi`, `BrowserApi`, `ElementApi`, `ScreenshotApi` | yes |
+| `Result<T>`, `SeleniumBaseError`, `ResultExt` | yes |
+| `import_python`, `ImportDiagnostic`, `ImportOptions`, `ImportResult`, `ImportSeverity`, `PythonSource` | yes |
 
 `#[macro_export]` macros such as `selector!`, `sb_test!`, `sb_open!`, and
 `fingerprint!` are also imported from the crate root:
@@ -53,18 +55,30 @@ use seleniumbase_rs::{selector, sb_test, sb_open, fingerprint};
 
 ## Capability traits
 
-The public API is factored into capability traits in `api::traits`. They are
-implemented by `BaseCase`:
+The public API is organized into capability traits in `api::traits`. These
+traits are implemented by `BaseCase` and can be used to write generic helpers:
 
 | Trait | Responsibility |
 |---|---|
 | `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `get_title`, `get_url`. |
 | `ElementApi` | Finding and interacting with elements: `find_element`, `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. |
-| `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
+| `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text_visible`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 
 Use these traits when writing helpers that should work with any type exposing
-the same capability, or as a blueprint for adding new cross-cutting concerns.
+the same capability, or as a blueprint for adding new cross-cutting concerns:
+
+```rust
+use seleniumbase_rs::{AssertionApi, ElementApi};
+
+async fn assert_logged_in<E>(sb: &mut E) -> Result<(), seleniumbase_rs::SeleniumBaseError>
+where
+    E: ElementApi + AssertionApi,
+{
+    sb.assert_element("#dashboard").await?;
+    sb.assert_text("#user-name", "Alice").await
+}
+```
 
 ## ABI note
 
@@ -100,15 +114,15 @@ changes. Pin to an exact version or a narrow range in production.
 
 The crate uses Cargo features to keep heavy dependencies off by default:
 
-| Feature | Effect |
-|---|---|
-| `playwright` | Enables the `rustwright`-backed Playwright-compatible driver. |
-| `s3` | Enables AWS S3 artifact uploads. |
-| `azure` | Enables Azure Blob Storage artifact uploads. |
-| `gcp` | Placeholder for Google Cloud integrations. |
-| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
-| `full-tracing` | Enables `tracing-timing` histograms and `tracing-actix` actor instrumentation. |
-| `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. |
+| Feature | Effect | Default |
+|---|---|---|
+| `playwright` | Enables the `rustwright`-backed Playwright-compatible driver. | no |
+| `s3` | Enables AWS S3 artifact uploads. | no |
+| `azure` | Enables Azure Blob Storage artifact uploads. | no |
+| `gcp` | Enables Google Cloud Storage artifact uploads. | no |
+| `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. | no |
+| `full-tracing` | Enables `tracing-timing` histograms and `tracing-actix` actor instrumentation. | no |
+| `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. | no |
 
 When adding feature-gated code, use `#[cfg(feature = "...")]` and declare the
 dependency as `optional = true` in `Cargo.toml`.
@@ -151,3 +165,11 @@ Internal helper modules, `#[doc(hidden)]` items, and items under
 `api::base_case_impls` are implementation details. They may change without a
 major version bump. Rely only on the public modules and re-exports listed
 above.
+
+## API stability checklist for consumers
+
+- [ ] Import types from the crate root or documented public modules.
+- [ ] Avoid relying on paths inside `api::base_case_impls` or `#[doc(hidden)]` items.
+- [ ] Pin the crate version in production.
+- [ ] Do not pass `seleniumbase-rs` types across FFI boundaries without a C shim.
+- [ ] Test feature-gated code with the same feature set you ship.

@@ -1,11 +1,20 @@
 # MasterQA Guide
 
-MasterQA is a hybrid testing workflow that mixes automated navigation with manual verification steps.
+MasterQA is a hybrid testing workflow that mixes automated navigation with
+manual verification steps. It is useful when some checks require human judgment
+or sign-off, but the setup and navigation can still be scripted.
+
+## What you will learn
+
+- How to start and stop a MasterQA session.
+- How to insert manual verification steps.
+- What the generated report contains.
+- When MasterQA is the right tool.
 
 ## Start a MasterQA session
 
 ```rust
-use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
+use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -48,3 +57,9 @@ The generated Markdown report contains:
 - Exploratory testing where full automation is too expensive.
 - Validating visual layouts that are hard to assert programmatically.
 - Compliance checks that require human sign-off.
+
+## Best practices
+
+- Keep manual verification steps focused on a single question.
+- Run MasterQA in headed mode so the operator can see the browser.
+- Store reports in CI artifacts for audit trails.

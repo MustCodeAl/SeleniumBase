@@ -5,6 +5,13 @@ chromedriver binary, launching Chromium with stealth flags, and applying
 JavaScript evasions that mask `navigator.webdriver`, plugins, WebGL, and other
 fingerprints.
 
+## What you will learn
+
+- How to enable UC mode.
+- How binary patching removes injected markers.
+- How engine spoofing args hide additional automation signals.
+- What to do if a site still detects the browser.
+
 ## Quick enable
 
 Set the driver mode to `Uc` in [`BrowserConfig`](crate::BrowserConfig):
@@ -67,3 +74,13 @@ If a site still flags the browser:
    user agent, platform, screen size, WebGL vendor, and geolocation.
 4. Run headful (`headless: false`) or use `--headless=new` instead of the old
    headless implementation.
+5. Align egress IP with the spoofed geolocation and timezone.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `navigator.webdriver` still `true` | chromedriver not patched | Run `patch-chromedriver` and verify `needs_patch()`. |
+| Detection after patching | Missing engine args | Add `engine_spoofing_args()` to launch flags. |
+| Detection only in headless | Legacy headless artifacts | Run headful or pass `--headless=new`. |
+| Inconsistent signals | Fingerprint values mismatch | Validate with `Fingerprint::validate()`. |

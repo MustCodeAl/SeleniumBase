@@ -1,7 +1,17 @@
 # Developer Guide
 
 This guide is for anyone who wants to understand, extend, or maintain the Rust
-port of SeleniumBase (`seleniumbase-rs`).
+port of SeleniumBase (`seleniumbase-rs`). It covers the repository layout, the
+`BaseCase` architecture, how to add new helpers, the stealth system, testing, and
+release considerations.
+
+## What you will learn
+
+- How the repository is organized.
+- How `BaseCase` methods are split across domain files.
+- How to add a new `BaseCase` helper or evasion provider.
+- How to run tests and interpret CI checks.
+- Where to find the public API contract and stability notes.
 
 ## Project goals
 
@@ -628,6 +638,12 @@ See `CONTRIBUTING.md` for the full contributor guide. In short:
 4. Update `README.md`, `DOCS.md`, and `docs/tutorials/` when adding user-facing
    features.
 5. Run `cargo fmt` before committing.
+
+## See also
+
+- [ABI & API Stability](./ABI_API.md) for the public API contract.
+- [Contributing](./CONTRIBUTING.md) for the full contributor guide.
+- [Rust Test Tooling](./rust-test-tooling.md) for writing tests against `BaseCase`.
 
 ### AI agent conventions
 

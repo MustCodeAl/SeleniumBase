@@ -5,6 +5,9 @@ reduce boilerplate for selectors, test setup, common interactions, and
 assertions. Because the action macros expand `.await` internally, use them
 inside an `async` function or closure.
 
+This page catalogs every public macro and shows when to prefer macros over the
+explicit method API.
+
 ```rust
 use seleniumbase_rs::{
     assert_visible, cdp_config, fingerprint, sb_assert_not_visible, sb_assert_text,
@@ -13,6 +16,13 @@ use seleniumbase_rs::{
     sb_type, sb_wait_and_click, sb_wait_for, sb_with_timeout, selector, uc_config,
 };
 ```
+
+## What you will learn
+
+- How to build selectors with `selector!`.
+- How to declare a test with `sb_test!`.
+- How to use config and fingerprint macros.
+- How action macros map to `BaseCase` methods.
 
 ## `selector!`
 
@@ -174,3 +184,12 @@ Use macros for:
 
 Prefer the explicit method API when you need fine-grained error handling,
 custom timeouts, or non-trivial control flow.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Macro expansion error | Used outside an `async` function | Wrap the call in an async block or `sb_test!`. |
+| `sb_test!` not found | Macro not imported | Import `seleniumbase_rs::sb_test`. |
+| Action macro panics | Selector did not match | Add an explicit `sb_wait_for!` first or increase the timeout. |
+| `selector!` type mismatch | Wrong variant name | Use `css`, `xpath`, `id`, `link`, or `partial_link`. |

@@ -1,9 +1,15 @@
 # Playwright Mode
 
-Playwright Mode uses [`rustwright`](https://github.com/Skyvern-AI/rustwright)
-native Rust CDP engine to drive Chromium with a Playwright-compatible API. It
+Playwright Mode uses [`rustwright`](https://github.com/Skyvern-AI/rustwright), a
+native Rust CDP engine, to drive Chromium with a Playwright-compatible API. It
 can bypass bot-detection systems that target WebDriver fingerprints without
 requiring a Node Playwright driver.
+
+## What you will learn
+
+- How to enable the optional `playwright` feature.
+- How `rustwright` resolves Chromium.
+- How to activate and use a Playwright session.
 
 ## Enable the feature
 
@@ -56,3 +62,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   `close`).
 - For pure WebDriver automation use `DriverMode::Uc` or `DriverMode::Cdp`
   instead.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `rustwright` not found | Feature not enabled | Build with `--features playwright`. |
+| Chromium download fails | Network restricted | Pre-install Chromium and set `BrowserConfig::browser_binary_path`. |
+| Session methods missing | API mismatch | Check the rustdocs for the installed `rustwright` version. |

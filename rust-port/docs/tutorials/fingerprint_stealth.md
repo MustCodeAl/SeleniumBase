@@ -1,14 +1,21 @@
 # Fingerprint & Stealth Profiles
 
-`seleniumbase-rs` can spoof many of the browser signals that bot-detection
-services inspect: `navigator.webdriver`, user agent, platform, screen size,
-hardware concurrency, WebGL vendor/renderer, canvas/audio noise, time zone,
-geolocation, media devices, fonts, and more.
+Websites detect automation by looking at many browser signals: `navigator.webdriver`,
+user agent, platform, screen size, hardware concurrency, WebGL vendor, canvas
+noise, audio noise, time zone, geolocation, media devices, fonts, and more.
+`seleniumbase-rs` can spoof these signals through a coherent `Fingerprint` and a
+pluggable evasion system.
 
-The feature set is inspired by external anti-detect profile tooling,
-`chromiumoxide_stealth`, `undetected-chromedriver`, `eoka`, and `chaser-oxide`.
-It works in both WebDriver + CDP mode and in the native `rustwright`
-Playwright-compatible mode.
+This page explains how to use built-in fingerprint presets, build custom
+profiles, choose masking modes, and apply native-level spoofing through CDP.
+
+## What you will learn
+
+- How to use built-in fingerprint presets.
+- How to build a custom `Fingerprint`.
+- How `StealthFlags` masking modes work.
+- How to enable native-level CDP spoofing.
+- How the evasion provider registry assembles the JavaScript bootstrap.
 
 ## Quick start
 
@@ -33,35 +40,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Fingerprint presets
 
-* `Fingerprint::windows_desktop()`
-* `Fingerprint::macos_desktop()`
-* `Fingerprint::linux_desktop()`
-* `Fingerprint::android_mobile()`
-* `Fingerprint::ios_mobile_safari()`
+Built-in presets set a coherent combination of user agent, platform, screen,
+WebGL strings, and masking flags:
 
-Each preset sets a coherent user agent, platform, screen size, WebGL strings,
-and masking flags.
+| Preset | Best for |
+|---|---|---|
+| `Fingerprint::windows_desktop()` | Chrome on Windows. |
+| `Fingerprint::macos_desktop()` | Chrome or Safari on macOS. |
+| `Fingerprint::linux_desktop()` | Chrome on Linux. |
+| `Fingerprint::android_mobile()` | Chrome on Android. |
+| `Fingerprint::ios_mobile_safari()` | Mobile Safari on iOS. |
+
+Use the `fingerprint!` macro for shorter syntax:
+
+```rust
+use seleniumbase_rs::fingerprint;
+
+let fp = fingerprint!(windows);
+let fp = fingerprint!(macos);
+let fp = fingerprint!(linux);
+let fp = fingerprint!(android);
+let fp = fingerprint!(ios);
+```
 
 ## Building a custom fingerprint
+
+For full control, use the builder:
 
 ```rust
 use seleniumbase_rs::Fingerprint;
 
 let fp = Fingerprint::builder()
-    .user_agent("Mozilla/5.0 …")
+    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...")
     .platform("Win32")
     .screen(1920, 1080)
     .hardware_concurrency(8)
     .device_memory(8.0)
     .locale("en-US")
     .timezone("America/New_York")
-    .webgl("Google Inc. (NVIDIA)", "ANGLE …")
+    .webgl("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, NVIDIA GeForce GTX 1660 ...)")
     .geolocation(40.7128, -74.0060)
     .media_devices(1, 1, 2)
     .build();
 ```
 
-## Masking flags
+## Masking modes
 
 `StealthFlags` controls which dimensions are spoofed. Every flag is one of the
 following modes:
@@ -70,42 +93,44 @@ following modes:
 |---|---|---|
 | `Natural` | Use the browser's real value. | Trust the host for audio, media devices, or fonts. |
 | `Mask` | Apply a generic, deterministic spoofed value. | Hide the real WebRTC IP policy, screen size, or timezone. |
-| `Custom` | Use the explicit value supplied in the `Fingerprint`. | Set a specific `user_agent`, `screen` resolution, `proxy`, or `geolocation`. |
+| `Custom` | Use the explicit value supplied in the `Fingerprint`. | Set a specific user agent, screen resolution, proxy, or geolocation. |
 | `Disabled` | Turn the feature off entirely. | Disable WebRTC, block QUIC, or leave proxy unconfigured. |
-
-| Flag | Modes / literal format | Default |
-|---|---|---|
-| `navigator_masking` | `natural` / `mask` / `custom` / `disabled`, or a full UA string | mask |
-| `screen_masking` | `natural` / `mask` / `custom` / `disabled`, or `WIDTHxHEIGHTxDEPTH` | mask |
-| `graphics_masking` | `natural` / `mask` / `custom` / `disabled`, or `vendor~renderer` | mask |
-| `audio_masking` | `natural` / `mask` / `custom` / `disabled` | natural |
-| `media_devices_masking` | `natural` / `mask` / `custom` / `disabled`, or `kind:deviceId:label\|...` | natural |
-| `canvas_noise` | `random` / `persistent` / `low` / `natural` / `disabled` | mask |
-| `webrtc_masking` | `natural` / `mask` / `custom` / `disabled` / `public_only`, or `public:IP\|local:IP` | mask |
-| `geolocation_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or `lat,lon,alt` | mask |
-| `timezone_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or an IANA zone | mask |
-| `localization_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or a locale string | mask |
-| `fonts_masking` | `natural` / `mask` / `custom` / `disabled`, or a comma-separated font list | mask |
-| `ports_masking` | `natural` / `off` / `mask` / `block` / `block_all` / `whitelist`, or a port list | mask |
-| `proxy_masking` | `disabled` / `direct` / `custom` / `socks5` / `http` / `https`, or a proxy URL | disabled |
-| `quic_mode` | `enabled` / `disabled` / `force_http2` / `auto` | disabled |
-| `graphics_noise` | `low` / `medium` / `high` / `off` / `natural` / `mask` | mask |
-| `battery_masking` | natural / mask / custom / disabled | mask |
-| `connection_masking` | natural / mask / custom / disabled | mask |
-| `speech_masking` | natural / mask / custom / disabled | mask |
-| `bluetooth_masking` | natural / mask / custom / disabled | mask |
-| `client_hints_masking` | natural / mask / custom / disabled | mask |
-| `native_tostring_masking` | natural / mask / custom / disabled | mask |
-| `chrome_runtime_masking` | natural / mask / custom / disabled | mask |
-| `headless_masking` | natural / mask / custom / disabled | mask |
-| `humanize` | bool | false |
-| `block_trackers` | bool | false |
-| `disable_csp` | bool | false |
-| `grant_permissions` | bool | false |
-| `native_spoofing` | bool | false |
 
 Use `StealthFlags::balanced()` for sensible defaults or `StealthFlags::all_custom()`
 when every value is supplied explicitly.
+
+## Stealth flag reference
+
+| Flag | Accepted modes / literals | Default |
+|---|---|---|
+| `navigator_masking` | `natural` / `mask` / `custom` / `disabled`, or a full UA string | `mask` |
+| `screen_masking` | `natural` / `mask` / `custom` / `disabled`, or `WIDTHxHEIGHTxDEPTH` | `mask` |
+| `graphics_masking` | `natural` / `mask` / `custom` / `disabled`, or `vendor~renderer` | `mask` |
+| `audio_masking` | `natural` / `mask` / `custom` / `disabled` | `natural` |
+| `media_devices_masking` | `natural` / `mask` / `custom` / `disabled`, or `kind:deviceId:label\|...` | `natural` |
+| `canvas_noise` | `random` / `persistent` / `low` / `natural` / `disabled` | `mask` |
+| `webrtc_masking` | `natural` / `mask` / `custom` / `disabled` / `public_only`, or `public:IP\|local:IP` | `mask` |
+| `geolocation_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or `lat,lon,alt` | `mask` |
+| `timezone_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or an IANA zone | `mask` |
+| `localization_masking` | `natural` / `auto` / `mask` / `custom` / `disabled`, or a locale string | `mask` |
+| `fonts_masking` | `natural` / `mask` / `custom` / `disabled`, or a comma-separated font list | `mask` |
+| `ports_masking` | `natural` / `off` / `mask` / `block` / `block_all` / `whitelist`, or a port list | `mask` |
+| `proxy_masking` | `disabled` / `direct` / `custom` / `socks5` / `http` / `https`, or a proxy URL | `disabled` |
+| `quic_mode` | `enabled` / `disabled` / `force_http2` / `auto` | `disabled` |
+| `graphics_noise` | `low` / `medium` / `high` / `off` / `natural` / `mask` | `mask` |
+| `battery_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `connection_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `speech_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `bluetooth_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `client_hints_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `native_tostring_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `chrome_runtime_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `headless_masking` | `natural` / `mask` / `custom` / `disabled` | `mask` |
+| `humanize` | bool | `false` |
+| `block_trackers` | bool | `false` |
+| `disable_csp` | bool | `false` |
+| `grant_permissions` | bool | `false` |
+| `native_spoofing` | bool | `false` |
 
 ### Literal values in JSON payloads
 
@@ -428,3 +453,13 @@ automation markers:
   when `native_spoofing` is enabled.
 * Chromium source patching is not performed; for the strongest protection use
   `ChromedriverPatcher` plus engine spoofing args in addition to fingerprints.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Still flagged by bot detection | JavaScript evasions not applied or TLS fingerprint mismatch | Use `DriverMode::Uc`, enable `native_spoofing`, and align egress IP. |
+| `navigator.webdriver` still `true` | CDP markers not scrubbed | Apply binary patching or UC mode. |
+| Geolocation is wrong | Masking mode is `Natural` | Set `geolocation_masking: Custom` with explicit coordinates. |
+| Inconsistent locale/timezone | `locale` and `timezone` fields mismatch | Align both values to the same region. |
+| WebRTC leaks local IP | `webrtc_masking` not configured | Use `WebRtcPolicy::DisableNonProxiedUdp`. |

@@ -6,6 +6,18 @@ and quoted `$cdc_` strings that the driver injects into every page. The
 `ChromedriverPatcher` edits the executable on disk before launch so those
 markers are never injected in the first place.
 
+This page covers both driver-level patching (`ChromedriverPatcher`) and
+browser-level patching (`ChromeBinaryPatcher`), plus the engine spoofing
+arguments that hide additional automation markers.
+
+## What you will learn
+
+- Which markers `ChromedriverPatcher` removes.
+- How to use `EnginePatch` presets and backups.
+- How to patch from Rust code and from the CLI.
+- How to combine patching with fingerprints and UC mode.
+- Safety and licensing considerations.
+
 ## What is patched
 
 * `cdc_<22 alphanum>_` property assignments such as
@@ -130,3 +142,12 @@ system-installed driver or a binary belonging to another user may violate
 licenses, local policies, or terms of service. Keep a backup (the default
 `EnginePatch` presets create one automatically) and test the patched binary in a
 non-production environment first.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `needs_patch()` still true after patching | Driver was replaced by a newer version | Re-run the patcher after driver downloads. |
+| Browser crashes after Chrome binary patch | Patch incompatible with Chromium version | Restore from `.orig` and use the matching engine version. |
+| Backup missing | Used `EnginePatch::no_backup()` | Re-download the original binary before patching again. |
+| Bot detection still triggers | TLS or behavioral signals leak | Combine patching with `Fingerprint`, UC mode, and proxy egress alignment. |

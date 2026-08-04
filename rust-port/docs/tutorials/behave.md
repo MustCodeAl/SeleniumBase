@@ -2,6 +2,15 @@
 
 SeleniumBase for Rust includes a lightweight Gherkin parser and step runner so
 you can write BDD-style feature files similar to Python's `behave` framework.
+This lets product owners, QA engineers, and developers share a common language
+for describing acceptance criteria.
+
+## What you will learn
+
+- How to write `.feature` files.
+- How to register sync and async step definitions.
+- How to filter scenarios by tags.
+- How to run feature files from Rust tests or the CLI.
 
 ## Feature files
 
@@ -96,3 +105,11 @@ let results = run_feature_file_with_filter("tests/login.feature", &registry, &fi
 - Keep `Background` sections short and focused on shared preconditions.
 - Use tags to organize smoke, regression, and slow tests.
 - Async steps hold a `RefCell` borrow across awaits; run one step at a time.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Step not matched | Pattern does not escape quotes or regex metacharacters | Use raw strings and test the regex first. |
+| Scenario Outline fails | Placeholder not replaced | Ensure the `Examples` table headers match `<placeholders>`. |
+| Borrow error across await | Step holds registry borrow while awaiting | Keep steps short and finish before the next step. |

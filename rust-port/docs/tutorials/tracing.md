@@ -2,7 +2,16 @@
 
 `seleniumbase-rs` uses the `tracing` ecosystem for structured logging. Both the
 `sbase` CLI and the `seleniumbase-mcp` server initialize a default
-`tracing_subscriber::fmt()` subscriber on startup.
+`tracing_subscriber::fmt()` subscriber on startup. This page explains how to
+control verbosity, configure runtime settings through the environment, and use
+tracing in your own tests.
+
+## What you will learn
+
+- How to set log levels with `RUST_LOG`.
+- How `SB_*` environment variables configure runtime behavior.
+- How spans and structured errors help diagnose failures.
+- How to use tracing in your own async code.
 
 ## Log levels
 
@@ -12,6 +21,13 @@ Set the `RUST_LOG` environment variable to control verbosity:
 RUST_LOG=info cargo run --bin sbase -- open https://example.com
 RUST_LOG=seleniumbase_rs=debug cargo test
 RUST_LOG=warn cargo run --bin seleniumbase-mcp
+```
+
+`RUST_LOG` follows the standard `env_logger`/`tracing-subscriber` syntax:
+
+```bash
+# Show only errors from everything and debug from this crate.
+RUST_LOG=error,seleniumbase_rs=debug cargo test
 ```
 
 ## Runtime configuration (`SB_*` environment variables)
@@ -105,3 +121,12 @@ async fn example() -> Result<()> {
 
 Enable the `full-tracing` feature for additional timing histograms and Actix
 actor instrumentation.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| No log output | Subscriber not initialized | Run through `sbase`, `seleniumbase-mcp`, or call `tracing_subscriber::fmt::init()` in your `main()`. |
+| Too much noise from dependencies | `RUST_LOG=debug` includes all crates | Scope to `seleniumbase_rs=debug`. |
+| JSON format not working | `SB_LOG_FORMAT=json` unsupported by default subscriber | Use a custom subscriber or enable the `full-tracing` feature. |
+| Shutdown timeout errors | `SB_SHUTDOWN_TIMEOUT_SECS` too low | Increase it for slow CI agents. |

@@ -1,6 +1,15 @@
 # CLI Usage (`sbase`)
 
-The `sbase` binary provides quick commands for common tasks.
+The `sbase` binary provides quick commands for common tasks: opening pages,
+running smoke tests, executing CDP commands, patching binaries, generating
+files, and more. This page covers the most common workflows.
+
+## What you will learn
+
+- How to build and invoke the CLI.
+- How to run smoke tests and assertions from the command line.
+- How to execute CDP commands and JSON scenarios.
+- How to patch binaries and diagnose the environment.
 
 ## Build the CLI
 
@@ -137,3 +146,24 @@ mkdir -p "$HOME/.zfunc"
 
 Ensure the destination directory exists. For Zsh, add `$HOME/.zfunc` to
 `fpath` before running `compinit`.
+
+## Common global flags
+
+| Flag | Description |
+|---|---|
+| `--uc` | Enable UC (undetected) mode. |
+| `--cdp` | Enable CDP mode. |
+| `--headless` | Run browser headlessly. |
+| `--browser NAME` | Select browser (`chrome`, `chromium`, `edge`, `firefox`). |
+| `--proxy URL` | Route traffic through a proxy. |
+| `--timeout SECS` | Set default timeout. |
+| `--verbose` | Increase log output. |
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `sbase: command not found` | Binary not on `PATH` | Use `./target/debug/sbase` or install with `cargo install --path .`. |
+| Subcommand flag ignored | Flag placed before subcommand | Put flags after the subcommand: `sbase open --headless`. |
+| CDP command fails | Not in CDP mode | Add `--cdp` or use a CDP-enabled config. |
+| `doctor` shows missing Chrome | Chrome not installed or not on PATH | Set `SB_CHROME_BIN` to the full path. |

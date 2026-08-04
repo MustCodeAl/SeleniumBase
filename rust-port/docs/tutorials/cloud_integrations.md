@@ -4,7 +4,16 @@ SeleniumBase for Rust can upload test artifacts (screenshots, logs, PDFs) to
 Amazon S3, Azure Blob Storage, and Google Cloud Storage. Each backend is behind
 an optional Cargo feature so the default build stays lightweight.
 
+## What you will learn
+
+- Which Cargo features enable each cloud backend.
+- How to authenticate with AWS, Azure, and GCS.
+- How to upload files from a test.
+- How to run the included `cloud_upload` example.
+
 ## Enabling backends
+
+Add the features you need:
 
 ```toml
 [dependencies]
@@ -106,3 +115,12 @@ cargo run --example cloud_upload --features s3,azure,gcp
 
 The example only performs an upload when the corresponding feature is enabled
 and the required environment variable is set.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Upload function not found | Feature not enabled | Add the matching feature in `Cargo.toml`. |
+| S3 credentials error | Missing `AWS_*` variables | Export `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. |
+| Azure SAS rejected | Token lacks write permission | Regenerate with `--permissions rw`. |
+| GCS token expired | `GCS_ACCESS_TOKEN` timed out | Re-run `gcloud auth print-access-token`. |

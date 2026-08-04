@@ -1,5 +1,9 @@
 # Common Problems
 
+This page collects common pitfalls and their solutions. If you run into
+something not listed here, enable debug logging with
+`RUST_LOG=seleniumbase_rs=debug` and check the error category and hint.
+
 ## Detected as a bot despite UC mode
 
 UC mode removes many fingerprints, but detection is layered. Check each defense:
@@ -149,3 +153,14 @@ DYLD_LIBRARY_PATH=~/.local/share/mise/installs/python/3.14.6/lib cargo test
 ```
 
 Adjust the path to match your Python installation.
+
+## Environment variable not applied
+
+Configuration uses the `SB_` prefix, not `SBASE_`. For example:
+
+```bash
+export SB_HEADLESS=true
+export SB_WEBDRIVER_URL=http://localhost:9515
+```
+
+See [Customizing Test Runs](./customizing_test_runs.md) for the full list.

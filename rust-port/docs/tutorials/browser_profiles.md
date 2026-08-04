@@ -9,6 +9,13 @@ persona, a set of masking modes, and optional runtime overrides. `seleniumbase-r
 translates the parts it can apply directly into `BrowserConfig`, command-line
 flags, CDP calls, and window settings.
 
+## What you will learn
+
+- The structure of a profile payload.
+- How masking modes map to `BrowserConfig` and `Fingerprint`.
+- How to load a profile programmatically.
+- How to use the Tauri profile-manager example.
+
 ## Supported fields
 
 The `ProfileParams` type mirrors a common `POST /profile/create` body:
@@ -421,4 +428,14 @@ show an `external` badge in the profile list.
 
 ## Further reading
 
+- [Fingerprint & Stealth Profiles](./fingerprint_stealth.md)
 - [BrowserLeaks](https://browserleaks.com/)
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Profile fails to parse | Unknown browser or OS type | Use `chromium`/`firefox`/`mobile_safari` and `linux`/`macos`/`windows`/`android`/`ios`. |
+| Custom values ignored | Flag is `mask` instead of `custom` | Set the corresponding flag to `custom`. |
+| Proxy not applied | `proxy_masking` is `disabled` | Set `proxy_masking: custom` and provide `parameters.proxy`. |
+| Native spoofing has no effect | Driver is in pure WebDriver mode | Use `DriverMode::Cdp` or `DriverMode::Uc`. |

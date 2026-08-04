@@ -1,7 +1,14 @@
 # Selenium IDE Migration
 
-SeleniumBase for Rust can parse legacy Selenium IDE `.html` test cases and turn
-them into a list of commands that you can replay with `BaseCase`.
+If you have legacy Selenium IDE `.html` test cases, SeleniumBase for Rust can
+parse them into a list of commands that you can replay with `BaseCase`. This
+guide shows how to migrate those tests into Rust code.
+
+## What you will learn
+
+- How to parse legacy `.html` IDE files and strings.
+- How to replay parsed commands with `BaseCase`.
+- Which commands map directly and which need manual translation.
 
 ## Parse an IDE HTML file
 
@@ -44,6 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "open" => sb.open(&cmd.target).await?,
             "type" => sb.type_text(&cmd.target, &cmd.value).await?,
             "click" => sb.click(&cmd.target).await?,
+            "assertText" => sb.assert_text_visible(&cmd.value, &cmd.target).await?,
             _ => println!("Unhandled command: {}", cmd.command),
         }
     }
@@ -64,7 +72,19 @@ The parser expects a simple HTML table with three cells per row:
 </tr>
 ```
 
-Rows with fewer than three cells are ignored.
+Rows with fewer than three cells are ignored. The `SeleniumIdeCommand` struct
+exposes `command`, `target`, and `value` as `String` fields.
+
+## Common command mappings
+
+| IDE command | `BaseCase` method |
+|---|---|
+| `open` | `open(url)` |
+| `type` | `type_text(selector, text)` |
+| `click` | `click(selector)` |
+| `assertText` | `assert_text_visible(text, selector)` |
+| `waitForElementPresent` | `wait_for_element_present(selector).await?` |
+| `pause` | `tokio::time::sleep(...).await` |
 
 ## Limitations
 
@@ -72,3 +92,5 @@ Rows with fewer than three cells are ignored.
   `.side` JSON format.
 - Flow-control commands (`if`, `while`, `storeEval`) are not interpreted;
   map them to Rust control flow manually.
+- Variables and stored values are not automatically carried over; use Rust
+  variables or the `store_*` helpers if available.

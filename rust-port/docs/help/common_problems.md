@@ -105,3 +105,47 @@ use seleniumbase_rs::{sb_open, sb_click, sb_test, selector};
 Action macros expand `.await` internally, so they must be called inside an
 `async` block or function. `sb_test!` generates a `#[tokio::test]` wrapper for
 you.
+
+## Errors are not descriptive enough
+
+Enable structured logging to see error category, transient/retry status, and a
+remediation hint:
+
+```rust
+use seleniumbase_rs::{init_tracing, ResultExt};
+
+init_tracing();
+
+// Errors are logged automatically when you use ResultExt::log_err:
+let _ = case.click("#missing").await.log_err();
+```
+
+Or configure `RUST_LOG` before running `sbase` / `seleniumbase-mcp`:
+
+```bash
+RUST_LOG=seleniumbase_rs=info,error cargo run --bin sbase -- open https://example.com
+```
+
+`SeleniumBaseError` provides helpers for programmatic handling:
+
+```rust
+match err {
+    e if e.is_transient() => retry().await,
+    e if e.is_skipped() => return Ok(()),
+    e if e.category() == "element_not_found" => {
+        println!("Hint: {}", e.hint().unwrap_or_default());
+    }
+    _ => return Err(err),
+}
+```
+
+## Python dylib error on macOS when running tests
+
+The test binary may link against a local `libpython3.14.dylib`. If tests fail to
+launch with a missing library error, point the loader at your Python install:
+
+```bash
+DYLD_LIBRARY_PATH=~/.local/share/mise/installs/python/3.14.6/lib cargo test
+```
+
+Adjust the path to match your Python installation.

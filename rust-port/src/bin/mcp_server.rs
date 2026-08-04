@@ -21,8 +21,20 @@ use rmcp::service::{RequestContext, RoleServer};
 use rmcp::transport::io::stdio;
 use seleniumbase_rs::{
     init_tracing, BaseCase, BrowserConfig, ChromedriverPatcher, EnginePatch, Fingerprint,
+    SeleniumBaseError,
 };
 use serde_json::{json, Value};
+
+/// Convert a crate error into a rich MCP `ErrorData` message, including a
+/// remediation hint when one is available.
+fn sb_error_to_mcp(tool: &str, err: SeleniumBaseError) -> ErrorData {
+    err.log_in_context(format!("mcp/{tool}"));
+    let mut message = format!("tool '{tool}' failed: {err}");
+    if let Some(hint) = err.hint() {
+        message.push_str(&format!("\n\nHint: {hint}"));
+    }
+    ErrorData::internal_error(message, None)
+}
 use tokio::sync::Mutex;
 
 /// Shared server state. The browser session is created lazily on the first
@@ -46,7 +58,7 @@ impl SeleniumBaseMcp {
         if guard.is_none() {
             let case = BaseCase::new(self.config.clone())
                 .await
-                .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                .map_err(|e| sb_error_to_mcp("start_session", e))?;
             *guard = Some(case);
         }
         Ok(guard)
@@ -283,7 +295,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     })?;
                     case.open(url)
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("open_url", e))?;
                     text(&format!("Opened {}", url))
                 }
                 "get_title" => {
@@ -294,7 +306,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     let title = case
                         .get_title()
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("get_title", e))?;
                     text(&title)
                 }
                 "get_url" => {
@@ -305,7 +317,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     let url = case
                         .get_url()
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("get_url", e))?;
                     text(&url)
                 }
                 "click" => {
@@ -321,7 +333,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     })?;
                     case.click(selector)
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("click", e))?;
                     text(&format!("Clicked {}", selector))
                 }
                 "type_text" => {
@@ -340,7 +352,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     })?;
                     case.type_text(selector, value)
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("type_text", e))?;
                     text(&format!("Typed '{}' into {}", value, selector))
                 }
                 "get_text" => {
@@ -357,7 +369,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     let t = case
                         .get_text(selector)
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("get_text", e))?;
                     text(&t)
                 }
                 "assert_text" => {
@@ -379,7 +391,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     })?;
                     match case.assert_text(selector, expected).await {
                         Ok(()) => text(&format!("'{}' contains '{}'", selector, expected)),
-                        Err(e) => error(&e.to_string()),
+                        Err(e) => error(&format!("{e}\n\nHint: {}", e.hint().unwrap_or_default())),
                     }
                 }
                 "execute_script" => {
@@ -393,7 +405,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     let value = case
                         .execute_script(script)
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("execute_script", e))?;
                     let value = serde_json::to_string(&value)
                         .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
                     text(&value)
@@ -401,9 +413,7 @@ impl ServerHandler for SeleniumBaseMcp {
                 "quit" => {
                     let mut guard = self.case.lock().await;
                     if let Some(case) = guard.take() {
-                        case.quit()
-                            .await
-                            .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        case.quit().await.map_err(|e| sb_error_to_mcp("quit", e))?;
                     }
                     text("Browser session closed")
                 }
@@ -417,7 +427,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     })?;
                     case.save_screenshot(path)
                         .await
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("screenshot", e))?;
                     text(&format!("Screenshot saved to {}", path))
                 }
                 "patch_chromedriver" => {
@@ -429,7 +439,7 @@ impl ServerHandler for SeleniumBaseMcp {
                     spec.backup = backup;
                     ChromedriverPatcher::new(path)
                         .patch(spec)
-                        .map_err(|e| ErrorData::internal_error(e.to_string(), None))?;
+                        .map_err(|e| sb_error_to_mcp("patch_chromedriver", e))?;
                     text(&format!("Patched chromedriver at {}", path))
                 }
                 "list_engine_spoofing_args" => {

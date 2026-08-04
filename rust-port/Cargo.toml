@@ -74,6 +74,8 @@ default = []
 playwright = ["dep:rustwright", "dep:rustwright-core"]
 # Extra tracing integrations (timing histograms, actix actor instrumentation).
 full-tracing = ["dep:tracing-timing", "dep:tracing-actix"]
+# Capture a backtrace for every SeleniumBaseError (useful for debugging).
+error-backtrace = []
 s3 = ["dep:rust-s3"]
 azure = ["dep:azure_storage_blob", "dep:azure_core"]
 gcp = []

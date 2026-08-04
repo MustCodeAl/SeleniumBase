@@ -26,6 +26,7 @@ pub async fn launch_chromedriver() -> Result<DriverProcess, SeleniumBaseError> {
     let binary = ensure_chromedriver_binary().await?;
     let url = format!("http://127.0.0.1:{port}");
 
+    let binary_str = binary.display().to_string();
     let child = Command::new(&binary)
         .arg(format!("--port={port}"))
         .arg("--disable-dev-shm-usage")
@@ -33,13 +34,15 @@ pub async fn launch_chromedriver() -> Result<DriverProcess, SeleniumBaseError> {
         .stderr(Stdio::null())
         .spawn()
         .map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!(
-                "failed to spawn chromedriver at {:?}: {}",
-                binary, e
-            ))
+            let err = SeleniumBaseError::browser_launch(
+                binary_str.clone(),
+                format!("failed to spawn chromedriver on port {port}: {e}"),
+            );
+            err.log_in_context("launch_chromedriver");
+            err
         })?;
 
-    wait_for_port(port, Duration::from_secs(15)).await?;
+    wait_for_port(port, Duration::from_secs(15), &binary_str).await?;
 
     Ok(DriverProcess { url, child })
 }
@@ -48,17 +51,21 @@ pub async fn launch_chromedriver() -> Result<DriverProcess, SeleniumBaseError> {
 fn find_free_port() -> Result<u16, SeleniumBaseError> {
     let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
     let listener = TcpListener::bind(addr).map_err(|e| {
-        SeleniumBaseError::InvalidConfig(format!("failed to bind ephemeral port: {e}"))
+        SeleniumBaseError::browser_launch("127.0.0.1:0", format!("bind failed: {e}"))
     })?;
     let port = listener.local_addr().map_err(|e| {
-        SeleniumBaseError::InvalidConfig(format!("failed to read local address: {e}"))
+        SeleniumBaseError::browser_launch("127.0.0.1:0", format!("local_addr failed: {e}"))
     })?;
     drop(listener);
     Ok(port.port())
 }
 
 /// Poll the port until the driver accepts a TCP connection or timeout.
-async fn wait_for_port(port: u16, timeout: Duration) -> Result<(), SeleniumBaseError> {
+async fn wait_for_port(
+    port: u16,
+    timeout: Duration,
+    binary: &str,
+) -> Result<(), SeleniumBaseError> {
     let addr = format!("127.0.0.1:{port}");
     let deadline = Instant::now() + timeout;
     loop {
@@ -66,10 +73,12 @@ async fn wait_for_port(port: u16, timeout: Duration) -> Result<(), SeleniumBaseE
             return Ok(());
         }
         if Instant::now() >= deadline {
-            return Err(SeleniumBaseError::WaitTimeout(format!(
-                "chromedriver did not start on port {port} within {:?}",
-                timeout
-            )));
+            let err = SeleniumBaseError::browser_launch(
+                binary.to_owned(),
+                format!("chromedriver did not accept connections on {addr} within {timeout:?}"),
+            );
+            err.log_in_context("wait_for_port");
+            return Err(err);
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
@@ -96,7 +105,8 @@ async fn ensure_chromedriver_binary() -> Result<PathBuf, SeleniumBaseError> {
         return Ok(downloaded);
     }
 
-    Err(SeleniumBaseError::InvalidConfig(
-        "chromedriver binary not found after download".to_owned(),
+    Err(SeleniumBaseError::browser_launch(
+        "chromedriver",
+        "binary not found in PATH or downloaded_drivers/ and download returned nothing",
     ))
 }

@@ -31,6 +31,10 @@ pub struct EnginePatch {
     pub scrub_webdriver_markers: bool,
     /// Replace `{window.cdc_...;}` blocks.
     pub replace_cdc_blocks: bool,
+    /// Replace hard-coded `ChromeDriver/<version>` strings.
+    pub scrub_chrome_version: bool,
+    /// Replace `navigator.webdriver = !0` / `= true` assignments.
+    pub patch_navigator_webdriver: bool,
     /// Create a `.orig` backup before patching.
     pub backup: bool,
 }
@@ -43,6 +47,8 @@ impl EnginePatch {
             randomize_cdc_prefix: true,
             scrub_webdriver_markers: true,
             replace_cdc_blocks: false,
+            scrub_chrome_version: false,
+            patch_navigator_webdriver: false,
             backup: true,
         }
     }
@@ -54,7 +60,18 @@ impl EnginePatch {
             randomize_cdc_prefix: true,
             scrub_webdriver_markers: true,
             replace_cdc_blocks: true,
+            scrub_chrome_version: true,
+            patch_navigator_webdriver: true,
             backup: true,
+        }
+    }
+
+    /// Aggressive set including version and navigator patches.
+    pub fn aggressive() -> Self {
+        Self {
+            scrub_chrome_version: true,
+            patch_navigator_webdriver: true,
+            ..Self::all()
         }
     }
 
@@ -92,23 +109,23 @@ impl<P: AsRef<Path>> ChromedriverPatcher<P> {
     /// Applies `spec` to the binary in-place.
     pub fn patch(&self, spec: EnginePatch) -> Result<(), SeleniumBaseError> {
         let path = self.path.as_ref();
+        let path_str = path.display().to_string();
         if spec.backup {
             let backup = self.backup_path();
             fs::copy(path, &backup).map_err(|e| {
-                SeleniumBaseError::InvalidConfig(format!(
-                    "failed to back up chromedriver to {}: {}",
-                    backup.display(),
-                    e
-                ))
+                SeleniumBaseError::patcher(
+                    &path_str,
+                    format!(
+                        "failed to back up chromedriver to {}: {}",
+                        backup.display(),
+                        e
+                    ),
+                )
             })?;
         }
 
         let mut content = fs::read(path).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!(
-                "failed to read chromedriver {}: {}",
-                path.display(),
-                e
-            ))
+            SeleniumBaseError::patcher(&path_str, format!("failed to read chromedriver: {e}"))
         })?;
 
         if spec.scrub_cdc_props {
@@ -123,43 +140,55 @@ impl<P: AsRef<Path>> ChromedriverPatcher<P> {
         if spec.replace_cdc_blocks {
             content = replace_cdc_blocks(content);
         }
+        if spec.scrub_chrome_version {
+            content = scrub_chrome_version_strings(content);
+        }
+        if spec.patch_navigator_webdriver {
+            content = patch_navigator_webdriver_assignments(content);
+        }
 
         fs::write(path, content).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!(
-                "failed to write patched chromedriver {}: {}",
-                path.display(),
-                e
-            ))
+            let err = SeleniumBaseError::patcher(
+                &path_str,
+                format!("failed to write patched chromedriver: {e}"),
+            );
+            err.log_in_context("ChromedriverPatcher::patch");
+            err
         })?;
         Ok(())
     }
 
     /// Restores the binary from the `.orig` backup if it exists.
     pub fn restore(&self) -> Result<(), SeleniumBaseError> {
+        let path_str = self.path.as_ref().display().to_string();
         let backup = self.backup_path();
         if !backup.exists() {
-            return Err(SeleniumBaseError::InvalidConfig(
-                "no .orig backup found to restore".to_owned(),
+            return Err(SeleniumBaseError::patcher(
+                &path_str,
+                "no .orig backup found to restore",
             ));
         }
         fs::copy(&backup, self.path.as_ref()).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!(
-                "failed to restore chromedriver from {}: {}",
-                backup.display(),
-                e
-            ))
+            SeleniumBaseError::patcher(
+                &path_str,
+                format!(
+                    "failed to restore chromedriver from {}: {}",
+                    backup.display(),
+                    e
+                ),
+            )
         })?;
         Ok(())
     }
 
     /// Returns true if known automation markers are still present.
     pub fn needs_patch(&self) -> Result<bool, SeleniumBaseError> {
+        let path_str = self.path.as_ref().display().to_string();
         let content = fs::read(self.path.as_ref()).map_err(|e| {
-            SeleniumBaseError::InvalidConfig(format!(
-                "failed to read chromedriver {}: {}",
-                self.path.as_ref().display(),
-                e
-            ))
+            let err =
+                SeleniumBaseError::patcher(&path_str, format!("failed to read chromedriver: {e}"));
+            err.log_in_context("ChromedriverPatcher::needs_patch");
+            err
         })?;
         Ok(has_automation_markers(&content))
     }
@@ -173,6 +202,8 @@ fn has_automation_markers(content: &[u8]) -> bool {
             Regex::new(r#"['\"]?\$cdc_[a-zA-Z0-9]{22}_['\"]?"#).unwrap(),
             Regex::new(r"__webdriver|__selenium|__driver").unwrap(),
             Regex::new(r"\{window\.cdc.*?;\}").unwrap(),
+            Regex::new(r"ChromeDriver/\d+\.\d+\.\d+\.\d+").unwrap(),
+            Regex::new(r"navigator\.webdriver\s*=\s*(!0|true)").unwrap(),
         ]
     });
     patterns.iter().any(|re| re.is_match(content))
@@ -249,6 +280,36 @@ fn replace_cdc_blocks(mut content: Vec<u8>) -> Vec<u8> {
             } else {
                 out.truncate(caps[0].len());
             }
+            out
+        })
+        .into_owned();
+    content
+}
+
+fn scrub_chrome_version_strings(mut content: Vec<u8>) -> Vec<u8> {
+    let re = Regex::new(r"ChromeDriver/\d+\.\d+\.\d+\.\d+").unwrap();
+    content = re
+        .replace_all(&content, |caps: &regex::bytes::Captures| {
+            vec![b' '; caps[0].len()]
+        })
+        .into_owned();
+    content
+}
+
+fn patch_navigator_webdriver_assignments(mut content: Vec<u8>) -> Vec<u8> {
+    let re = Regex::new(r"navigator\.webdriver\s*=\s*(!0|true)").unwrap();
+    content = re
+        .replace_all(&content, |caps: &regex::bytes::Captures| {
+            let matched = &caps[0];
+            let prefix_len = matched
+                .windows(2)
+                .position(|w| w == b"= ")
+                .map(|i| i + 2)
+                .unwrap_or(matched.len().saturating_sub(4));
+            let mut out = Vec::with_capacity(matched.len());
+            out.extend_from_slice(&matched[..prefix_len]);
+            out.extend_from_slice(b"false");
+            out.extend(vec![b' '; matched.len().saturating_sub(out.len())]);
             out
         })
         .into_owned();

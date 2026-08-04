@@ -48,7 +48,7 @@ pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
 pub use browser::session::BrowserSession;
-pub use error::{Result, SeleniumBaseError};
+pub use error::{Result, ResultExt, SeleniumBaseError};
 pub use stealth::fingerprint::{
     BatteryProfile, BrandVersion, BrowserType, CanvasNoiseMode, ClientHints, CoherenceReport,
     ConnectionProfile, Fingerprint, HumanizeConfig, MaskingMode, NoiseMode, OsType, PopupMode,

@@ -85,9 +85,8 @@ impl<'a> CdpPage<'a> {
                 json!({"nodeId": 1, "selector": selector}),
             )
             .await?;
-        CdpNode::from_query_result(&response, selector).ok_or_else(|| {
-            SeleniumBaseError::InvalidSelector(format!("Element not found: {selector}"))
-        })
+        CdpNode::from_query_result(&response, selector)
+            .ok_or_else(|| SeleniumBaseError::element_not_found(selector))
     }
 
     /// Finds all elements matching `selector` via `DOM.querySelectorAll`.
@@ -102,9 +101,7 @@ impl<'a> CdpPage<'a> {
         let node_ids = response
             .get("nodeIds")
             .and_then(|v| v.as_array())
-            .ok_or_else(|| {
-                SeleniumBaseError::Unsupported("DOM.querySelectorAll missing nodeIds".to_owned())
-            })?;
+            .ok_or_else(|| SeleniumBaseError::cdp_driver("DOM.querySelectorAll missing nodeIds"))?;
         Ok(node_ids
             .iter()
             .filter_map(|v| v.as_i64().map(|id| CdpNode::from_node_id(id, selector)))

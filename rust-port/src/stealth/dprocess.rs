@@ -14,7 +14,10 @@ pub fn find_chromedriver() -> Option<PathBuf> {
 /// Starts `chromedriver` on `port` as a detached background process.
 pub fn start_chromedriver(port: u16) -> Result<Child, SeleniumBaseError> {
     let binary = find_chromedriver().ok_or_else(|| {
-        SeleniumBaseError::InvalidConfig("chromedriver not found in PATH".to_owned())
+        SeleniumBaseError::browser_launch(
+            "chromedriver",
+            "binary not found in PATH; install chromedriver or set an explicit path",
+        )
     })?;
     start_detached(&binary, &["--port".to_owned(), port.to_string()])
 }
@@ -33,17 +36,30 @@ pub fn start_detached<P: AsRef<Path>>(
     #[cfg(unix)]
     cmd.process_group(0);
 
-    cmd.spawn()
-        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to spawn process: {e}")))
+    let binary = binary.as_ref().display().to_string();
+    cmd.spawn().map_err(|e| {
+        let err =
+            SeleniumBaseError::browser_launch(binary.clone(), format!("failed to spawn: {e}"));
+        err.log_in_context("start_detached");
+        err
+    })
 }
 
 /// Kills a child process started with the helpers above.
 pub fn kill_process(child: &mut Child) -> Result<(), SeleniumBaseError> {
-    child
-        .kill()
-        .map_err(|e| SeleniumBaseError::InvalidConfig(format!("failed to kill process: {e}")))?;
+    let pid = child.id();
+    child.kill().map_err(|e| {
+        let err =
+            SeleniumBaseError::browser_disconnected(format!("failed to kill process {pid}: {e}"));
+        err.log_in_context("kill_process");
+        err
+    })?;
     child.wait().map_err(|e| {
-        SeleniumBaseError::InvalidConfig(format!("failed to wait for process: {e}"))
+        let err = SeleniumBaseError::browser_disconnected(format!(
+            "failed to wait for process {pid} after kill: {e}"
+        ));
+        err.log_in_context("kill_process");
+        err
     })?;
     Ok(())
 }

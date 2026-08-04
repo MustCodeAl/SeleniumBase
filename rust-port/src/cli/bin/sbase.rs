@@ -89,34 +89,41 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    Open {
-        url: String,
-    },
+    /// Open a URL in the browser.
+    Open { url: String },
+    /// Run a smoke test against a URL.
     Smoke {
         url: String,
         #[arg(long)]
         title_contains: Option<String>,
     },
+    /// Execute a Chrome DevTools Protocol command.
     Cdp {
         #[arg(long)]
         cmd: String,
         #[arg(long)]
         params: Option<String>,
     },
+    /// Clear the browser cache via CDP.
     CacheClear,
+    /// Throttle the browser connection to 3G speeds.
     Throttle3g,
+    /// Capture a screenshot of the current page.
     Screenshot {
         #[arg(long)]
         path: Option<String>,
     },
+    /// Save the current page source to a file.
     SaveSource {
         #[arg(long)]
         path: Option<String>,
     },
+    /// Assert that an element exists.
     AssertElement {
         #[arg(long)]
         css: String,
     },
+    /// Wait until an element contains the expected text.
     WaitForText {
         #[arg(long)]
         css: String,
@@ -125,16 +132,19 @@ enum Commands {
         #[arg(long, default_value_t = 10)]
         timeout: u64,
     },
+    /// Hover over an element.
     Hover {
         #[arg(long)]
         css: String,
     },
+    /// Hover over one element, then click another.
     HoverAndClick {
         #[arg(long)]
         hover_css: String,
         #[arg(long)]
         click_css: String,
     },
+    /// Select an option from a dropdown.
     SelectOption {
         #[arg(long)]
         css: String,
@@ -143,35 +153,44 @@ enum Commands {
         #[arg(long)]
         value: Option<String>,
     },
+    /// Drag one element onto another.
     DragAndDrop {
         #[arg(long)]
         source_css: String,
         #[arg(long)]
         target_css: String,
     },
+    /// Click an element using CDP.
     CdpClickElement {
         #[arg(long)]
         css: String,
     },
+    /// Type text using CDP input injection.
     CdpTypeText {
         #[arg(long)]
         text: String,
     },
 
+    /// Navigate back in browser history.
     GoBack,
+    /// Navigate forward in browser history.
     GoForward,
+    /// Reload the current page.
     Refresh,
 
+    /// Print the visible text of an element.
     GetText {
         #[arg(long)]
         css: String,
     },
+    /// Print an element attribute value.
     GetAttribute {
         #[arg(long)]
         css: String,
         #[arg(long)]
         attribute: String,
     },
+    /// Print an element property value.
     GetProperty {
         #[arg(long)]
         css: String,
@@ -179,61 +198,81 @@ enum Commands {
         property: String,
     },
 
+    /// Print the page title.
     GetTitle,
+    /// Print the current URL.
     GetCurrentUrl,
 
+    /// Delete all browser cookies.
     ClearCookies,
 
+    /// Accept the active browser alert.
     AcceptAlert,
+    /// Dismiss the active browser alert.
     DismissAlert,
+    /// Print the text of the active alert.
     GetAlertText,
+    /// Type text into the active alert prompt.
     TypeAlertText {
         #[arg(long)]
         text: String,
     },
+    /// Clear the page local storage.
     ClearLocalStorage,
+    /// Print a local storage value by key.
     GetLocalStorageItem {
         #[arg(long)]
         key: String,
     },
+    /// Set a local storage key/value pair.
     SetLocalStorageItem {
         #[arg(long)]
         key: String,
         #[arg(long)]
         value: String,
     },
+    /// Remove a local storage entry by key.
     RemoveLocalStorageItem {
         #[arg(long)]
         key: String,
     },
+    /// Switch focus to a window by handle.
     SwitchToWindow {
         #[arg(long)]
         handle: String,
     },
+    /// Switch focus to an iframe.
     SwitchToFrame {
         #[arg(long)]
         css: String,
     },
+    /// Switch focus back to the main document.
     SwitchToDefaultContent,
 
+    /// Print all browser cookies as JSON.
     GetCookies,
+    /// Export the recorded test actions.
     ExportRecording,
+    /// Patch a chromedriver binary to reduce detection surface.
     PatchChromedriver {
         #[arg(long)]
         path: String,
     },
+    /// Assert that an element contains the expected text.
     AssertTextVisible {
         #[arg(long)]
         css: String,
         #[arg(long)]
         text: String,
     },
+    /// Assert that an element does not contain the given text.
     AssertTextNotVisible {
         #[arg(long)]
         css: String,
         #[arg(long)]
         text: String,
     },
+    /// Assert an element attribute equals an expected value.
     AssertAttribute {
         #[arg(long)]
         css: String,
@@ -242,168 +281,216 @@ enum Commands {
         #[arg(long)]
         value: String,
     },
+    /// Assert the page title contains the expected text.
     AssertTitle {
         #[arg(long)]
         text: String,
     },
+    /// Wait until the document readyState is complete.
     WaitForReadyStateComplete,
+    /// Print the browser window position.
     GetWindowPosition,
+    /// Set the browser window position.
     SetWindowPosition {
         #[arg(long)]
         x: u32,
         #[arg(long)]
         y: u32,
     },
+    /// Close the current browser window.
     CloseWindow,
+    /// Switch focus to the parent frame.
     SwitchToParentFrame,
+    /// Print whether an element is visible.
     IsElementVisible {
         #[arg(long)]
         css: String,
     },
+    /// Print whether the expected text is visible in an element.
     IsTextVisible {
         #[arg(long)]
         css: String,
         #[arg(long)]
         text: String,
     },
+    /// Wait until an element is no longer visible.
     WaitForElementNotVisible {
         #[arg(long)]
         css: String,
         #[arg(long, default_value_t = 10)]
         timeout: u64,
     },
+    /// Save browser cookies to a JSON file.
     SaveCookies {
         #[arg(long)]
         file: String,
     },
+    /// Load browser cookies from a JSON file.
     LoadCookies {
         #[arg(long)]
         file: String,
     },
+    /// Highlight an element, then click it.
     HighlightClick {
         #[arg(long)]
         css: String,
     },
+    /// Print whether a checkbox is checked.
     IsChecked {
         #[arg(long)]
         css: String,
     },
+    /// Check a checkbox only if it is unchecked.
     CheckIfUnchecked {
         #[arg(long)]
         css: String,
     },
+    /// Uncheck a checkbox only if it is checked.
     UncheckIfChecked {
         #[arg(long)]
         css: String,
     },
+    /// Open a new browser window.
     OpenNewWindow,
+    /// Open a new browser tab.
     OpenNewTab,
+    /// Switch focus to the newest browser window.
     SwitchToNewestWindow,
+    /// Switch focus to the default window.
     SwitchToDefaultWindow,
+    /// Print a CSS selector for the currently focused element.
     GetActiveElementCss,
+    /// Wait until an element is present in the DOM.
     WaitForElementPresent {
         #[arg(long)]
         css: String,
         #[arg(long, default_value_t = 10)]
         timeout: u64,
     },
+    /// Append text to an input or textarea.
     AddText {
         #[arg(long)]
         css: String,
         #[arg(long)]
         text: String,
     },
+    /// Send keystrokes to an element.
     SendKeys {
         #[arg(long)]
         css: String,
         #[arg(long)]
         text: String,
     },
+    /// Print the value of a form element.
     GetValue {
         #[arg(long)]
         css: String,
     },
+    /// Click all visible elements matching a selector.
     ClickVisibleElements {
         #[arg(long)]
         css: String,
     },
+    /// Wait for an alert, then accept it.
     WaitForAndAcceptAlert {
         #[arg(long, default_value_t = 10)]
         timeout: u64,
     },
+    /// Wait for an alert, then dismiss it.
     WaitForAndDismissAlert {
         #[arg(long, default_value_t = 10)]
         timeout: u64,
     },
+    /// Print whether a link with the given text is visible.
     IsLinkTextVisible {
         #[arg(long)]
         text: String,
     },
+    /// Print whether a link containing the given text is visible.
     IsPartialLinkTextVisible {
         #[arg(long)]
         text: String,
     },
+    /// Assert a link with the given text is visible.
     AssertLinkText {
         #[arg(long)]
         text: String,
     },
+    /// Click a link containing the given text.
     ClickPartialLinkText {
         #[arg(long)]
         text: String,
     },
+    /// Type text with human-like timing and noise.
     HumanType {
         #[arg(long)]
         css: String,
         #[arg(long)]
         text: String,
     },
+    /// Click an element with human-like timing and noise.
     HumanClick {
         #[arg(long)]
         css: String,
     },
+    /// Smoothly scroll an element into view.
     SmoothScrollTo {
         #[arg(long)]
         css: String,
     },
+    /// Perform a UC-mode click on an element.
     UcClick {
         #[arg(long)]
         css: String,
     },
+    /// Perform UC-mode typing into an element.
     UcType {
         #[arg(long)]
         css: String,
         #[arg(long)]
         text: String,
     },
+    /// Install required dependencies and artifacts.
     Install,
+    /// Create a directory.
     Mkdir {
         #[arg(long)]
         dir: String,
     },
+    /// Create a file.
     Mkfile {
         #[arg(long)]
         file: String,
     },
+    /// Launch the interactive commander GUI.
     Commander,
+    /// Generate case plans.
     Caseplans,
+    /// Launch the behave/Gherkin GUI.
     BehaveGui,
+    /// Print a file.
     Print {
         #[arg(long)]
         file: String,
     },
+    /// Objectify a test recording.
     Objectify,
+    /// Create an HTML presentation.
     Mkpres {
         #[arg(long)]
         file: String,
     },
+    /// Create an HTML chart.
     Mkchart {
         #[arg(long)]
         file: String,
     },
+    /// Create a test recording scaffold.
     Mkrec {
         #[arg(long)]
         file: String,
     },
+    /// Run a scenario file and write an optional dashboard.
     RunScenario {
         #[arg(long)]
         file: String,

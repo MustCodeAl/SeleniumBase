@@ -24,10 +24,16 @@ impl CdpReactor {
         port: u16,
         header_overrides: HashMap<String, String>,
     ) -> Result<Self, SeleniumBaseError> {
-        let ws_url = discover_ws_url(host, port).await?;
-        let (mut ws_stream, _) = connect_async(&ws_url)
-            .await
-            .map_err(|e| SeleniumBaseError::CdpDriver(format!("connect failed: {e}")))?;
+        let ws_url = discover_ws_url(host, port).await.inspect_err(|e| {
+            e.log_in_context("CdpReactor::start");
+        })?;
+        let (mut ws_stream, _) = connect_async(&ws_url).await.map_err(|e| {
+            let err = SeleniumBaseError::browser_disconnected(format!(
+                "CDP WebSocket connect to {ws_url} failed: {e}"
+            ));
+            err.log_in_context("CdpReactor::start");
+            err
+        })?;
 
         // Enable Fetch domain and wait for the command acknowledgement.
         let enable = json!({
@@ -38,14 +44,18 @@ impl CdpReactor {
         ws_stream
             .send(Message::Text(enable.to_string().into()))
             .await
-            .map_err(|e| SeleniumBaseError::CdpDriver(format!("send failed: {e}")))?;
+            .map_err(|e| SeleniumBaseError::cdp_driver(format!("Fetch.enable send failed: {e}")))?;
 
         loop {
             let msg = ws_stream
                 .next()
                 .await
-                .ok_or_else(|| SeleniumBaseError::CdpDriver("stream closed".to_owned()))?
-                .map_err(|e| SeleniumBaseError::CdpDriver(format!("recv failed: {e}")))?;
+                .ok_or_else(|| {
+                    SeleniumBaseError::browser_disconnected(
+                        "CDP stream closed while waiting for Fetch.enable response".to_owned(),
+                    )
+                })?
+                .map_err(|e| SeleniumBaseError::cdp_driver(format!("recv failed: {e}")))?;
             if let Message::Text(text) = msg {
                 if let Ok(value) = serde_json::from_str::<Value>(&text) {
                     if value.get("id").and_then(|v| v.as_u64()) == Some(1) {
@@ -105,20 +115,31 @@ async fn discover_ws_url(host: &str, port: u16) -> Result<String, SeleniumBaseEr
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
-        .map_err(|e| SeleniumBaseError::CdpDriver(format!("http client: {e}")))?;
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| SeleniumBaseError::CdpDriver(format!("version request: {e}")))?;
+        .map_err(|e| SeleniumBaseError::cdp_driver(format!("http client: {e}")))?;
+    let response =
+        client.get(&url).send().await.map_err(|e| {
+            SeleniumBaseError::network(url.clone(), 0, format!("version request: {e}"))
+        })?;
+    let status = response.status().as_u16();
+    if !response.status().is_success() {
+        return Err(SeleniumBaseError::network(
+            url,
+            status,
+            "non-success status from /json/version".to_owned(),
+        ));
+    }
     let json: Value = response
         .json()
         .await
-        .map_err(|e| SeleniumBaseError::CdpDriver(format!("version json: {e}")))?;
+        .map_err(|e| SeleniumBaseError::cdp_driver(format!("version json: {e}")))?;
     json.get("webSocketDebuggerUrl")
         .and_then(|v| v.as_str())
         .map(|s| s.to_owned())
-        .ok_or_else(|| SeleniumBaseError::CdpDriver("webSocketDebuggerUrl missing".to_owned()))
+        .ok_or_else(|| {
+            SeleniumBaseError::cdp_driver(format!(
+                "webSocketDebuggerUrl missing in response from {url}"
+            ))
+        })
 }
 
 fn is_request_paused(value: &Value) -> bool {

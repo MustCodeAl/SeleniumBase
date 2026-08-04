@@ -107,9 +107,43 @@ The crate uses Cargo features to keep heavy dependencies off by default:
 | `azure` | Enables Azure Blob Storage artifact uploads. |
 | `gcp` | Placeholder for Google Cloud integrations. |
 | `mcp-server` | Builds the `seleniumbase-mcp` binary using `rmcp`. |
+| `full-tracing` | Enables `tracing-timing` histograms and `tracing-actix` actor instrumentation. |
+| `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. |
 
 When adding feature-gated code, use `#[cfg(feature = "...")]` and declare the
 dependency as `optional = true` in `Cargo.toml`.
+
+## Error design
+
+`SeleniumBaseError` is a rich, structured error enum:
+
+* **Element errors** carry the selector and detected strategy:
+  `ElementNotFound`, `ElementNotInteractable`, `StaleElement`,
+  `InvalidSelector`.
+* **Lifecycle errors** carry the binary path or URL:
+  `BrowserLaunch`, `BrowserDisconnected`, `Navigation`, `SessionNotStarted`.
+* **Subsystem errors** give context without string parsing:
+  `Patcher`, `Stealth`, `Network`, `Download`, `Screenshot`, `Pdf`,
+  `CdpDriver`, `Playwright`, `Mcp`, `PythonMigration`.
+
+Every error exposes:
+
+* `category()` — a stable snake_case tag for dashboards.
+* `is_transient()` — `true` for retryable network/disconnect/timeout failures.
+* `is_skipped()` — `true` for the `Skipped` variant.
+* `hint()` — a one-sentence remediation hint when available.
+* `log()` / `log_in_context(op)` — structured `tracing::error!` events.
+
+Use the `ResultExt` trait to attach context:
+
+```rust
+use seleniumbase_rs::{Result, ResultExt};
+
+fn read_config(path: &str) -> Result<String> {
+    std::fs::read_to_string(path)
+        .sb_context(format!("loading config from {path}"))
+}
+```
 
 ## What is not covered
 

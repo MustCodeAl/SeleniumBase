@@ -39,7 +39,14 @@ fn platform_label() -> Result<&'static str, SeleniumBaseError> {
 async fn fetch_version_info(client: &Client) -> Result<serde_json::Value, SeleniumBaseError> {
     let url =
         "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
-    let response = client.get(url).send().await.map_err(io_error)?;
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| map_download_error(url, e))?;
+    if !response.status().is_success() {
+        return Err(map_network_error(url, response));
+    }
     response.json().await.map_err(io_error)
 }
 
@@ -71,10 +78,19 @@ async fn extract_chromedriver(
     download_url: &str,
     dest_dir: &Path,
 ) -> Result<PathBuf, SeleniumBaseError> {
-    let response = client.get(download_url).send().await.map_err(io_error)?;
+    let response = client
+        .get(download_url)
+        .send()
+        .await
+        .map_err(|e| map_download_error(download_url, e))?;
+    if !response.status().is_success() {
+        return Err(map_network_error(download_url, response));
+    }
     let bytes = response.bytes().await.map_err(io_error)?;
     let reader = Cursor::new(bytes);
-    let mut archive = ZipArchive::new(reader).map_err(io_error)?;
+    let mut archive = ZipArchive::new(reader).map_err(|e| {
+        SeleniumBaseError::download(download_url, format!("failed to open ZIP archive: {e}"))
+    })?;
 
     for index in 0..archive.len() {
         let mut file = archive.by_index(index).map_err(io_error)?;
@@ -94,8 +110,9 @@ async fn extract_chromedriver(
         }
     }
 
-    Err(SeleniumBaseError::Unsupported(
-        "chromedriver executable not found in ZIP archive".to_owned(),
+    Err(SeleniumBaseError::download(
+        download_url,
+        "chromedriver executable not found in ZIP archive",
     ))
 }
 
@@ -111,5 +128,14 @@ fn make_executable(path: &Path) -> Result<(), SeleniumBaseError> {
 }
 
 fn io_error(err: impl std::fmt::Display) -> SeleniumBaseError {
-    SeleniumBaseError::Unsupported(err.to_string())
+    SeleniumBaseError::Io(std::io::Error::other(err.to_string()))
+}
+
+fn map_download_error(url: impl Into<String>, err: impl std::fmt::Display) -> SeleniumBaseError {
+    SeleniumBaseError::download(url, err.to_string())
+}
+
+fn map_network_error(url: impl Into<String>, response: reqwest::Response) -> SeleniumBaseError {
+    let status = response.status().as_u16();
+    SeleniumBaseError::network(url, status, response.status().to_string())
 }

@@ -51,3 +51,37 @@ async fn login_flow(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), Box<dyn st
 The Tauri app also initializes `tracing_subscriber` in `src-tauri/src/lib.rs`.
 Its REST API logs each endpoint call so you can correlate UI actions with local
 HTTP requests.
+
+## Error diagnostics
+
+Errors are emitted as structured `tracing::error!` events. Each event includes:
+
+* `error.category` — stable tag such as `element_not_found` or `browser_launch`.
+* `error.transient` — whether the failure is retryable.
+* `error.hint` — a short remediation suggestion.
+
+Example output:
+
+```text
+ERROR seleniumbase_rs::stealth::patcher: binary patch failed for 'chromedriver': failed to read chromedriver: No such file error.category=patcher error.transient=false error.hint="Ensure 'chromedriver' is a valid chromedriver binary and that you have write permissions."
+```
+
+You can also log errors manually:
+
+```rust
+use seleniumbase_rs::{Result, ResultExt};
+
+async fn example() -> Result<()> {
+    // Log on error but still return the original error:
+    do_something().await.log_err()?;
+
+    // Or attach context and log:
+    do_something_else()
+        .sb_context("while loading profile")
+        .log_err()?;
+    Ok(())
+}
+```
+
+Enable the `full-tracing` feature for additional timing histograms and Actix
+actor instrumentation.

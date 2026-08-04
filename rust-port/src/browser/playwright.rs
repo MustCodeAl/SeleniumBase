@@ -102,16 +102,19 @@ impl PlaywrightSession {
         };
 
         let (browser, page) = tokio::task::spawn_blocking(move || {
-            let browser = chromium()
-                .launch(options)
-                .map_err(|e| SeleniumBaseError::Playwright(format!("launch failed: {e}")))?;
+            let browser = chromium().launch(options).map_err(|e| {
+                let err =
+                    SeleniumBaseError::browser_launch("chromium (playwright)", format!("{e}"));
+                err.log_in_context("PlaywrightSession::new");
+                err
+            })?;
             let page = browser
                 .new_page()
-                .map_err(|e| SeleniumBaseError::Playwright(format!("new page failed: {e}")))?;
+                .map_err(|e| SeleniumBaseError::playwright(format!("new page failed: {e}")))?;
             Ok::<_, SeleniumBaseError>((browser, page))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
 
         if let Some(fp) = fingerprint {
             let script = crate::stealth::evasions::bootstrap_script(&fp);
@@ -126,10 +129,10 @@ impl PlaywrightSession {
         let expression = expression.to_owned();
         let value = tokio::task::spawn_blocking(move || {
             page.evaluate(&expression, None, ActionOptions::default())
-                .map_err(|e| SeleniumBaseError::Playwright(format!("evaluate failed: {e}")))
+                .map_err(|e| SeleniumBaseError::playwright(format!("evaluate failed: {e}")))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(value)
     }
 
@@ -139,10 +142,10 @@ impl PlaywrightSession {
         self.page = tokio::task::spawn_blocking(move || {
             browser
                 .new_page()
-                .map_err(|e| SeleniumBaseError::Playwright(format!("new page failed: {e}")))
+                .map_err(|e| SeleniumBaseError::playwright(format!("new page failed: {e}")))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(())
     }
 
@@ -152,10 +155,10 @@ impl PlaywrightSession {
         let url = url.to_owned();
         tokio::task::spawn_blocking(move || {
             page.goto(&url, rustwright::GotoOptions::default())
-                .map_err(|e| SeleniumBaseError::Playwright(format!("goto failed: {e}")))
+                .map_err(|e| SeleniumBaseError::navigation(url, format!("{e}")))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(())
     }
 
@@ -165,10 +168,10 @@ impl PlaywrightSession {
         let selector = selector.to_owned();
         tokio::task::spawn_blocking(move || {
             page.click(&selector, ActionOptions::default())
-                .map_err(|e| SeleniumBaseError::Playwright(format!("click failed: {e}")))
+                .map_err(|e| classify_playwright_element_error(&selector, "click", e.to_string()))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(())
     }
 
@@ -179,10 +182,10 @@ impl PlaywrightSession {
         let text = text.to_owned();
         tokio::task::spawn_blocking(move || {
             page.fill(&selector, &text, ActionOptions::default())
-                .map_err(|e| SeleniumBaseError::Playwright(format!("type_text failed: {e}")))
+                .map_err(|e| classify_playwright_element_error(&selector, "fill", e.to_string()))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(())
     }
 
@@ -192,11 +195,13 @@ impl PlaywrightSession {
         let selector = selector.to_owned();
         let text = tokio::task::spawn_blocking(move || {
             page.text_content(&selector, ActionOptions::default())
-                .map_err(|e| SeleniumBaseError::Playwright(format!("get_text failed: {e}")))
+                .map_err(|e| {
+                    classify_playwright_element_error(&selector, "text_content", e.to_string())
+                })
                 .map(|text| text.unwrap_or_default())
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(text)
     }
 
@@ -206,10 +211,10 @@ impl PlaywrightSession {
         let expression = expression.to_owned();
         let value = tokio::task::spawn_blocking(move || {
             page.evaluate(&expression, None, ActionOptions::default())
-                .map_err(|e| SeleniumBaseError::Playwright(format!("evaluate failed: {e}")))
+                .map_err(|e| SeleniumBaseError::playwright(format!("evaluate failed: {e}")))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(value)
     }
 
@@ -220,10 +225,10 @@ impl PlaywrightSession {
         tokio::task::spawn_blocking(move || {
             let options = ScreenshotOptions::default().path(path.to_string_lossy().to_string());
             page.screenshot(options)
-                .map_err(|e| SeleniumBaseError::Playwright(format!("screenshot failed: {e}")))
+                .map_err(|e| SeleniumBaseError::screenshot(format!("{e}")))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(())
     }
 
@@ -233,10 +238,31 @@ impl PlaywrightSession {
         tokio::task::spawn_blocking(move || {
             browser
                 .close()
-                .map_err(|e| SeleniumBaseError::Playwright(format!("close failed: {e}")))
+                .map_err(|e| SeleniumBaseError::playwright(format!("close failed: {e}")))
         })
         .await
-        .map_err(|e| SeleniumBaseError::Playwright(format!("blocking task failed: {e}")))??;
+        .map_err(|e| SeleniumBaseError::playwright(format!("blocking task failed: {e}")))??;
         Ok(())
+    }
+}
+
+fn classify_playwright_element_error(
+    selector: &str,
+    action: &str,
+    msg: String,
+) -> SeleniumBaseError {
+    let lower = msg.to_lowercase();
+    if lower.contains("timeout") || lower.contains("waiting") && lower.contains("failed") {
+        SeleniumBaseError::wait_timeout(format!("{action} {selector}"), None)
+    } else if lower.contains("not found") || lower.contains("no node") || lower.contains("selector")
+    {
+        SeleniumBaseError::element_not_found(selector)
+    } else if lower.contains("not visible")
+        || lower.contains("interactable")
+        || lower.contains("hidden")
+    {
+        SeleniumBaseError::element_not_interactable(selector, msg)
+    } else {
+        SeleniumBaseError::playwright(format!("{action} on '{selector}' failed: {msg}"))
     }
 }
